@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { JWT_Payload } from './types';
 
 export enum TokenType {
   ACCESS = 'access',
@@ -13,7 +14,7 @@ export class TokenService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
-  async generateToken(payLoad: any, type: TokenType): Promise<string> {
+  async generateToken(payLoad: JWT_Payload, type: TokenType): Promise<string> {
     const secretKey =
       type === TokenType.ACCESS
         ? this.configService.get<string>('AC_SECRET')

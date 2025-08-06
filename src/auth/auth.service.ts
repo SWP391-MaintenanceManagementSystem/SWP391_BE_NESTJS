@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { AccountService } from 'src/account/account.service';
 import { SignUpDTO } from './dto/signup.dto';
 import { CreateAccountDTO } from 'src/account/dto/create-account';
@@ -10,6 +6,7 @@ import { comparePassword, hashPassword } from 'src/utils';
 import { SignInDTO } from './dto/signin.dto';
 import { TokenService, TokenType } from './token.service';
 import { Account } from '@prisma/client';
+import { JWT_Payload } from './types';
 
 @Injectable()
 export class AuthService {
@@ -27,7 +24,7 @@ export class AuthService {
 
     const existingAccount = await this.accountService.getAccountByEmail(email);
     if (existingAccount) {
-      throw new UnauthorizedException('Account with this email already exists');
+      throw new BadRequestException('Account with this email already exists');
     }
 
     const hashedPassword = await hashPassword(password);
@@ -42,7 +39,7 @@ export class AuthService {
     return await this.accountService.createAccount(newAccount);
   }
 
-  async validateUser(signInDTO: SignInDTO) {
+  async validateUser(signInDTO: SignInDTO): Promise<Account | null> {
     const account = await this.accountService.getAccountByEmail(
       signInDTO.email,
     );
@@ -59,17 +56,28 @@ export class AuthService {
     return account;
   }
 
-  async signIn(account: Account) {
-    const payload = {
+  async signIn(
+    account: Account,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const payload: JWT_Payload = {
       email: account.email,
       sub: account.accountId,
       role: account.role,
     };
+
+    const accessToken = await this.tokenService.generateToken(
+      payload,
+      TokenType.ACCESS,
+    );
+
+    const refreshToken = await this.tokenService.generateToken(
+      payload,
+      TokenType.REFRESH,
+    );
+
     return {
-      access_token: await this.tokenService.generateToken(
-        payload,
-        TokenType.ACCESS,
-      ),
+      accessToken,
+      refreshToken,
     };
   }
 }
