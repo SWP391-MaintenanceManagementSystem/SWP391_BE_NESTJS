@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, UseInterceptors } from '@nestjs/common';
 import { AccountService } from 'src/account/account.service';
 import { SignUpDTO } from './dto/signup.dto';
 import { CreateAccountDTO } from 'src/account/dto/create-account';
@@ -12,8 +12,8 @@ import { JWT_Payload } from './types';
 export class AuthService {
   constructor(
     private readonly accountService: AccountService,
-    private tokenService: TokenService,
-  ) {}
+    private readonly tokenService: TokenService,
+  ) { }
 
   async signUp(signUpDTO: SignUpDTO) {
     const { email, password, confirmPassword, firstName, lastName } = signUpDTO;
@@ -74,10 +74,24 @@ export class AuthService {
       payload,
       TokenType.REFRESH,
     );
-
+    await this.tokenService.storeToken(account.accountId, refreshToken);
     return {
       accessToken,
       refreshToken,
     };
   }
+
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
+    if (!refreshToken) {
+      throw new BadRequestException('Refresh token not found');
+    }
+    const payload = await this.tokenService.verifyToken(refreshToken, TokenType.REFRESH);
+    if (!payload) {
+      throw new BadRequestException('Invalid refresh token');
+    }
+    const { email, role, sub } = payload
+    const accessToken = await this.tokenService.generateToken({ email, role, sub }, TokenType.ACCESS);
+    return { accessToken };
+  }
+
 }

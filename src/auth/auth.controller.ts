@@ -1,4 +1,4 @@
-import { Controller, Post, Req, UseGuards, Res } from '@nestjs/common';
+import { Controller, Post, Req, UseGuards, Res, Get, BadRequestException } from '@nestjs/common';
 import { Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDTO } from './dto/signup.dto';
@@ -14,7 +14,7 @@ export interface RequestWithUser extends Request {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Public()
   @Serialize(AccountDTO)
@@ -38,4 +38,13 @@ export class AuthController {
       accessToken,
     };
   }
+
+  @Get('/refresh-token')
+  @Public()
+  async refreshToken(@Req() req: Request) {
+    const refreshToken = req.cookies['refreshToken'];
+
+    return await this.authService.refreshToken(refreshToken);
+  }
+
 }

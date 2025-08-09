@@ -1,4 +1,6 @@
 import * as bcrypt from 'bcryptjs';
+import { } from "date-fns"
+import *  as ms from "ms"
 
 const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(12);
@@ -12,4 +14,9 @@ const comparePassword = async (
   return await bcrypt.compare(password, hash);
 };
 
-export { hashPassword, comparePassword };
+const convertMStoDate = (duration: ms.StringValue) => {
+  const d = ms(duration);
+  return new Date(Date.now() + d);
+}
+
+export { hashPassword, comparePassword, convertMStoDate };

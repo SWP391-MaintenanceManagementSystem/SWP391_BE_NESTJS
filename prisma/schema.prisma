@@ -34,4 +34,17 @@ model Account {
   isVerified Boolean  @default(false)
   isBanned   Boolean  @default(false)
   isGoogle   Boolean  @default(false)
+  Token      Token[]
+}
+
+model Token {
+  tokenId      String   @id @default(uuid())
+  accountId    String
+  refreshToken String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  expiredAt    DateTime
+  account      Account  @relation(fields: [accountId], references: [accountId], onDelete: NoAction, onUpdate: NoAction, map: "FK_Token_account_id_Account_id")
+
+  @@index([accountId], map: "IDX_Token_accountId")
 }

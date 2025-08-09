@@ -3,9 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AccountModule } from './account/account.module';
 import { AuthModule } from './auth/auth.module';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { APP_GUARD } from '@nestjs/core';
+import { PrismaModule } from './prisma/prisma.module';
+import { ScheduleModule } from './schedule/schedule.module';
+
 
 @Module({
   imports: [
@@ -15,6 +18,8 @@ import { APP_GUARD } from '@nestjs/core';
     }),
     AccountModule,
     AuthModule,
+    PrismaModule,
+    ScheduleModule,
   ],
   controllers: [AppController],
   providers: [
@@ -25,4 +30,4 @@ import { APP_GUARD } from '@nestjs/core';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
