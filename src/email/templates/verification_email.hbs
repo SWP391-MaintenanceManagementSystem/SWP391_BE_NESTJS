@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Our Service!</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #2a9d8f;
+        }
+
+        .activation-code {
+            font-size: 24px;
+            font-weight: bold;
+            background: #e0f7f5;
+            padding: 15px;
+            margin: 20px 0;
+            text-align: center;
+            letter-spacing: 4px;
+            border-radius: 6px;
+            color: #00796b;
+            user-select: all;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #2a9d8f;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #888;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Welcome, {{username}}!</h1>
+        <p>Thank you for registering at Our Service. We're excited to have you on board.</p>
+        <p>To activate your account, please use the activation code below:</p>
+
+        <div class="activation-code">{{activationCode}}</div>
+
+        {{!-- <p>Or simply click the button below to activate your account:</p>
+
+        <a href="{{activationLink}}" class="button">Activate Account</a> --}}
+
+        <p>If you did not sign up for this account, please ignore this email.</p>
+
+        <div class="footer">
+            &copy; {{year}} Our Service. All rights reserved.
+        </div>
+    </div>
+</body>
+
+</html>

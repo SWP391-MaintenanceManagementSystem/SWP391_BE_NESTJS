@@ -7,12 +7,14 @@ import { SignInDTO } from './dto/signin.dto';
 import { TokenService, TokenType } from './token.service';
 import { Account } from '@prisma/client';
 import { JWT_Payload } from './types';
-
+import { EmailService } from 'src/email/email.service';
+import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class AuthService {
   constructor(
     private readonly accountService: AccountService,
     private readonly tokenService: TokenService,
+    private readonly emailService: EmailService
   ) { }
 
   async signUp(signUpDTO: SignUpDTO) {
@@ -35,6 +37,9 @@ export class AuthService {
       firstName,
       lastName,
     };
+
+    // await this.emailService.sendActivationEmail(email, firstName, activationCode);
+
 
     return await this.accountService.createAccount(newAccount);
   }

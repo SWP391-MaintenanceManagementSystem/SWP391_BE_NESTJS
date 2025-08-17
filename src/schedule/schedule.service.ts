@@ -7,10 +7,10 @@ export class ScheduleService {
     private readonly logger = new Logger(ScheduleService.name);
     constructor(private readonly prisma: PrismaService) { }
 
-    @Cron(CronExpression.EVERY_5_SECONDS)
-    handleCron() {
-        this.logger.debug('Cron job chạy mỗi 5 giây');
-    }
+    // @Cron(CronExpression.EVERY_5_SECONDS)
+    // handleCron() {
+    //     this.logger.debug('Cron job chạy mỗi 5 giây');
+    // }
 
     @Cron(CronExpression.EVERY_HOUR)
     async handleRemoveExpireToken() {

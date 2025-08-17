@@ -20,7 +20,12 @@ export class AuthController {
   @Serialize(AccountDTO)
   @Post('/signup')
   async signUp(@Body() body: SignUpDTO) {
-    return await this.authService.signUp(body);
+    const account = await this.authService.signUp(body);
+    return {
+      status: 'success',
+      account,
+      message: 'Sign up successful',
+    };
   }
 
   @Public()
@@ -35,7 +40,9 @@ export class AuthController {
       maxAge: parseInt(process.env.RF_EXPIRE_TIME!, 10) || 15 * 60 * 1000,
     });
     return {
+      status: 'success',
       accessToken,
+      message: 'Sign in successful',
     };
   }
 
@@ -44,7 +51,12 @@ export class AuthController {
   async refreshToken(@Req() req: Request) {
     const refreshToken = req.cookies['refreshToken'];
 
-    return await this.authService.refreshToken(refreshToken);
+    const { accessToken } = await this.authService.refreshToken(refreshToken);
+    return {
+      status: 'success',
+      accessToken,
+      message: 'Refresh token successful',
+    };
   }
 
 }

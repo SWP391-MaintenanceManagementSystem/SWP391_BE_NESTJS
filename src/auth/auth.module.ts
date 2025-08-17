@@ -9,12 +9,13 @@ import { LocalStrategy } from 'src/auth/passport/local.strategy';
 import { JwtStrategy } from './passport/jwt.strategy';
 import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { EmailModule } from 'src/email/email.module';
 
 @Module({
   imports: [
     AccountModule,
     PassportModule,
-    PrismaModule,
+    EmailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
