@@ -22,19 +22,26 @@ enum Role {
   ADMIN
 }
 
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
 model Account {
-  accountId  String   @id @default(uuid())
+  accountId  String         @id @default(uuid())
   firstName  String
   lastName   String
-  email      String   @unique
-  password   String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  role       Role     @default(USER)
-  isVerified Boolean  @default(false)
-  isBanned   Boolean  @default(false)
-  isGoogle   Boolean  @default(false)
+  email      String         @unique
+  password   String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  role       Role           @default(USER)
+  isVerified Boolean        @default(false)
+  isBanned   Boolean        @default(false)
+  provider   AuthProvider[] @default([EMAIL])
   Token      Token[]
+
+  @@index([provider])
 }
 
 model Token {

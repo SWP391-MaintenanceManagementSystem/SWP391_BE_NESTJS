@@ -22,4 +22,12 @@ export class AccountService {
     });
     return account;
   }
+
+  async activateAccount(email: string) {
+    await this.prisma.account.update({
+      where: { email },
+      data: { isVerified: true },
+    });
+  }
+
 }

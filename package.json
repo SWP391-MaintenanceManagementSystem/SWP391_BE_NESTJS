@@ -20,7 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@keyv/redis": "^5.1.1",
+    "@liaoliaots/nestjs-redis": "^10.0.0",
     "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "^10.0.0",
@@ -42,6 +42,7 @@
     "handlebars": "^4.7.8",
     "install": "^0.13.0",
     "ioredis": "^5.7.0",
+    "keyv": "^5.5.0",
     "ms": "^2.1.3",
     "nodemailer": "^7.0.5",
     "npm": "^11.5.2",

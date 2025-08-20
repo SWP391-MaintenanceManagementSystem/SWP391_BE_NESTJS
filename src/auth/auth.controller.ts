@@ -1,13 +1,13 @@
-import { Controller, Post, Req, UseGuards, Res, Get, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Req, UseGuards, Res, Get, BadRequestException, Query } from '@nestjs/common';
 import { Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDTO } from './dto/signup.dto';
 import { LocalAuthGuard } from './guard/local-auth.guard';
 import { Response, Request } from 'express';
 import { Account } from '@prisma/client';
-import { Public } from './decorator/public';
+import { Public } from '../decorator/public.decorator';
 import { Serialize } from 'src/interceptor/serialize.interceptor';
-import { AccountDTO } from 'src/account/dto/account.dto';
+import { AccountResponseDTO } from './dto/account-response';
 export interface RequestWithUser extends Request {
   user: Account;
 }
@@ -17,14 +17,14 @@ export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
   @Public()
-  @Serialize(AccountDTO)
   @Post('/signup')
+  @Serialize(AccountResponseDTO)
   async signUp(@Body() body: SignUpDTO) {
     const account = await this.authService.signUp(body);
     return {
       status: 'success',
-      account,
-      message: 'Sign up successful',
+      data: account,
+      message: 'Sign up successful'
     };
   }
 
@@ -56,6 +56,17 @@ export class AuthController {
       status: 'success',
       accessToken,
       message: 'Refresh token successful',
+    };
+  }
+
+
+  @Get('verify-email')
+  @Public()
+  async verifyEmail(@Query('code') code: string) {
+    await this.authService.verifyEmail(code);
+    return {
+      status: 'success',
+      message: 'Email verified successfully',
     };
   }
 

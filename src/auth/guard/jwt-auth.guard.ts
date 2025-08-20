@@ -6,11 +6,12 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { JWT_Payload } from '../types';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from '../decorator/public';
+import { IS_PUBLIC_KEY } from '../../decorator/public.decorator';
+import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(private reflector: Reflector) {
+  constructor(private reflector: Reflector, private readonly redisService: RedisService) {
     super();
   }
   canActivate(context: ExecutionContext) {

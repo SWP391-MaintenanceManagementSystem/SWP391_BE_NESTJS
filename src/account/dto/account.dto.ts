@@ -1,6 +1,6 @@
-import { IsNotEmpty, IsEmail, IsString } from 'class-validator';
+import { IsNotEmpty, IsEmail, IsString, IsOptional } from 'class-validator';
 import { Expose, Exclude, Transform } from 'class-transformer';
-import { Account, Role } from '@prisma/client';
+import { Account, AuthProvider, Role } from '@prisma/client';
 
 export class AccountDTO {
   @IsNotEmpty()
@@ -18,8 +18,8 @@ export class AccountDTO {
   @Expose()
   lastName: string;
 
-  @IsNotEmpty()
   @IsString()
+  @IsOptional()
   @Exclude()
   password: string;
 
@@ -34,20 +34,21 @@ export class AccountDTO {
 
   @IsNotEmpty()
   @Expose()
-  @Transform(({ value }) => value.toISOString())
+  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   createdAt: Date;
 
   @IsNotEmpty()
   @Expose()
-  @Transform(({ value }) => value.toISOString())
+  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   updatedAt: Date;
 
   @Expose()
   isVerified: boolean;
   @Expose()
   isBanned: boolean;
-  @Expose()
-  isGoogle: boolean;
+
+  @Exclude()
+  provider: AuthProvider[]
 
   constructor(partial: Partial<Account>) {
     Object.assign(this, partial);

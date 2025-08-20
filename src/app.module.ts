@@ -11,6 +11,7 @@ import { ScheduleModule } from './schedule/schedule.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { EmailModule } from './email/email.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { EmailModule } from './email/email.module';
     AuthModule,
     PrismaModule,
     ScheduleModule,
+    RedisModule,
     MailerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
@@ -47,6 +49,7 @@ import { EmailModule } from './email/email.module';
       }),
     }),
     EmailModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [

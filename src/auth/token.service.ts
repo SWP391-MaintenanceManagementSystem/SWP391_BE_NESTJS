@@ -1,14 +1,12 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { JWT_Payload } from './types';
+import { JWT_Payload, TokenType } from './types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { convertMStoDate } from 'src/utils';
 import { StringValue } from 'ms';
-export enum TokenType {
-  ACCESS = 'access',
-  REFRESH = 'refresh',
-}
+
+
 
 @Injectable()
 export class TokenService {
@@ -17,18 +15,23 @@ export class TokenService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
   ) { }
-  async generateToken(payLoad: JWT_Payload, type: TokenType): Promise<string> {
-    const secretKey =
-      type === TokenType.ACCESS
-        ? this.configService.get<string>('AC_SECRET')
-        : this.configService.get<string>('RF_SECRET');
-    const expiresIn =
-      type === TokenType.ACCESS
-        ? this.configService.get<string>('AC_EXPIRE_TIME')
-        : this.configService.get<string>('RF_EXPIRE_TIME');
-    return await this.jwtService.signAsync(payLoad, {
-      secret: secretKey,
-      expiresIn: expiresIn,
+
+  private getConfig(key: string): string {
+    const value = this.configService.get<string>(key);
+    if (!value) {
+      throw new Error(`Missing configuration: ${key}`);
+    }
+    return value;
+  }
+
+  async generateToken(payload: JWT_Payload, type: TokenType): Promise<string> {
+
+    const secret = this.getConfig(type === TokenType.ACCESS ? 'AC_SECRET' : 'RF_SECRET');
+    const expiresIn = this.getConfig(type === TokenType.ACCESS ? 'AC_EXPIRE_TIME' : 'RF_EXPIRE_TIME');
+
+    return await this.jwtService.signAsync(payload, {
+      secret,
+      expiresIn,
     });
   }
 
@@ -68,10 +71,7 @@ export class TokenService {
   }
 
   async verifyToken(token: string, type: TokenType): Promise<JWT_Payload> {
-    const secretKey =
-      type === TokenType.ACCESS
-        ? this.configService.get<string>('AC_SECRET')
-        : this.configService.get<string>('RF_SECRET');
+    const secretKey = this.getConfig(type === TokenType.ACCESS ? 'AC_SECRET' : 'RF_SECRET');
     try {
       const payload = await this.jwtService.verifyAsync(token, { secret: secretKey });
       return payload;
