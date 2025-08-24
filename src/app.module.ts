@@ -58,6 +58,7 @@ import { RedisModule } from './redis/redis.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
+
   ],
 })
 export class AppModule { }

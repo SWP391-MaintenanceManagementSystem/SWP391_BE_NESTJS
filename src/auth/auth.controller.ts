@@ -8,6 +8,7 @@ import { Account } from '@prisma/client';
 import { Public } from '../decorator/public.decorator';
 import { Serialize } from 'src/interceptor/serialize.interceptor';
 import { AccountResponseDTO } from './dto/account-response';
+import { CurrentUser } from 'src/decorator/current-user.decorator';
 export interface RequestWithUser extends Request {
   user: Account;
 }
@@ -35,6 +36,7 @@ export class AuthController {
     const { accessToken, refreshToken } = await this.authService.signIn(
       req.user!,
     );
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       maxAge: parseInt(process.env.RF_EXPIRE_TIME!, 10) || 15 * 60 * 1000,
@@ -67,6 +69,16 @@ export class AuthController {
     return {
       status: 'success',
       message: 'Email verified successfully',
+    };
+  }
+
+  @Post('resend-activation-email')
+  @Public()
+  async resendEmail(@Body('email') email: string) {
+    await this.authService.resendActivationEmail(email);
+    return {
+      status: 'success',
+      message: 'Resend activation email successfully',
     };
   }
 

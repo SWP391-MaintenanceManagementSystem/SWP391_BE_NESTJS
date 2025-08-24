@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AccountService } from 'src/account/account.service';
 import { SignUpDTO } from './dto/signup.dto';
 import { CreateAccountDTO } from 'src/account/dto/create-account';
@@ -22,7 +22,6 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) { }
 
-
   getConfig() {
     return {
       AT_Expired: this.configService.get<ms.StringValue>('AC_EXPIRE_TIME'),
@@ -43,19 +42,30 @@ export class AuthService {
 
     const hashedPassword = await hashPassword(password);
 
-    const newAccount: CreateAccountDTO = {
+    const createBody: CreateAccountDTO = {
       email,
       password: hashedPassword,
       firstName,
       lastName,
     };
 
+    const account = await this.accountService.createAccount(createBody);
+
     // send verification mail
     const activationCode = uuidv4();
-    await this.redisService.set(`activation:${activationCode}`, email, 180);
+    const activationData = {
+      email: account?.email,
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+    }
+    await this.redisService.set(
+      `activation:${activationCode}`,
+      JSON.stringify(activationData),
+      180
+    );
     this.emailService.sendActivationEmail(email, firstName, activationCode);
 
-    return await this.accountService.createAccount(newAccount);
+    return account;
   }
 
   async validateUser(signInDTO: SignInDTO): Promise<Account | null> {
@@ -84,7 +94,7 @@ export class AuthService {
       email: account.email,
       sub: account.accountId,
       role: account.role,
-      type: TokenType.ACCESS,
+      isVerified: account.isVerified,
     };
 
     const accessToken = await this.tokenService.generateToken(
@@ -117,7 +127,7 @@ export class AuthService {
     }
     const { sub } = payload
     const accessToken = await this.tokenService.generateToken(payload, TokenType.ACCESS);
-    this.redisService.set(`accessToken:${sub}`, accessToken, ms(this.getConfig().AT_Expired!) / 1000);
+    await this.redisService.set(`accessToken:${sub}`, accessToken, ms(this.getConfig().AT_Expired!) / 1000);
     return { accessToken };
   }
 
@@ -125,13 +135,40 @@ export class AuthService {
     if (!activationCode) {
       throw new BadRequestException('Activation code is required');
     }
-    const email = await this.redisService.get(`activation:${activationCode}`);
-    if (!email) {
+    const data = await this.redisService.get(`activation:${activationCode}`);
+    if (!data) {
       throw new BadRequestException('Invalid or expired activation code');
     }
+    const { email } = JSON.parse(data);
+    const storedUser = await this.accountService.getAccountByEmail(email);
+    if (!storedUser) {
+      throw new BadRequestException('Account not found');
+    }
+    // Revoke token
+    await this.tokenService.deleteToken(email);
+    await this.redisService.del(`accessToken:${storedUser?.accountId}`);
+
+    // Activate email
     await this.accountService.activateAccount(email);
     await this.redisService.del(`activation:${activationCode}`);
   }
 
-
+  async resendActivationEmail(email: string) {
+    const account = await this.accountService.getAccountByEmail(email);
+    if (!account) {
+      throw new BadRequestException('account not found');
+    }
+    const activationCode = uuidv4();
+    const activationData = {
+      email: account.email,
+      createdAt: new Date().toISOString(),
+      attempts: 0,
+    };
+    await this.redisService.set(
+      `activation:${activationCode}`,
+      JSON.stringify(activationData),
+      180
+    );
+    this.emailService.sendActivationEmail(account.email, account.firstName, activationCode);
+  }
 }

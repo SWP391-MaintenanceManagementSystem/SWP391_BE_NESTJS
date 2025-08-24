@@ -1,8 +1,8 @@
 export interface JWT_Payload {
   email: string;
   sub: string;
-  role?: string;
-  type: TokenType;
+  role: string;
+  isVerified: boolean;
   iat?: number;
   exp?: number;
 }
