@@ -25,6 +25,11 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
         'User not found or password is incorrect',
       );
     }
+
+    if (!user.isVerified) {
+      throw new UnauthorizedException('User is not verified. Please verify your email address.');
+    }
+
     return user;
   }
 }

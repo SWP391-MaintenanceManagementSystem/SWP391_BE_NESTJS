@@ -53,15 +53,20 @@ export class AuthService {
 
     // send verification mail
     const activationCode = uuidv4();
+    const expiredTime = ms(this.configService.get<ms.StringValue>('EMAIL_VERIFY_EXPIRE_TIME')!) / 1000;
     const activationData = {
       email: account?.email,
       createdAt: new Date().toISOString(),
-      attempts: 0,
     }
     await this.redisService.set(
       `activation:${activationCode}`,
       JSON.stringify(activationData),
-      180
+      expiredTime
+    );
+    await this.redisService.set(
+      `activation:account:${account?.email}`,
+      activationCode,
+      expiredTime
     );
     this.emailService.sendActivationEmail(email, firstName, activationCode);
 
@@ -132,42 +137,59 @@ export class AuthService {
   }
 
   async verifyEmail(activationCode: string) {
-    if (!activationCode) {
-      throw new BadRequestException('Activation code is required');
-    }
+
     const data = await this.redisService.get(`activation:${activationCode}`);
     if (!data) {
       throw new BadRequestException('Invalid or expired activation code');
     }
     const { email } = JSON.parse(data);
-    const storedUser = await this.accountService.getAccountByEmail(email);
-    if (!storedUser) {
+    const account = await this.accountService.getAccountByEmail(email);
+    if (!account) {
       throw new BadRequestException('Account not found');
     }
-    // Revoke token
-    await this.tokenService.deleteToken(email);
-    await this.redisService.del(`accessToken:${storedUser?.accountId}`);
+
+    if (account.isVerified) {
+      throw new BadRequestException('Account is already verified');
+    }
 
     // Activate email
     await this.accountService.activateAccount(email);
+    // Delete activation codes
     await this.redisService.del(`activation:${activationCode}`);
+    await this.redisService.del(`activation:account:${email}`);
   }
 
   async resendActivationEmail(email: string) {
     const account = await this.accountService.getAccountByEmail(email);
     if (!account) {
-      throw new BadRequestException('account not found');
+      throw new BadRequestException('Account not found');
     }
+
+    if (account.isVerified) {
+      throw new BadRequestException('Account is already verified');
+    }
+
+    const oldActivationCode = await this.redisService.get(`activation:account:${email}`);
+    if (oldActivationCode) {
+      await this.redisService.del(`activation:${oldActivationCode}`);
+      await this.redisService.del(`activation:account:${email}`);
+    }
+
     const activationCode = uuidv4();
+    const expiredTime = ms(this.configService.get<ms.StringValue>('EMAIL_VERIFY_EXPIRE_TIME')!) / 1000;
     const activationData = {
       email: account.email,
       createdAt: new Date().toISOString(),
-      attempts: 0,
     };
     await this.redisService.set(
       `activation:${activationCode}`,
       JSON.stringify(activationData),
-      180
+      expiredTime
+    );
+    await this.redisService.set(
+      `activation:account:${account.email}`,
+      activationCode,
+      expiredTime
     );
     this.emailService.sendActivationEmail(account.email, account.firstName, activationCode);
   }
