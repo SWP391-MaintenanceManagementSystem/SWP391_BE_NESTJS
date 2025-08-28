@@ -12,6 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import * as ms from 'ms';
+import { OAuthUserDTO } from './dto/oauth-user.dto';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -85,16 +87,15 @@ export class AuthService {
         signInDTO.password,
         account.password!,
       );
-      if (!isPasswordValid) {
-        return null;
+      if (isPasswordValid) {
+        return account;
       }
-      return account;
     }
     return null;
   }
   async signIn(
     account: Account,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  ): Promise<{ accessToken: string; refreshToken: string, account: Account }> {
     const payload: JWT_Payload = {
       email: account.email,
       sub: account.accountId,
@@ -111,15 +112,21 @@ export class AuthService {
       payload,
       TokenType.REFRESH,
     );
-    await Promise.all([
-      this.tokenService.storeToken(account.accountId, refreshToken),
-      this.redisService.set(`accessToken:${account.accountId}`, accessToken, ms(this.getConfig().AT_Expired!) / 1000),
-    ]);
+    await this.tokenService.storeToken(account.accountId, refreshToken);
     return {
       accessToken,
+      account,
       refreshToken,
     };
   }
+
+  async signOut(userId: string, accessToken: string): Promise<void> {
+    await this.tokenService.deleteToken(userId);
+    const { exp } = await this.tokenService.decodeToken(accessToken, TokenType.ACCESS)
+    const expiredTime = Date.now() + (exp! * 1000) - Date.now();
+    await this.redisService.set(`bl:${accessToken}`, "1", expiredTime);
+  }
+
 
   async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
     if (!refreshToken) {
@@ -192,5 +199,33 @@ export class AuthService {
       expiredTime
     );
     this.emailService.sendActivationEmail(account.email, account.firstName, activationCode);
+  }
+
+  async googleOAuthSignIn(oauthUser: OAuthUserDTO): Promise<{ accessToken: string; refreshToken: string }> {
+    const account = await this.accountService.findOrCreateOAuthAccount(oauthUser);
+
+    const payload: JWT_Payload = {
+      email: account.email,
+      sub: account.accountId,
+      role: account.role,
+      isVerified: account.isVerified,
+    };
+
+    const accessToken = await this.tokenService.generateToken(
+      payload,
+      TokenType.ACCESS,
+    );
+
+    const refreshToken = await this.tokenService.generateToken(
+      payload,
+      TokenType.REFRESH,
+    );
+
+    await this.tokenService.storeToken(account.accountId, refreshToken);
+
+    return {
+      accessToken,
+      refreshToken,
+    };
   }
 }

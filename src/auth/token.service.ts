@@ -5,7 +5,7 @@ import { JWT_Payload, TokenType } from './types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { convertMStoDate } from 'src/utils';
 import { StringValue } from 'ms';
-
+import { v4 } from 'uuid';
 
 
 @Injectable()
@@ -32,6 +32,7 @@ export class TokenService {
     return await this.jwtService.signAsync(payload, {
       secret,
       expiresIn,
+      jwtid: v4(),
     });
   }
 
@@ -71,6 +72,21 @@ export class TokenService {
   }
 
   async verifyToken(token: string, type: TokenType): Promise<JWT_Payload> {
+    const secretKey = this.getConfig(type === TokenType.ACCESS ? 'AC_SECRET' : 'RF_SECRET');
+    try {
+      const payload = await this.jwtService.verifyAsync(token, { secret: secretKey });
+      return payload;
+    } catch (error: unknown) {
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException('Token expired');
+      } else if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid token');
+      }
+      throw error;
+    }
+  }
+
+  async decodeToken(token: string, type: TokenType): Promise<JWT_Payload> {
     const secretKey = this.getConfig(type === TokenType.ACCESS ? 'AC_SECRET' : 'RF_SECRET');
     try {
       const payload = await this.jwtService.verifyAsync(token, { secret: secretKey });

@@ -39,7 +39,9 @@ model Account {
   isVerified Boolean        @default(false)
   isBanned   Boolean        @default(false)
   provider   AuthProvider[] @default([EMAIL])
+  providerId Json?
   Token      Token[]
+  avatar     String?
 
   @@index([provider])
 }

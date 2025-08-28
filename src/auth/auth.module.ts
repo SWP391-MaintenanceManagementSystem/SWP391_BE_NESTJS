@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { LocalStrategy } from 'src/auth/passport/local.strategy';
 import { JwtStrategy } from './passport/jwt.strategy';
+import { GoogleOauth2 } from './passport/google.strategy';
 import { ConfigService } from '@nestjs/config';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { EmailModule } from 'src/email/email.module';
@@ -27,7 +28,7 @@ import { EmailModule } from 'src/email/email.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, TokenService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, TokenService, LocalStrategy, JwtStrategy, GoogleOauth2],
   exports: [AuthService],
 })
 export class AuthModule { }

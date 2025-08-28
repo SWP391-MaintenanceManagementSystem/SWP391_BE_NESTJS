@@ -8,7 +8,10 @@ export class AccountResponseDTO {
 
     @Expose()
     @Type(() => AccountDTO)
-    data: AccountDTO;
+    user: AccountDTO;
+
+    @Expose()
+    accessToken: string;
 
     @Expose()
     status: string;
