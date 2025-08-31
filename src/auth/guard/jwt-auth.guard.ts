@@ -5,7 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { JWT_Payload } from '../types';
+import { JWT_Payload } from 'src/types';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../../decorator/public.decorator';
 import { RedisService } from 'src/redis/redis.service';
@@ -25,8 +25,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     if (isPublic) {
       return true;
     }
-
     const request: Request = context.switchToHttp().getRequest();
+    console.log("jwt");
+
     const token = request.headers.authorization?.split(' ')[1];
     if (!token) {
       throw new UnauthorizedException('Token not found');
@@ -38,7 +39,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
 
-    return Boolean(super.canActivate(context));
+    return (await super.canActivate(context)) as boolean;
   }
 
   handleRequest<TUser = JWT_Payload>(err: unknown, payload: TUser) {

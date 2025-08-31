@@ -21,10 +21,18 @@ async function bootstrap() {
       },
       'jwt-auth',
     )
+    .addCookieAuth('refreshToken', {
+      type: 'apiKey',
+      in: 'cookie',
+    })
     .addTag('SWP391')
     .build();
   const documentFactory = () => SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, documentFactory);
+  SwaggerModule.setup('api', app, documentFactory, {
+    swaggerOptions: {
+      persistAuthorization: true,
+    },
+  });
   app.use(cookieParser());
   app.enableCors();
   app.useGlobalPipes(

@@ -1,12 +1,12 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AccountService } from 'src/account/account.service';
 import { SignUpDTO } from './dto/signup.dto';
-import { CreateAccountDTO } from 'src/account/dto/create-account';
+import { CreateAccountDTO } from 'src/account/dto/create-account.dto';
 import { comparePassword, hashPassword } from 'src/utils';
 import { SignInDTO } from './dto/signin.dto';
 import { TokenService } from './token.service';
 import { Account, AuthProvider } from '@prisma/client';
-import { JWT_Payload, TokenType } from './types';
+import { JWT_Payload, TokenType } from 'src/types';
 import { EmailService } from 'src/email/email.service';
 import { v4 as uuidv4 } from 'uuid';
 import { RedisService } from 'src/redis/redis.service';
@@ -60,16 +60,18 @@ export class AuthService {
       email: account?.email,
       createdAt: new Date().toISOString(),
     }
-    await this.redisService.set(
-      `activation:${activationCode}`,
-      JSON.stringify(activationData),
-      expiredTime
-    );
-    await this.redisService.set(
-      `activation:account:${account?.email}`,
-      activationCode,
-      expiredTime
-    );
+    Promise.all([
+      await this.redisService.set(
+        `activation:${activationCode}`,
+        JSON.stringify(activationData),
+        expiredTime
+      ),
+      await this.redisService.set(
+        `activation:account:${account?.email}`,
+        activationCode,
+        expiredTime
+      )
+    ])
     this.emailService.sendActivationEmail(email, firstName, activationCode);
 
     return account;
@@ -103,15 +105,16 @@ export class AuthService {
       isVerified: account.isVerified,
     };
 
-    const accessToken = await this.tokenService.generateToken(
-      payload,
-      TokenType.ACCESS,
-    );
-
-    const refreshToken = await this.tokenService.generateToken(
-      payload,
-      TokenType.REFRESH,
-    );
+    const [accessToken, refreshToken] = await Promise.all([
+      this.tokenService.generateToken(
+        payload,
+        TokenType.ACCESS,
+      ),
+      this.tokenService.generateToken(
+        payload,
+        TokenType.REFRESH,
+      )
+    ])
     await this.tokenService.storeToken(account.accountId, refreshToken);
     return {
       accessToken,
@@ -128,7 +131,7 @@ export class AuthService {
   }
 
 
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string }> {
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string, refreshToken: string }> {
     if (!refreshToken) {
       throw new BadRequestException('Refresh token not found');
     }
@@ -137,10 +140,16 @@ export class AuthService {
     if (!storedToken || storedToken !== refreshToken) {
       throw new UnauthorizedException('Invalid or revoked refresh token');
     }
-    const { sub } = payload
-    const accessToken = await this.tokenService.generateToken(payload, TokenType.ACCESS);
-    await this.redisService.set(`accessToken:${sub}`, accessToken, ms(this.getConfig().AT_Expired!) / 1000);
-    return { accessToken };
+    const { sub, email, role, isVerified } = payload
+    const newPayload = {
+      sub, email, role, isVerified
+    }
+    const [accessToken, newRefreshToken] = await Promise.all([
+      this.tokenService.generateToken(newPayload, TokenType.ACCESS),
+      this.tokenService.generateToken(newPayload, TokenType.REFRESH)
+    ]);
+    await this.tokenService.storeToken(sub, newRefreshToken);
+    return { accessToken, refreshToken: newRefreshToken };
   }
 
   async verifyEmail(activationCode: string) {

@@ -11,8 +11,8 @@ import { AccountResponseDTO } from './dto/account-response';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
 import { CurrentUser } from 'src/decorator/current-user.decorator';
 import { AccountDTO } from 'src/account/dto/account.dto';
-import { JWT_Payload } from './types';
-import { ApiBody, ApiOkResponse, ApiBadRequestResponse, ApiTags, ApiHeader, ApiBearerAuth } from '@nestjs/swagger';
+import { JWT_Payload, TokenType } from 'src/types';
+import { ApiBody, ApiOkResponse, ApiBadRequestResponse, ApiTags, ApiHeader, ApiBearerAuth, ApiOperation, ApiCookieAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { SignInDTO } from './dto/signin.dto';
 
 
@@ -26,7 +26,7 @@ export interface RequestWithUserPayload extends Omit<Request, 'user'> {
 
 
 @ApiTags('Auth')
-@Controller('auth')
+@Controller('api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) { }
 
@@ -76,12 +76,16 @@ export class AuthController {
     };
   }
 
-  @Get('/refresh-token')
   @Public()
-  async refreshToken(@Req() req: Request) {
-    const refreshToken = req.cookies['refreshToken'];
-
-    const { accessToken } = await this.authService.refreshToken(refreshToken);
+  @Get('/refresh-token')
+  @ApiCookieAuth('refreshToken')
+  async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const token = req.cookies['refreshToken'];
+    const { accessToken, refreshToken } = await this.authService.refreshToken(token);
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      maxAge: parseInt(process.env.RF_EXPIRE_TIME!, 10) || 15 * 60 * 1000,
+    });
     return {
       status: 'success',
       accessToken,
@@ -111,6 +115,7 @@ export class AuthController {
   }
 
   @Public()
+  @ApiExcludeEndpoint()
   @Get('google')
   @UseGuards(GoogleOauthGuard)
   async googleAuth() {
@@ -118,6 +123,7 @@ export class AuthController {
   }
 
   @Public()
+  @ApiExcludeEndpoint()
   @Get('google/callback')
   @UseGuards(GoogleOauthGuard)
   async googleAuthCallback(

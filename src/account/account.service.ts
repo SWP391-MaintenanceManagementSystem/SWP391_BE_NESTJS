@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateAccountDTO } from './dto/create-account';
-import { Account, AuthProvider } from '@prisma/client';
+import { CreateAccountDTO } from './dto/create-account.dto';
+import { Account, AuthProvider, Prisma } from '@prisma/client';
 import { OAuthUserDTO } from 'src/auth/dto/oauth-user.dto';
+import { FilterOptionsDTO } from './dto/filter-options.dto';
+import { PaginationResponse } from 'src/dto/pagination-response.dto';
 
 @Injectable()
 export class AccountService {
@@ -37,17 +39,10 @@ export class AccountService {
     if (existingAccount) {
       if (!existingAccount.provider.includes(oauthUser.provider)) {
         const updatedProviders = [...existingAccount.provider, oauthUser.provider];
-        const existingProviderId = existingAccount.providerId as Record<string, any> || {};
-        const updatedProviderId = {
-          ...existingProviderId,
-          [oauthUser.provider]: oauthUser.providerId,
-        };
-
         return await this.prisma.account.update({
           where: { email: oauthUser.email },
           data: {
             provider: updatedProviders,
-            providerId: updatedProviderId,
             isVerified: true,
           },
         });
@@ -61,11 +56,40 @@ export class AccountService {
         firstName: oauthUser.firstName,
         lastName: oauthUser.lastName,
         provider: [oauthUser.provider],
-        providerId: {
-          [oauthUser.provider]: oauthUser.providerId,
-        },
         isVerified: true,
       },
     });
   }
+
+  async getAccounts(options: FilterOptionsDTO<Account>): Promise<PaginationResponse<Account>> {
+    const page = options.page && options.page > 0 ? options.page : 1;
+    const pageSize = options.pageSize || 10;
+    const [data, total] = await Promise.all([
+      this.prisma.account.findMany({
+        where: options.where,
+        orderBy: options.orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.account.count({ where: options.where }),
+    ])
+    return {
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
+    }
+  }
+  async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
+    const exists = await this.prisma.account.findUnique({ where: { accountId: id } });
+    if (!exists) {
+      throw new NotFoundException(`Account with id ${id} not found`);
+    }
+    await this.prisma.account.update({
+      where: { accountId: id },
+      data: updateData,
+    });
+  }
+
 }

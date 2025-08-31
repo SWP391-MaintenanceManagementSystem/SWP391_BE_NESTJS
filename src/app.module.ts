@@ -12,6 +12,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { EmailModule } from './email/email.module';
 import { RedisModule } from './redis/redis.module';
+import { RoleGuard } from './guard/role.guard';
 
 @Module({
   imports: [
@@ -58,7 +59,10 @@ import { RedisModule } from './redis/redis.module';
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
     },
-
+    {
+      provide: APP_GUARD,
+      useClass: RoleGuard,
+    },
   ],
 })
 export class AppModule { }

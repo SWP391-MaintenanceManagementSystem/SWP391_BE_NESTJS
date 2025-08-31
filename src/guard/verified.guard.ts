@@ -1,5 +1,5 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { JWT_Payload } from 'src/auth/types';
+import { JWT_Payload } from 'src/types';
 
 @Injectable()
 export class VerifiedGuard implements CanActivate {
