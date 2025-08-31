@@ -26,8 +26,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       return true;
     }
     const request: Request = context.switchToHttp().getRequest();
-    console.log("jwt");
-
     const token = request.headers.authorization?.split(' ')[1];
     if (!token) {
       throw new UnauthorizedException('Token not found');
@@ -39,7 +37,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
 
-    return (await super.canActivate(context)) as boolean;
+    return Boolean(await super.canActivate(context))
   }
 
   handleRequest<TUser = JWT_Payload>(err: unknown, payload: TUser) {
