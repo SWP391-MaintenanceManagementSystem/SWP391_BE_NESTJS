@@ -40,7 +40,7 @@ async function bootstrap() {
       whitelist: true,
     }),
   );
-  await app.listen(process.env.PORT ?? 3000, process.env.HOST ?? 'localhost', () => {
+  await app.listen(process.env.PORT ?? 3000, process.env.HOST ?? '0.0.0.0', () => {
     console.log(`Server is running on http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}`);
   });
 }

@@ -1,6 +1,6 @@
 import { IsNotEmpty, IsEmail, IsString, IsOptional } from 'class-validator';
 import { Expose, Exclude, Transform } from 'class-transformer';
-import { Account, AuthProvider, Role } from '@prisma/client';
+import { Account, AccountStatus, AuthProvider, Role } from '@prisma/client';
 
 export class AccountDTO {
   @IsNotEmpty()
@@ -43,7 +43,7 @@ export class AccountDTO {
   updatedAt: Date;
 
   @Expose()
-  isVerified: boolean;
+  status: AccountStatus
   @Expose()
   isBanned: boolean;
 

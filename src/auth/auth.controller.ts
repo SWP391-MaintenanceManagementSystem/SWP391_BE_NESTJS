@@ -1,4 +1,4 @@
-import { Controller, Post, Req, UseGuards, Res, Get, BadRequestException, Query } from '@nestjs/common';
+import { Controller, Post, Req, UseGuards, Res, Get, BadRequestException, Query, Patch } from '@nestjs/common';
 import { Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDTO } from './dto/signup.dto';
@@ -7,13 +7,17 @@ import { GoogleOauthGuard } from './guard/google-oauth.guard';
 import { Response, Request } from 'express';
 import { Public } from '../decorator/public.decorator';
 import { Serialize } from 'src/interceptor/serialize.interceptor';
-import { AccountResponseDTO } from './dto/account-response';
+import { AccountResponseDTO } from './dto/account-response.dto';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
 import { CurrentUser } from 'src/decorator/current-user.decorator';
 import { AccountDTO } from 'src/account/dto/account.dto';
 import { JWT_Payload, TokenType } from 'src/types';
-import { ApiBody, ApiOkResponse, ApiBadRequestResponse, ApiTags, ApiHeader, ApiBearerAuth, ApiOperation, ApiCookieAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { ApiBody, ApiTags, ApiBearerAuth, ApiCookieAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { SignInDTO } from './dto/signin.dto';
+import ResetPasswordBodyDTO from './dto/reset-password-body.dto';
+import ChangePasswordBodyDTO from './dto/change-password-body.dto';
+import { RequestResetPasswordDTO } from './dto/request-reset-password.dto';
+import { VerifyResetPasswordDTO } from './dto/verify-reset-password.dto';
 
 
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
@@ -104,8 +108,9 @@ export class AuthController {
     };
   }
 
-  @Post('resend-activation-email')
   @Public()
+  @Post('resend-activation-email')
+  @ApiBody({ schema: { properties: { email: { type: 'string', example: 'user@example.com' } } } })
   async resendEmail(@Body('email') email: string) {
     await this.authService.resendActivationEmail(email);
     return {
@@ -144,8 +149,53 @@ export class AuthController {
 
   @Get("/me")
   @ApiBearerAuth('jwt-auth')
-  async getMe(@CurrentUser() user: AccountDTO) {
+  async getMe(@CurrentUser() user: JWT_Payload) {
     return user
+  }
+
+  @Patch("me/change-password")
+  @ApiBearerAuth('jwt-auth')
+  async changePassword(@CurrentUser() user: JWT_Payload, @Body() body: ChangePasswordBodyDTO) {
+    const { oldPassword, newPassword, confirmNewPassword } = body;
+    await this.authService.changePassword(user.sub, oldPassword, newPassword, confirmNewPassword);
+    return {
+      status: 'success',
+      message: 'Change password successful',
+    };
+  }
+
+  @Post("reset-password/request")
+  @Public()
+  async requestResetPassword(@Body() body: RequestResetPasswordDTO) {
+    const { email } = body
+    await this.authService.requestResetPassword(email);
+    return {
+      status: 'success',
+      message: 'Reset password request successful',
+    };
+  }
+
+  @Post("reset-password/verify")
+  @Public()
+  async verifyResetPassword(@Body() body: VerifyResetPasswordDTO) {
+    const { code, email } = body
+    await this.authService.verifyResetCode(code, email);
+    return {
+      status: 'success',
+      message: 'Reset password successful',
+    };
+  }
+
+  @Post("reset-password/confirm")
+  @Public()
+  async resetPassword(@Body() body: ResetPasswordBodyDTO) {
+    const { code, newPassword, confirmNewPassword } = body;
+    await this.authService.resetPassword(code, newPassword, confirmNewPassword);
+
+    return {
+      status: 'success',
+      message: 'Password reset successful',
+    };
   }
 
 }

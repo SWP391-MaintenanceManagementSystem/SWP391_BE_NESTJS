@@ -5,7 +5,7 @@ import { CreateAccountDTO } from 'src/account/dto/create-account.dto';
 import { comparePassword, hashPassword } from 'src/utils';
 import { SignInDTO } from './dto/signin.dto';
 import { TokenService } from './token.service';
-import { Account, AuthProvider } from '@prisma/client';
+import { Account, AccountStatus, AuthProvider } from '@prisma/client';
 import { JWT_Payload, TokenType } from 'src/types';
 import { EmailService } from 'src/email/email.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -13,7 +13,7 @@ import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import * as ms from 'ms';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
-
+import { randomInt } from "crypto";
 @Injectable()
 export class AuthService {
   constructor(
@@ -102,7 +102,7 @@ export class AuthService {
       email: account.email,
       sub: account.accountId,
       role: account.role,
-      isVerified: account.isVerified,
+      status: account.status,
     };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -140,9 +140,9 @@ export class AuthService {
     if (!storedToken || storedToken !== refreshToken) {
       throw new UnauthorizedException('Invalid or revoked refresh token');
     }
-    const { sub, email, role, isVerified } = payload
+    const { sub, email, role, status } = payload
     const newPayload = {
-      sub, email, role, isVerified
+      sub, email, role, status
     }
     const [accessToken, newRefreshToken] = await Promise.all([
       this.tokenService.generateToken(newPayload, TokenType.ACCESS),
@@ -164,7 +164,7 @@ export class AuthService {
       throw new BadRequestException('Account not found');
     }
 
-    if (account.isVerified) {
+    if (account.status === AccountStatus.VERIFIED) {
       throw new BadRequestException('Account is already verified');
     }
 
@@ -175,13 +175,29 @@ export class AuthService {
     await this.redisService.del(`activation:account:${email}`);
   }
 
+  async changePassword(id: string, oldPassword: string, newPassword: string, confirmNewpassword: string) {
+    const account = await this.accountService.getAccountById(id);
+    if (!account) {
+      return;
+    }
+
+    const isPasswordValid = await comparePassword(oldPassword, account.password!);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Old password is incorrect');
+    }
+
+    const hashed = await hashPassword(newPassword);
+    await this.accountService.updateAccount(id, { password: hashed });
+  }
+
+
   async resendActivationEmail(email: string) {
     const account = await this.accountService.getAccountByEmail(email);
     if (!account) {
-      throw new BadRequestException('Account not found');
+      return;
     }
 
-    if (account.isVerified) {
+    if (account.status === AccountStatus.VERIFIED) {
       throw new BadRequestException('Account is already verified');
     }
 
@@ -210,6 +226,67 @@ export class AuthService {
     this.emailService.sendActivationEmail(account.email, account.firstName, activationCode);
   }
 
+
+  async requestResetPassword(email: string) {
+    const account = await this.accountService.getAccountByEmail(email);
+    if (!account) {
+      return;
+    }
+
+    const oldOtp = await this.redisService.get(`reset_password:account:${email}`);
+    if (oldOtp) {
+      await this.redisService.del(`reset_password:${oldOtp}`);
+    }
+
+    const otp = randomInt(100000, 999999).toString();
+    const expiredTime = ms(this.configService.get<ms.StringValue>('RESET_PASSWORD_EXPIRE_TIME')!) / 1000;
+    const otpData = {
+      email,
+      id: account.accountId,
+      createdAt: new Date().toISOString(),
+    };
+    await Promise.all([
+      this.redisService.set(`reset_password:${otp}`, JSON.stringify(otpData), expiredTime),
+      this.redisService.set(`reset_password:account:${email}`, otp, expiredTime)
+    ]);
+    this.emailService.sendResetPasswordEmail(account.email, account.firstName, otp);
+  }
+
+  async verifyResetCode(code: string, email: string): Promise<Boolean> {
+    const otpData = await this.redisService.get(`reset_password:${code}`);
+    if (!otpData) {
+      throw new BadRequestException('Invalid or expired reset password code');
+    }
+    const { email: otpEmail } = JSON.parse(otpData);
+    if (otpEmail !== email) {
+      throw new BadRequestException('Invalid reset code for this email address');
+    }
+
+
+    return true;
+  }
+
+
+  async resetPassword(code: string, newPassword: string, confirmNewPassword: string) {
+    if (newPassword !== confirmNewPassword) {
+      throw new BadRequestException("Passwords do not match");
+    }
+    const data = await this.redisService.get(`reset_password:${code}`);
+    if (!data) {
+      throw new BadRequestException('Invalid or expired reset password code');
+    }
+    const { email, id } = JSON.parse(data);
+    const hashed = await hashPassword(newPassword);
+    await this.accountService.updateAccount(id, { password: hashed })
+    await Promise.all([
+      this.redisService.del(`reset_password:${code}`),
+      this.redisService.del(`reset_password:account:${email}`)
+    ]);
+
+  }
+
+
+
   async googleOAuthSignIn(oauthUser: OAuthUserDTO): Promise<{ accessToken: string; refreshToken: string }> {
     const account = await this.accountService.findOrCreateOAuthAccount(oauthUser);
 
@@ -217,7 +294,7 @@ export class AuthService {
       email: account.email,
       sub: account.accountId,
       role: account.role,
-      isVerified: account.isVerified,
+      status: account.status,
     };
 
     const accessToken = await this.tokenService.generateToken(

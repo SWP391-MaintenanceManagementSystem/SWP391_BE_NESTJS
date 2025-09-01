@@ -10,7 +10,7 @@ export class EmailService {
   async sendActivationEmail(email: string, username: string, activationCode: string) {
     const host = this.configService.get('HOST');
     const port = this.configService.get('PORT');
-    const activationLink = `http://${host}:${port}/auth/verify-email?code=${activationCode}`;
+    const activationLink = `http://localhost:${port}/api/auth/verify-email?code=${activationCode}`;
     await this.mailerService.sendMail({
       to: email,
       subject: 'Verify your email',
@@ -23,4 +23,18 @@ export class EmailService {
       }
     });
   }
+
+  async sendResetPasswordEmail(email: string, username: string, resetCode: string) {
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Reset your password',
+      template: 'reset_password_email',
+      context: {
+        username: username ?? email,
+        resetCode,
+        year: new Date().getFullYear(),
+      }
+    });
+  }
+
 }

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
-import { Account, AuthProvider, Prisma } from '@prisma/client';
+import { Account, AccountStatus, AuthProvider, Prisma } from '@prisma/client';
 import { OAuthUserDTO } from 'src/auth/dto/oauth-user.dto';
 import { FilterOptionsDTO } from './dto/filter-options.dto';
 import { PaginationResponse } from 'src/dto/pagination-response.dto';
@@ -29,7 +29,7 @@ export class AccountService {
   async activateAccount(email: string) {
     await this.prisma.account.update({
       where: { email },
-      data: { isVerified: true },
+      data: { status: AccountStatus.VERIFIED },
     });
   }
 
@@ -43,7 +43,7 @@ export class AccountService {
           where: { email: oauthUser.email },
           data: {
             provider: updatedProviders,
-            isVerified: true,
+            status: AccountStatus.VERIFIED
           },
         });
       }
@@ -56,7 +56,7 @@ export class AccountService {
         firstName: oauthUser.firstName,
         lastName: oauthUser.lastName,
         provider: [oauthUser.provider],
-        isVerified: true,
+        status: AccountStatus.VERIFIED,
       },
     });
   }
@@ -81,6 +81,15 @@ export class AccountService {
       totalPages: Math.ceil(total / pageSize),
     }
   }
+
+  async getAccountById(id: string): Promise<Account | null> {
+    const account = await this.prisma.account.findUnique({
+      where: { accountId: id },
+    });
+    return account;
+  }
+
+
   async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { accountId: id } });
     if (!exists) {
@@ -91,5 +100,18 @@ export class AccountService {
       data: updateData,
     });
   }
+
+  async deleteAccount(id: string): Promise<void> {
+    const exists = await this.prisma.account.findUnique({ where: { accountId: id } });
+    if (!exists) {
+      throw new NotFoundException(`Account with id ${id} not found`);
+    }
+    await this.prisma.account.update({
+      where: { accountId: id },
+      data: { status: AccountStatus.DISABLED },
+    });
+  }
+
+
 
 }

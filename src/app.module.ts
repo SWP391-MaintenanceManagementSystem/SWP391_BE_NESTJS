@@ -18,7 +18,7 @@ import { RoleGuard } from './guard/role.guard';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: `.env${process.env.NODE_ENV ? '.' + process.env.NODE_ENV : ''}`,
     }),
     AccountModule,
     AuthModule,
@@ -64,5 +64,8 @@ import { RoleGuard } from './guard/role.guard';
       useClass: RoleGuard,
     },
   ],
+
 })
-export class AppModule { }
+
+export class AppModule {
+}

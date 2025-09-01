@@ -27,6 +27,13 @@ enum AuthProvider {
   GOOGLE
 }
 
+enum AccountStatus {
+  VERIFIED
+  NOT_VERIFY
+  BANNED
+  DISABLED
+}
+
 model Account {
   accountId  String         @id @default(uuid())
   firstName  String
@@ -36,8 +43,7 @@ model Account {
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
   role       Role           @default(USER)
-  isVerified Boolean        @default(false)
-  isBanned   Boolean        @default(false)
+  status     AccountStatus  @default(NOT_VERIFY)
   provider   AuthProvider[] @default([EMAIL])
   providerId Json?
   Token      Token[]
