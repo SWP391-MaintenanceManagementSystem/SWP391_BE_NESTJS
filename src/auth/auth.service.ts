@@ -13,7 +13,7 @@ import { RedisService } from 'src/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import * as ms from 'ms';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
-import { randomInt } from "crypto";
+import { randomInt } from 'crypto';
 @Injectable()
 export class AuthService {
   constructor(
@@ -21,13 +21,13 @@ export class AuthService {
     private readonly tokenService: TokenService,
     private readonly emailService: EmailService,
     private readonly redisService: RedisService,
-    private readonly configService: ConfigService,
-  ) { }
+    private readonly configService: ConfigService
+  ) {}
 
   getConfig() {
     return {
       AT_Expired: this.configService.get<ms.StringValue>('AC_EXPIRE_TIME'),
-    }
+    };
   }
 
   async signUp(signUpDTO: SignUpDTO) {
@@ -55,11 +55,12 @@ export class AuthService {
 
     // send verification mail
     const activationCode = uuidv4();
-    const expiredTime = ms(this.configService.get<ms.StringValue>('EMAIL_VERIFY_EXPIRE_TIME')!) / 1000;
+    const expiredTime =
+      ms(this.configService.get<ms.StringValue>('EMAIL_VERIFY_EXPIRE_TIME')!) / 1000;
     const activationData = {
       email: account?.email,
       createdAt: new Date().toISOString(),
-    }
+    };
     Promise.all([
       await this.redisService.set(
         `activation:${activationCode}`,
@@ -70,25 +71,20 @@ export class AuthService {
         `activation:account:${account?.email}`,
         activationCode,
         expiredTime
-      )
-    ])
+      ),
+    ]);
     this.emailService.sendActivationEmail(email, firstName, activationCode);
 
     return account;
   }
 
   async validateUser(signInDTO: SignInDTO): Promise<Account | null> {
-    const account = await this.accountService.getAccountByEmail(
-      signInDTO.email,
-    );
+    const account = await this.accountService.getAccountByEmail(signInDTO.email);
     if (!account) {
       return null;
     }
     if (account.provider.includes(AuthProvider.EMAIL)) {
-      const isPasswordValid = await comparePassword(
-        signInDTO.password,
-        account.password!,
-      );
+      const isPasswordValid = await comparePassword(signInDTO.password, account.password!);
       if (isPasswordValid) {
         return account;
       }
@@ -96,8 +92,8 @@ export class AuthService {
     return null;
   }
   async signIn(
-    account: Account,
-  ): Promise<{ accessToken: string; refreshToken: string, account: Account }> {
+    account: Account
+  ): Promise<{ accessToken: string; refreshToken: string; account: Account }> {
     const payload: JWT_Payload = {
       email: account.email,
       sub: account.accountId,
@@ -106,15 +102,9 @@ export class AuthService {
     };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.tokenService.generateToken(
-        payload,
-        TokenType.ACCESS,
-      ),
-      this.tokenService.generateToken(
-        payload,
-        TokenType.REFRESH,
-      )
-    ])
+      this.tokenService.generateToken(payload, TokenType.ACCESS),
+      this.tokenService.generateToken(payload, TokenType.REFRESH),
+    ]);
     await this.tokenService.storeToken(account.accountId, refreshToken);
     return {
       accessToken,
@@ -125,13 +115,12 @@ export class AuthService {
 
   async signOut(userId: string, accessToken: string): Promise<void> {
     await this.tokenService.deleteToken(userId);
-    const { exp } = await this.tokenService.decodeToken(accessToken, TokenType.ACCESS)
-    const expiredTime = Date.now() + (exp! * 1000) - Date.now();
-    await this.redisService.set(`bl:${accessToken}`, "1", expiredTime);
+    const { exp } = await this.tokenService.decodeToken(accessToken, TokenType.ACCESS);
+    const expiredTime = Date.now() + exp! * 1000 - Date.now();
+    await this.redisService.set(`bl:${accessToken}`, '1', expiredTime);
   }
 
-
-  async refreshToken(refreshToken: string): Promise<{ accessToken: string, refreshToken: string }> {
+  async refreshToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     if (!refreshToken) {
       throw new BadRequestException('Refresh token not found');
     }
@@ -140,20 +129,22 @@ export class AuthService {
     if (!storedToken || storedToken !== refreshToken) {
       throw new UnauthorizedException('Invalid or revoked refresh token');
     }
-    const { sub, email, role, status } = payload
+    const { sub, email, role, status } = payload;
     const newPayload = {
-      sub, email, role, status
-    }
+      sub,
+      email,
+      role,
+      status,
+    };
     const [accessToken, newRefreshToken] = await Promise.all([
       this.tokenService.generateToken(newPayload, TokenType.ACCESS),
-      this.tokenService.generateToken(newPayload, TokenType.REFRESH)
+      this.tokenService.generateToken(newPayload, TokenType.REFRESH),
     ]);
     await this.tokenService.storeToken(sub, newRefreshToken);
     return { accessToken, refreshToken: newRefreshToken };
   }
 
   async verifyEmail(activationCode: string) {
-
     const data = await this.redisService.get(`activation:${activationCode}`);
     if (!data) {
       throw new BadRequestException('Invalid or expired activation code');
@@ -175,10 +166,23 @@ export class AuthService {
     await this.redisService.del(`activation:account:${email}`);
   }
 
-  async changePassword(id: string, oldPassword: string, newPassword: string, confirmNewpassword: string) {
+  async changePassword(
+    id: string,
+    oldPassword: string,
+    newPassword: string,
+    confirmNewpassword: string
+  ) {
     const account = await this.accountService.getAccountById(id);
     if (!account) {
       return;
+    }
+
+    if (confirmNewpassword !== newPassword) {
+      throw new BadRequestException('New password and confirmation do not match');
+    }
+
+    if (oldPassword === newPassword) {
+      throw new BadRequestException('New password must be different from old password');
     }
 
     const isPasswordValid = await comparePassword(oldPassword, account.password!);
@@ -189,7 +193,6 @@ export class AuthService {
     const hashed = await hashPassword(newPassword);
     await this.accountService.updateAccount(id, { password: hashed });
   }
-
 
   async resendActivationEmail(email: string) {
     const account = await this.accountService.getAccountByEmail(email);
@@ -208,7 +211,8 @@ export class AuthService {
     }
 
     const activationCode = uuidv4();
-    const expiredTime = ms(this.configService.get<ms.StringValue>('EMAIL_VERIFY_EXPIRE_TIME')!) / 1000;
+    const expiredTime =
+      ms(this.configService.get<ms.StringValue>('EMAIL_VERIFY_EXPIRE_TIME')!) / 1000;
     const activationData = {
       email: account.email,
       createdAt: new Date().toISOString(),
@@ -218,14 +222,9 @@ export class AuthService {
       JSON.stringify(activationData),
       expiredTime
     );
-    await this.redisService.set(
-      `activation:account:${account.email}`,
-      activationCode,
-      expiredTime
-    );
+    await this.redisService.set(`activation:account:${account.email}`, activationCode, expiredTime);
     this.emailService.sendActivationEmail(account.email, account.firstName, activationCode);
   }
-
 
   async requestResetPassword(email: string) {
     const account = await this.accountService.getAccountByEmail(email);
@@ -239,7 +238,8 @@ export class AuthService {
     }
 
     const otp = randomInt(100000, 999999).toString();
-    const expiredTime = ms(this.configService.get<ms.StringValue>('RESET_PASSWORD_EXPIRE_TIME')!) / 1000;
+    const expiredTime =
+      ms(this.configService.get<ms.StringValue>('RESET_PASSWORD_EXPIRE_TIME')!) / 1000;
     const otpData = {
       email,
       id: account.accountId,
@@ -247,12 +247,12 @@ export class AuthService {
     };
     await Promise.all([
       this.redisService.set(`reset_password:${otp}`, JSON.stringify(otpData), expiredTime),
-      this.redisService.set(`reset_password:account:${email}`, otp, expiredTime)
+      this.redisService.set(`reset_password:account:${email}`, otp, expiredTime),
     ]);
     this.emailService.sendResetPasswordEmail(account.email, account.firstName, otp);
   }
 
-  async verifyResetCode(code: string, email: string): Promise<Boolean> {
+  async verifyResetCode(code: string, email: string): Promise<boolean> {
     const otpData = await this.redisService.get(`reset_password:${code}`);
     if (!otpData) {
       throw new BadRequestException('Invalid or expired reset password code');
@@ -262,14 +262,12 @@ export class AuthService {
       throw new BadRequestException('Invalid reset code for this email address');
     }
 
-
     return true;
   }
 
-
   async resetPassword(code: string, newPassword: string, confirmNewPassword: string) {
     if (newPassword !== confirmNewPassword) {
-      throw new BadRequestException("Passwords do not match");
+      throw new BadRequestException('Passwords do not match');
     }
     const data = await this.redisService.get(`reset_password:${code}`);
     if (!data) {
@@ -277,19 +275,17 @@ export class AuthService {
     }
     const { email, id } = JSON.parse(data);
     const hashed = await hashPassword(newPassword);
-    await this.accountService.updateAccount(id, { password: hashed })
+    await this.accountService.updateAccount(id, { password: hashed });
     await Promise.all([
       this.redisService.del(`reset_password:${code}`),
-      this.redisService.del(`reset_password:account:${email}`)
+      this.redisService.del(`reset_password:account:${email}`),
     ]);
-
   }
 
-
-
-  async googleOAuthSignIn(oauthUser: OAuthUserDTO): Promise<{ accessToken: string; refreshToken: string }> {
+  async googleOAuthSignIn(
+    oauthUser: OAuthUserDTO
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const account = await this.accountService.findOrCreateOAuthAccount(oauthUser);
-
     const payload: JWT_Payload = {
       email: account.email,
       sub: account.accountId,
@@ -297,15 +293,9 @@ export class AuthService {
       status: account.status,
     };
 
-    const accessToken = await this.tokenService.generateToken(
-      payload,
-      TokenType.ACCESS,
-    );
+    const accessToken = await this.tokenService.generateToken(payload, TokenType.ACCESS);
 
-    const refreshToken = await this.tokenService.generateToken(
-      payload,
-      TokenType.REFRESH,
-    );
+    const refreshToken = await this.tokenService.generateToken(payload, TokenType.REFRESH);
 
     await this.tokenService.storeToken(account.accountId, refreshToken);
 

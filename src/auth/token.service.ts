@@ -7,14 +7,13 @@ import { convertMStoDate } from 'src/utils';
 import { StringValue } from 'ms';
 import { v4 } from 'uuid';
 
-
 @Injectable()
 export class TokenService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly prisma: PrismaService,
-  ) { }
+    private readonly prisma: PrismaService
+  ) {}
 
   private getConfig(key: string): string {
     const value = this.configService.get<string>(key);
@@ -25,9 +24,10 @@ export class TokenService {
   }
 
   async generateToken(payload: JWT_Payload, type: TokenType): Promise<string> {
-
     const secret = this.getConfig(type === TokenType.ACCESS ? 'AC_SECRET' : 'RF_SECRET');
-    const expiresIn = this.getConfig(type === TokenType.ACCESS ? 'AC_EXPIRE_TIME' : 'RF_EXPIRE_TIME');
+    const expiresIn = this.getConfig(
+      type === TokenType.ACCESS ? 'AC_EXPIRE_TIME' : 'RF_EXPIRE_TIME'
+    );
 
     return await this.jwtService.signAsync(payload, {
       secret,
@@ -37,11 +37,11 @@ export class TokenService {
   }
 
   async storeToken(accountId: string, refreshToken: string): Promise<void> {
-    await this.prisma.$transaction(async (prisma) => {
+    await this.prisma.$transaction(async prisma => {
       await prisma.token.deleteMany({
         where: { accountId },
       });
-      const expiredTime = (this.configService.get<string>('RF_EXPIRE_TIME') || "7d") as StringValue;
+      const expiredTime = (this.configService.get<string>('RF_EXPIRE_TIME') || '7d') as StringValue;
       const expiredDate = convertMStoDate(expiredTime);
       await prisma.token.create({
         data: {
@@ -52,7 +52,6 @@ export class TokenService {
       });
     });
   }
-
 
   async getToken(accountId: string): Promise<string | null> {
     const token = await this.prisma.token.findFirst({

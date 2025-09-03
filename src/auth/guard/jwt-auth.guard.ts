@@ -13,7 +13,10 @@ import { Request } from 'express';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
-  constructor(private reflector: Reflector, private readonly redisService: RedisService) {
+  constructor(
+    private reflector: Reflector,
+    private readonly redisService: RedisService
+  ) {
     super();
   }
   async canActivate(context: ExecutionContext) {
@@ -36,15 +39,13 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       throw new ForbiddenException('You are logged out. Please log in again');
     }
 
-
-    return Boolean(await super.canActivate(context))
+    return Boolean(await super.canActivate(context));
   }
 
   handleRequest<TUser = JWT_Payload>(err: unknown, payload: TUser) {
     if (err || !payload) {
       throw err || new UnauthorizedException('Token is not valid');
     }
-
 
     return payload;
   }

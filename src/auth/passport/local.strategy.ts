@@ -19,11 +19,8 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
       password,
     });
 
-
     if (!user) {
-      throw new UnauthorizedException(
-        'User not found or password is incorrect',
-      );
+      throw new UnauthorizedException('User not found or password is incorrect');
     }
 
     if (user.status === AccountStatus.NOT_VERIFY) {

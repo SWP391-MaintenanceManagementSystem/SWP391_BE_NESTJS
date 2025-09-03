@@ -1,4 +1,4 @@
-import { Controller, Post, Req, UseGuards, Res, Get, BadRequestException, Query, Patch } from '@nestjs/common';
+import { Controller, Post, Req, UseGuards, Res, Get, Query, Patch } from '@nestjs/common';
 import { Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SignUpDTO } from './dto/signup.dto';
@@ -11,28 +11,39 @@ import { AccountResponseDTO } from './dto/account-response.dto';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
 import { CurrentUser } from 'src/decorator/current-user.decorator';
 import { AccountDTO } from 'src/account/dto/account.dto';
-import { JWT_Payload, TokenType } from 'src/types';
-import { ApiBody, ApiTags, ApiBearerAuth, ApiCookieAuth, ApiExcludeEndpoint } from '@nestjs/swagger';
+import { JWT_Payload } from 'src/types';
+import {
+  ApiBody,
+  ApiTags,
+  ApiBearerAuth,
+  ApiCookieAuth,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { SignInDTO } from './dto/signin.dto';
 import ResetPasswordBodyDTO from './dto/reset-password-body.dto';
 import ChangePasswordBodyDTO from './dto/change-password-body.dto';
 import { RequestResetPasswordDTO } from './dto/request-reset-password.dto';
 import { VerifyResetPasswordDTO } from './dto/verify-reset-password.dto';
-
+import * as ms from 'ms';
+import { ConfigService } from '@nestjs/config';
+import { AccountService } from 'src/account/account.service';
 
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
   user: OAuthUserDTO;
 }
 
 export interface RequestWithUserPayload extends Omit<Request, 'user'> {
-  user: JWT_Payload
+  user: JWT_Payload;
 }
-
 
 @ApiTags('Auth')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+    private readonly accountService: AccountService
+  ) {}
 
   @Public()
   @Post('/signup')
@@ -40,9 +51,8 @@ export class AuthController {
   async signUp(@Body() body: SignUpDTO) {
     const account = await this.authService.signUp(body);
     return {
-      status: 'success',
-      data: account,
-      message: 'Sign up successful'
+      account: account,
+      message: 'Sign up successful',
     };
   }
 
@@ -52,17 +62,17 @@ export class AuthController {
   @Post('/signin')
   @ApiBody({ type: SignInDTO })
   async signIn(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, account } = await this.authService.signIn(
-      req.user!,
-    );
-
+    const { accessToken, refreshToken, account } = await this.authService.signIn(req.user!);
+    const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
+    const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      maxAge: parseInt(process.env.RF_EXPIRE_TIME!, 10) || 15 * 60 * 1000,
+      secure: false,
+      sameSite: 'lax',
+      maxAge,
     });
     return {
-      status: 'success',
-      user: account,
+      account: account,
       accessToken,
       message: 'Sign in successful',
     };
@@ -75,7 +85,6 @@ export class AuthController {
     const token = req.headers.authorization?.split(' ')[1];
     await this.authService.signOut(req.user.sub, token!);
     return {
-      status: 'success',
       message: 'Sign out successful',
     };
   }
@@ -86,24 +95,25 @@ export class AuthController {
   async refreshToken(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const token = req.cookies['refreshToken'];
     const { accessToken, refreshToken } = await this.authService.refreshToken(token);
+    const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
+    const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      maxAge: parseInt(process.env.RF_EXPIRE_TIME!, 10) || 15 * 60 * 1000,
+      secure: false,
+      sameSite: 'lax',
+      maxAge,
     });
     return {
-      status: 'success',
       accessToken,
       message: 'Refresh token successful',
     };
   }
-
 
   @Get('verify-email')
   @Public()
   async verifyEmail(@Query('code') code: string) {
     await this.authService.verifyEmail(code);
     return {
-      status: 'success',
       message: 'Email verified successfully',
     };
   }
@@ -114,14 +124,13 @@ export class AuthController {
   async resendEmail(@Body('email') email: string) {
     await this.authService.resendActivationEmail(email);
     return {
-      status: 'success',
       message: 'Resend activation email successfully',
     };
   }
 
   @Public()
   @ApiExcludeEndpoint()
-  @Get('google')
+  @Get('google/login')
   @UseGuards(GoogleOauthGuard)
   async googleAuth() {
     // Initiates Google OAuth2 flow
@@ -133,69 +142,71 @@ export class AuthController {
   @UseGuards(GoogleOauthGuard)
   async googleAuthCallback(
     @Req() req: RequestWithOAuthUser,
-    @Res({ passthrough: true }) res: Response,
+    @Res({ passthrough: true }) res: Response
   ) {
     const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
 
+    const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
+    const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
+
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      maxAge: parseInt(process.env.RF_EXPIRE_TIME!, 10) || 7 * 24 * 60 * 60 * 1000,
+      secure: false,
+      sameSite: 'lax',
+      maxAge,
     });
 
-    // // Redirect to frontend with access token
-    // const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    // return res.redirect(`${frontendUrl}/auth/success?token=${accessToken}`);
+    // Redirect to frontend with access token
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/auth/success?token=${accessToken}`);
   }
 
-  @Get("/me")
+  @Get('/me')
   @ApiBearerAuth('jwt-auth')
+  @Serialize(AccountDTO)
   async getMe(@CurrentUser() user: JWT_Payload) {
-    return user
+    const account = await this.accountService.getAccountById(user.sub);
+    return account;
   }
 
-  @Patch("me/change-password")
+  @Patch('me/change-password')
   @ApiBearerAuth('jwt-auth')
   async changePassword(@CurrentUser() user: JWT_Payload, @Body() body: ChangePasswordBodyDTO) {
     const { oldPassword, newPassword, confirmNewPassword } = body;
     await this.authService.changePassword(user.sub, oldPassword, newPassword, confirmNewPassword);
     return {
-      status: 'success',
       message: 'Change password successful',
     };
   }
 
-  @Post("reset-password/request")
+  @Post('reset-password/request')
   @Public()
   async requestResetPassword(@Body() body: RequestResetPasswordDTO) {
-    const { email } = body
+    const { email } = body;
     await this.authService.requestResetPassword(email);
     return {
-      status: 'success',
       message: 'Reset password request successful',
     };
   }
 
-  @Post("reset-password/verify")
+  @Post('reset-password/verify')
   @Public()
   async verifyResetPassword(@Body() body: VerifyResetPasswordDTO) {
-    const { code, email } = body
+    const { code, email } = body;
     await this.authService.verifyResetCode(code, email);
     return {
-      status: 'success',
       message: 'Reset password successful',
     };
   }
 
-  @Post("reset-password/confirm")
+  @Post('reset-password/confirm')
   @Public()
   async resetPassword(@Body() body: ResetPasswordBodyDTO) {
     const { code, newPassword, confirmNewPassword } = body;
     await this.authService.resetPassword(code, newPassword, confirmNewPassword);
 
     return {
-      status: 'success',
       message: 'Password reset successful',
     };
   }
-
 }

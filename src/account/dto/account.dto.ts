@@ -43,12 +43,12 @@ export class AccountDTO {
   updatedAt: Date;
 
   @Expose()
-  status: AccountStatus
+  status: AccountStatus;
   @Expose()
   isBanned: boolean;
 
   @Exclude()
-  provider: AuthProvider[]
+  provider: AuthProvider[];
 
   constructor(partial: Partial<Account>) {
     Object.assign(this, partial);

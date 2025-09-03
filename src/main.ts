@@ -6,6 +6,12 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.enableCors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    allowedHeaders: 'Content-Type, Authorization',
+  });
   const config = new DocumentBuilder()
     .setTitle('SWP391 API')
     .setDescription('The SWP391 API description')
@@ -19,7 +25,7 @@ async function bootstrap() {
         description: 'Enter JWT token',
         in: 'header',
       },
-      'jwt-auth',
+      'jwt-auth'
     )
     .addCookieAuth('refreshToken', {
       type: 'apiKey',
@@ -34,14 +40,16 @@ async function bootstrap() {
     },
   });
   app.use(cookieParser());
-  app.enableCors();
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-    }),
+    })
   );
   await app.listen(process.env.PORT ?? 3000, process.env.HOST ?? '0.0.0.0', () => {
-    console.log(`Server is running on http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}`);
+    console.log(
+      `Server is running on http://${process.env.HOST ?? 'localhost'}:${process.env.PORT ?? 3000}`
+    );
+    console.log(process.env.FRONTEND_URL);
   });
 }
 bootstrap();

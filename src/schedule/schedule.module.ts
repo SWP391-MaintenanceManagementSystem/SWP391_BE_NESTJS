@@ -9,4 +9,4 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   providers: [ScheduleService],
   exports: [ScheduleService],
 })
-export class ScheduleModule { }
+export class ScheduleModule {}

@@ -9,7 +9,6 @@ import { LocalStrategy } from 'src/auth/passport/local.strategy';
 import { JwtStrategy } from './passport/jwt.strategy';
 import { GoogleOauth2 } from './passport/google.strategy';
 import { ConfigService } from '@nestjs/config';
-import { PrismaModule } from 'src/prisma/prisma.module';
 import { EmailModule } from 'src/email/email.module';
 
 @Module({
@@ -31,4 +30,4 @@ import { EmailModule } from 'src/email/email.module';
   providers: [AuthService, TokenService, LocalStrategy, JwtStrategy, GoogleOauth2],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

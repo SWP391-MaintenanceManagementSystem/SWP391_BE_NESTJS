@@ -1,14 +1,16 @@
-import { Get, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class EmailService {
-  constructor(private readonly mailerService: MailerService, private configService: ConfigService) { }
-
+  constructor(
+    private readonly mailerService: MailerService,
+    private configService: ConfigService
+  ) {}
 
   async sendActivationEmail(email: string, username: string, activationCode: string) {
-    const host = this.configService.get('HOST');
+    // const host = this.configService.get('HOST');
     const port = this.configService.get('PORT');
     const activationLink = `http://localhost:${port}/api/auth/verify-email?code=${activationCode}`;
     await this.mailerService.sendMail({
@@ -20,7 +22,7 @@ export class EmailService {
         activationCode,
         year: new Date().getFullYear(),
         activationLink,
-      }
+      },
     });
   }
 
@@ -33,8 +35,7 @@ export class EmailService {
         username: username ?? email,
         resetCode,
         year: new Date().getFullYear(),
-      }
+      },
     });
   }
-
 }

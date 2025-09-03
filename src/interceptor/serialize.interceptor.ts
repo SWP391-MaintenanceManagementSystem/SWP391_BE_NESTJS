@@ -1,16 +1,11 @@
-import {
-  UseInterceptors,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-} from '@nestjs/common';
+import { UseInterceptors, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
 
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
-import { plainToClass } from 'class-transformer';
+import { plainToInstance } from 'class-transformer';
 
 interface ClassConstructor {
-  new(...args: any[]): object;
+  new (...args: any[]): object;
 }
 
 // Create a decorator to use the SerializeInterceptor
@@ -19,7 +14,7 @@ export function Serialize(dto: ClassConstructor) {
 }
 
 export class SerializeInterceptor implements NestInterceptor {
-  constructor(private readonly dto: any) { }
+  constructor(private readonly dto: any) {}
 
   intercept(context: ExecutionContext, handler: CallHandler): Observable<any> {
     // Run before handling the handler
@@ -28,11 +23,11 @@ export class SerializeInterceptor implements NestInterceptor {
       map((data: any) => {
         // Run before sending the response
         // covert to json
-        return plainToClass(this.dto, data, {
+        return plainToInstance(this.dto, data, {
           // Execute only the fields with Expose()
           excludeExtraneousValues: true,
         });
-      }),
+      })
     );
   }
 }

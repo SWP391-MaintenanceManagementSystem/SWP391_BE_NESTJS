@@ -1,5 +1,5 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsString, IsObject } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsNumber, IsObject } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class FilterOptionsDTO<T> {

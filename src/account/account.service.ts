@@ -1,18 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
-import { Account, AccountStatus, AuthProvider, Prisma } from '@prisma/client';
+import { Account, AccountStatus, Prisma } from '@prisma/client';
 import { OAuthUserDTO } from 'src/auth/dto/oauth-user.dto';
 import { FilterOptionsDTO } from './dto/filter-options.dto';
 import { PaginationResponse } from 'src/dto/pagination-response.dto';
 
 @Injectable()
 export class AccountService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
-  async createAccount(
-    createAccountDto: CreateAccountDTO,
-  ): Promise<Account | null> {
+  async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
       data: createAccountDto,
     });
@@ -42,8 +40,9 @@ export class AccountService {
         return await this.prisma.account.update({
           where: { email: oauthUser.email },
           data: {
+            password: existingAccount.password,
             provider: updatedProviders,
-            status: AccountStatus.VERIFIED
+            status: AccountStatus.VERIFIED,
           },
         });
       }
@@ -72,14 +71,14 @@ export class AccountService {
         take: pageSize,
       }),
       this.prisma.account.count({ where: options.where }),
-    ])
+    ]);
     return {
       data,
       page,
       pageSize,
       total,
       totalPages: Math.ceil(total / pageSize),
-    }
+    };
   }
 
   async getAccountById(id: string): Promise<Account | null> {
@@ -88,7 +87,6 @@ export class AccountService {
     });
     return account;
   }
-
 
   async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { accountId: id } });
@@ -111,7 +109,4 @@ export class AccountService {
       data: { status: AccountStatus.DISABLED },
     });
   }
-
-
-
 }
