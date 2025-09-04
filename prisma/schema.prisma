@@ -8,9 +8,9 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator json {
-  provider = "prisma-json-types-generator"
-}
+// generator json {
+//   provider = "prisma-json-types-generator"
+// }
 
 datasource db {
   provider = "postgresql"
@@ -22,16 +22,44 @@ enum Role {
   ADMIN
 }
 
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+}
+
+enum AccountStatus {
+  VERIFIED
+  NOT_VERIFY
+  BANNED
+  DISABLED
+}
+
 model Account {
-  accountId  String   @id @default(uuid())
+  accountId  String         @id @default(uuid())
   firstName  String
   lastName   String
-  email      String   @unique
-  password   String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  role       Role     @default(USER)
-  isVerified Boolean  @default(false)
-  isBanned   Boolean  @default(false)
-  isGoogle   Boolean  @default(false)
+  email      String         @unique
+  password   String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  role       Role           @default(USER)
+  status     AccountStatus  @default(NOT_VERIFY)
+  provider   AuthProvider[] @default([EMAIL])
+  providerId Json?
+  Token      Token[]
+  avatar     String?
+
+  @@index([provider])
+}
+
+model Token {
+  tokenId      String   @id @default(uuid())
+  accountId    String
+  refreshToken String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  expiredAt    DateTime
+  account      Account  @relation(fields: [accountId], references: [accountId], onDelete: NoAction, onUpdate: NoAction, map: "FK_Token_account_id_Account_id")
+
+  @@index([accountId], map: "IDX_Token_accountId")
 }
