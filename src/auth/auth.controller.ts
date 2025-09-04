@@ -10,7 +10,6 @@ import { Serialize } from 'src/interceptor/serialize.interceptor';
 import { AccountResponseDTO } from './dto/account-response.dto';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
 import { CurrentUser } from 'src/decorator/current-user.decorator';
-import { AccountDTO } from 'src/account/dto/account.dto';
 import { JWT_Payload } from 'src/types';
 import {
   ApiBody,
@@ -78,7 +77,6 @@ export class AuthController {
     };
   }
 
-  // @ApiHeader({ name: 'Authorization', required: true })
   @ApiBearerAuth('jwt-auth')
   @Post('signout')
   async signOut(@Req() req: RequestWithUserPayload) {
@@ -163,10 +161,13 @@ export class AuthController {
 
   @Get('/me')
   @ApiBearerAuth('jwt-auth')
-  @Serialize(AccountDTO)
+  @Serialize(AccountResponseDTO)
   async getMe(@CurrentUser() user: JWT_Payload) {
     const account = await this.accountService.getAccountById(user.sub);
-    return account;
+    return {
+      account,
+      message: 'Get current user successful',
+    };
   }
 
   @Patch('me/change-password')
