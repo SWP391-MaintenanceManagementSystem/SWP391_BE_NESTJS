@@ -1,20 +1,20 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AccountModule } from './account/account.module';
-import { AuthModule } from './auth/auth.module';
+import { AccountModule } from './modules/account/account.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
+import { JwtAuthGuard } from './modules/auth/guard/jwt-auth.guard';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { PrismaModule } from './prisma/prisma.module';
-import { ScheduleModule } from './schedule/schedule.module';
+import { PrismaModule } from './modules/prisma/prisma.module';
+import { ScheduleModule } from './modules/schedule/schedule.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
-import { EmailModule } from './email/email.module';
-import { RedisModule } from './redis/redis.module';
-import { RoleGuard } from './guard/role.guard';
-import { ResponseInterceptor } from './interceptor/response.interceptor';
-import { HttpExceptionFilter } from './filter/http-exception.filter';
+import { EmailModule } from './modules/email/email.module';
+import { RedisModule } from './modules/redis/redis.module';
+import { RoleGuard } from './common/guard/role.guard';
+import { ResponseInterceptor } from './common/interceptor/response.interceptor';
+import { HttpExceptionFilter } from './common/filter/http-exception.filter';
 
 @Module({
   imports: [

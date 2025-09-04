@@ -5,10 +5,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { JWT_Payload } from 'src/types';
+import { JWT_Payload } from 'src/common/types';
 import { Reflector } from '@nestjs/core';
-import { IS_PUBLIC_KEY } from '../../decorator/public.decorator';
-import { RedisService } from 'src/redis/redis.service';
+import { IS_PUBLIC_KEY } from '../../../common/decorator/public.decorator';
+import { RedisService } from 'src/modules/redis/redis.service';
 import { Request } from 'express';
 
 @Injectable()

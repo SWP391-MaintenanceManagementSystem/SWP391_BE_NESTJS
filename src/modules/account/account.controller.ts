@@ -3,8 +3,8 @@ import { AccountService } from './account.service';
 import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { Account, Role } from '@prisma/client';
 import { UpdateAccountDTO } from './dto/update-account.dto';
-import { CurrentUser } from 'src/decorator/current-user.decorator';
-import { Roles } from 'src/decorator/role.decorator';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { Roles } from 'src/common/decorator/role.decorator';
 
 @ApiTags('Account')
 @Controller('api/account')
