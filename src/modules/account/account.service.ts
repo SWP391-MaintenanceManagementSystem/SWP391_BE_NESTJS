@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
 import { Account, AccountStatus, Prisma } from '@prisma/client';
-import { OAuthUserDTO } from 'src/auth/dto/oauth-user.dto';
+import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
 import { FilterOptionsDTO } from './dto/filter-options.dto';
-import { PaginationResponse } from 'src/dto/pagination-response.dto';
+import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 
 @Injectable()
 export class AccountService {

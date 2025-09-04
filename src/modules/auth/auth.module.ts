@@ -1,15 +1,15 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { AccountModule } from 'src/account/account.module';
+import { AccountModule } from 'src/modules/account/account.module';
 import { TokenService } from './token.service';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
-import { LocalStrategy } from 'src/auth/passport/local.strategy';
+import { LocalStrategy } from 'src/modules/auth/passport/local.strategy';
 import { JwtStrategy } from './passport/jwt.strategy';
 import { GoogleOauth2 } from './passport/google.strategy';
 import { ConfigService } from '@nestjs/config';
-import { EmailModule } from 'src/email/email.module';
+import { EmailModule } from 'src/modules/email/email.module';
 
 @Module({
   imports: [

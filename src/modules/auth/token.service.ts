@@ -1,8 +1,8 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JsonWebTokenError, JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { JWT_Payload, TokenType } from 'src/types';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { JWT_Payload, TokenType } from 'src/common/types';
+import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { convertMStoDate } from 'src/utils';
 import { StringValue } from 'ms';
 import { v4 } from 'uuid';

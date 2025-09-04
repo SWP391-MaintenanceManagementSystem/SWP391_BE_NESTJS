@@ -1,19 +1,20 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { AccountService } from 'src/account/account.service';
+import { AccountService } from 'src/modules/account/account.service';
 import { SignUpDTO } from './dto/signup.dto';
-import { CreateAccountDTO } from 'src/account/dto/create-account.dto';
+import { CreateAccountDTO } from 'src/modules/account/dto/create-account.dto';
 import { comparePassword, hashPassword } from 'src/utils';
 import { SignInDTO } from './dto/signin.dto';
 import { TokenService } from './token.service';
 import { Account, AccountStatus, AuthProvider } from '@prisma/client';
-import { JWT_Payload, TokenType } from 'src/types';
-import { EmailService } from 'src/email/email.service';
+import { JWT_Payload, TokenType } from 'src/common/types';
+import { EmailService } from 'src/modules/email/email.service';
 import { v4 as uuidv4 } from 'uuid';
-import { RedisService } from 'src/redis/redis.service';
+import { RedisService } from 'src/modules/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
 import * as ms from 'ms';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
 import { randomInt } from 'crypto';
+import { ValidationException } from 'src/common/exception/validation.exception';
 @Injectable()
 export class AuthService {
   constructor(
@@ -34,7 +35,7 @@ export class AuthService {
     const { email, password, confirmPassword, firstName, lastName } = signUpDTO;
 
     if (password !== confirmPassword) {
-      throw new BadRequestException('Passwords do not match');
+      throw new ValidationException({ confirmPassword: 'Password confirmation does not match password' });
     }
 
     const existingAccount = await this.accountService.getAccountByEmail(email);
