@@ -43,7 +43,7 @@ import { HttpExceptionFilter } from './common/filter/http-exception.filter';
           from: '"No Reply" <no-reply@example.com>',
         },
         template: {
-          dir: process.cwd() + '/src/email/templates',
+          dir: process.cwd() + '/src/modules/email/templates',
           adapter: new HandlebarsAdapter(),
           options: {
             inlineCss: true,
