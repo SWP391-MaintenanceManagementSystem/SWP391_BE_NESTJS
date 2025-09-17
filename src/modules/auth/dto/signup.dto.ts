@@ -1,5 +1,7 @@
-import { IsEmail, IsNotEmpty, IsString, Length, Matches } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Length, Matches } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { Expose, Type } from 'class-transformer';
 
 export class SignUpDTO {
   @IsNotEmpty({ message: 'Email is required' })
@@ -61,4 +63,40 @@ export class SignUpDTO {
     maxLength: 30,
   })
   lastName: string;
+
+
+  @IsOptional()
+  @IsString({ message: 'Phone number must be a string' })
+  @Matches(/^(?:\+84|0)(3|5|7|8|9)\d{8}$/, {
+    message: 'Phone number must be a valid Vietnamese phone number',
+  })
+  @ApiProperty({
+    description: 'The phone number of the user',
+    example: '0987654321',
+    required: false,
+  })
+  phone?: string;
+
+
+  @IsOptional()
+  @IsString({ message: 'Address must be a string' })
+  @Length(5, 100, { message: 'Address must be between 5 and 100 characters long' })
+  @ApiProperty({
+    description: 'The address of the user',
+    example: '123 Main St, Hanoi, Vietnam',
+    minLength: 5,
+    maxLength: 100,
+    required: false,
+  })
+  address?: string;
+}
+
+
+export class SignUpResponseDTO {
+  @Expose()
+  @Type(() => AccountWithProfileDTO)
+  account: AccountWithProfileDTO;
+
+  @Expose()
+  message: string;
 }

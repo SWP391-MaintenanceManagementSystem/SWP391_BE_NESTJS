@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
 import { Account, AccountStatus } from '@prisma/client';
+import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
@@ -13,7 +14,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(email: string, password: string): Promise<Account> {
+  async validate(email: string, password: string): Promise<AccountWithProfileDTO> {
     const user = await this.authService.validateUser({
       email,
       password,
