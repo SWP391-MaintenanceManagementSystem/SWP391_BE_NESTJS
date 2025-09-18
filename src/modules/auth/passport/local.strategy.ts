@@ -1,6 +1,6 @@
 import { Strategy } from 'passport-local';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
 import { Account, AccountStatus } from '@prisma/client';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
@@ -25,15 +25,24 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
     }
 
     if (user.status === AccountStatus.NOT_VERIFY) {
-      throw new UnauthorizedException('User is not verified. Please verify your email address.');
+      throw new ForbiddenException({
+        message: 'Account not verified. Please verify your account.',
+        accountStatus: user.status,
+      });
     }
 
     if (user.status === AccountStatus.BANNED) {
-      throw new UnauthorizedException('User is banned. Please contact support.');
+      throw new ForbiddenException({
+        message: 'User is banned. Please contact support.',
+        accountStatus: user.status,
+      });
     }
 
     if (user.status === AccountStatus.DISABLED) {
-      throw new UnauthorizedException('User is disabled. Please contact support.');
+      throw new ForbiddenException({
+        message: 'User is disabled. Please contact support.',
+        accountStatus: user.status,
+      });
     }
 
     return user;

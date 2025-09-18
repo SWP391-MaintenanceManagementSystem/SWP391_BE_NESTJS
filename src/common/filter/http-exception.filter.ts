@@ -1,6 +1,7 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { ValidationErrorResponse, DefaultErrorResponse } from '../types/exceptions.type';
+import { AccountStatus } from '@prisma/client';
 
 
 type CustomErrorResponse = ValidationErrorResponse | DefaultErrorResponse | string;
@@ -17,6 +18,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     let message: string | null = null;
     let errors: Record<string, string> | null = null;
+    let accountStatus: AccountStatus | null = null;
 
     if (typeof exceptionResponse === 'string') {
       // Trường hợp throw string
@@ -31,6 +33,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
       } else {
         message = exceptionResponse.message;
       }
+
+      if ('accountStatus' in exceptionResponse) {
+        accountStatus = exceptionResponse.accountStatus as AccountStatus;
+      }
     }
 
     response.status(status).json({
@@ -39,6 +45,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       message,
       errors,
       data: null,
+      accountStatus,
       timestamp: new Date().toISOString(),
       path: request.url,
     });

@@ -28,6 +28,7 @@ import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO, Profile } from '../account/dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
 import { CustomerDTO } from '../customer/dto/customer.dto';
+import { SkipResponseInterceptor } from 'src/common/decorator/skip-response.decorator';
 
 
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
@@ -119,11 +120,12 @@ export class AuthController {
 
   @Get('verify-email')
   @Public()
-  async verifyEmail(@Query('code') code: string) {
-    await this.authService.verifyEmail(code);
-    return {
-      message: 'Email verified successfully',
-    };
+  @SkipResponseInterceptor()
+  async verifyEmail(@Query('code') code: string, @Res() res: Response) {
+    const isSuccess = await this.authService.verifyEmail(code);
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/auth/verify?success=${isSuccess}`);
+
   }
 
   @Public()
@@ -148,9 +150,10 @@ export class AuthController {
   @ApiExcludeEndpoint()
   @Get('google/callback')
   @UseGuards(GoogleOauthGuard)
+  @SkipResponseInterceptor()
   async googleAuthCallback(
     @Req() req: RequestWithOAuthUser,
-    @Res({ passthrough: true }) res: Response
+    @Res() res: Response
   ) {
     const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
 

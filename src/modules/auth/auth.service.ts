@@ -161,7 +161,7 @@ export class AuthService {
     return { accessToken, refreshToken: newRefreshToken };
   }
 
-  async verifyEmail(activationCode: string) {
+  async verifyEmail(activationCode: string): Promise<boolean> {
     const data = await this.redisService.get(`activation:${activationCode}`);
     if (!data) {
       throw new BadRequestException('Invalid or expired activation code');
@@ -177,10 +177,11 @@ export class AuthService {
     }
 
     // Activate email
-    await this.accountService.activateAccount(email);
+    const isSuccess = await this.accountService.activateAccount(email);
     // Delete activation codes
     await this.redisService.del(`activation:${activationCode}`);
     await this.redisService.del(`activation:account:${email}`);
+    return isSuccess
   }
 
   async changePassword(

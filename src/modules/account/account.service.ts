@@ -60,11 +60,17 @@ export class AccountService {
     return response
   }
 
-  async activateAccount(email: string) {
-    await this.prisma.account.update({
-      where: { email },
-      data: { status: AccountStatus.VERIFIED },
-    });
+  async activateAccount(email: string): Promise<boolean> {
+    try {
+      const account = await this.prisma.account.update({
+        where: { email },
+        data: { status: AccountStatus.VERIFIED },
+      });
+      return !!account
+    } catch (error) {
+      console.error('Error activating account:', error);
+      return false;
+    }
   }
 
   async findOrCreateOAuthAccount(oauthUser: OAuthUserDTO): Promise<AccountWithProfileDTO> {
