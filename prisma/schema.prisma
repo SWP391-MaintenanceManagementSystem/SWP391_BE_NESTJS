@@ -44,7 +44,6 @@ enum TransactionStatus {
   FAILED
 }
 
-
 /**
  * ================= MODELS =================
  */
@@ -237,15 +236,34 @@ model ServiceCenter {
   @@map("service_centers")
 }
 
+model Shift {
+  id          String    @id @default(uuid())
+  name        String
+  startTime   DateTime  @map("start_time")
+  endTime     DateTime  @map("end_time")
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  maximumSlot Int?      @map("maximum_slot")
+  repeatDays  String?   @map("repeat_days")
+  centerId    String    @map("center_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workSchedules WorkSchedule[]
+
+  @@map("shifts")
+}
+
 model WorkSchedule {
-  id         String    @id @default(uuid())
-  employeeId String    @map("employee_id")
-  shift      WorkShift
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  shiftId    String   @map("shift_id")
   date       DateTime
-  createdAt  DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime  @updatedAt @map("updated_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
 
   @@map("work_schedules")
 }
