@@ -7,7 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
+/**
+ * ================= ENUMS =================
+ */
+
+enum AccountRole {
   ADMIN
   STAFF
   TECHNICIAN
@@ -30,42 +34,33 @@ enum AuthProvider {
 enum BookingStatus {
   PENDING
   CONFIRMED
-  IN_PROGRESS
   COMPLETED
   CANCELLED
 }
 
-enum PaymentStatus {
+enum TransactionStatus {
   PENDING
-  COMPLETED
+  SUCCESS
   FAILED
-  REFUNDED
 }
 
-enum TransactionReferenceType {
-  BOOKING
-  SUBSCRIPTION
-}
-
-enum EmployeeCertificateStatus {
-  ACTIVE
-  EXPIRED
-}
+/**
+ * ================= MODELS =================
+ */
 
 model Account {
-  id         String         @id @default(uuid()) @map("accountId")
+  id         String         @id @default(uuid()) @map("id")
   email      String         @unique
   password   String?
   phone      String?
-  role       UserRole
+  role       AccountRole    @default(CUSTOMER)
   status     AccountStatus  @default(NOT_VERIFY)
   avatar     String?
   provider   AuthProvider[] @default([EMAIL])
-  providerId Json?
-  created_at DateTime       @default(now())
-  updated_at DateTime       @updatedAt
+  providerId Json?          @map("provider_id")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
 
-  // Relations
   customer Customer?
   employee Employee?
   admin    Admin?
@@ -74,94 +69,16 @@ model Account {
   @@map("accounts")
 }
 
-model Token {
-  tokenId      String   @id @default(uuid())
-  accountId    String
-  refreshToken String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  expiredAt    DateTime
-
-  // Relations
-  account Account @relation(fields: [accountId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@index([accountId])
-  @@map("tokens")
-}
-
-model Employee {
-  account_id       String   @id
-  first_name       String
-  last_name        String
-  employee_id      String   @unique
-  specialization   String?
-  experience_years Int?
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-
-  // Relations
-  account            Account               @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  workSchedules      WorkSchedule[]
-  workCenters        WorkCenter[]
-  bookingAssignments BookingAssignment[]
-  certificates       EmployeeCertificate[]
-
-  @@map("employees")
-}
-
-model Certificate {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
-
-  employeeCertificates EmployeeCertificate[]
-
-  @@map("certificates")
-}
-
-model EmployeeCertificate {
-  id             String                    @id @default(uuid())
-  employee_id    String
-  certificate_id Int
-  valid_from     DateTime
-  valid_to       DateTime?
-  status         EmployeeCertificateStatus @default(ACTIVE)
-  notes          String?
-  created_at     DateTime                  @default(now())
-  updated_at     DateTime                  @updatedAt
-
-  // Relations
-  employee    Employee    @relation(fields: [employee_id], references: [account_id], onDelete: Cascade)
-  certificate Certificate @relation(fields: [certificate_id], references: [id], onDelete: Cascade)
-
-  @@unique([employee_id, certificate_id])
-  @@map("employee_certificates")
-}
-
-model Admin {
-  account_id String   @id
-  first_name String
-  last_name  String
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  account Account @relation(fields: [account_id], references: [id], onDelete: Cascade)
-
-  @@map("admins")
-}
-
 model Customer {
-  account_id String   @id
-  first_name String
-  last_name  String
-  address    String?
-  is_premium Boolean  @default(false)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  accountId String   @id @map("account_id")
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  address   String?
+  isPremium Boolean  @default(false) @map("is_premium")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  account       Account        @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  account       Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   bookings      Booking[]
   vehicles      Vehicle[]
   transactions  Transaction[]
@@ -170,273 +87,244 @@ model Customer {
   @@map("customers")
 }
 
-model WorkSchedule {
-  id          String   @id @default(uuid())
-  employee_id String
-  shift_id    String
-  date        DateTime @db.Date
-  start_time  DateTime @db.Time
-  end_time    DateTime @db.Time
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+model Employee {
+  accountId  String   @id @map("account_id")
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  employeeId String   @unique @map("employee_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  employee Employee @relation(fields: [employee_id], references: [account_id], onDelete: Cascade)
-  shift    Shift    @relation(fields: [shift_id], references: [id], onDelete: Cascade)
+  account            Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  workSchedules      WorkSchedule[]
+  workCenters        WorkCenter[]
+  bookingAssignments BookingAssignment[]
+  certificates       EmployeeCertificate[]
 
-  @@unique([employee_id, date, shift_id])
-  @@index([date])
-  @@map("work_schedules")
+  @@map("employees")
 }
 
-model Shift {
-  id          String   @id @default(uuid())
-  name        String
-  start_time  DateTime @db.Time
-  end_time    DateTime @db.Time
-  repeat_days String
-  center_id   String
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+model Admin {
+  accountId String   @id @map("account_id")
+  fullName  String   @map("full_name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  serviceCenter ServiceCenter  @relation(fields: [center_id], references: [id], onDelete: Cascade)
-  workSchedules WorkSchedule[]
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@map("shifts")
-}
-
-model ServiceCenter {
-  id         String   @id @default(uuid())
-  name       String
-  address    String
-  email      String
-  phone      String
-  status     String
-  open_time  DateTime @db.Time
-  close_time DateTime @db.Time
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  workCenters WorkCenter[]
-  shifts      Shift[]
-  bookings    Booking[]
-
-  @@map("service_centers")
-}
-
-model WorkCenter {
-  id          String    @id @default(uuid())
-  employee_id String
-  center_id   String
-  start_date  DateTime  @db.Date
-  end_date    DateTime? @db.Date
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @updatedAt
-
-  employee      Employee      @relation(fields: [employee_id], references: [account_id], onDelete: Cascade)
-  serviceCenter ServiceCenter @relation(fields: [center_id], references: [id], onDelete: Cascade)
-
-  @@map("work_centers")
+  @@map("admins")
 }
 
 model Vehicle {
-  id            String   @id @default(uuid())
-  customer_id   String
-  model_id      String
-  vin           String   @unique
-  license_plate String   @unique
-  color         String
-  year          Int?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id         String   @id @default(uuid())
+  customerId String   @map("customer_id")
+  plate      String   @unique
+  brand      String
+  model      String
+  year       Int
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-  customer     Customer     @relation(fields: [customer_id], references: [account_id], onDelete: Cascade)
-  vehicleModel VehicleModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
-  bookings     Booking[]
+  customer Customer  @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
+  bookings Booking[]
 
   @@map("vehicles")
 }
 
-model VehicleModel {
-  id               String   @id @default(uuid())
-  brand            String
-  model_name       String
-  year             Int
-  battery_capacity Float?
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
-
-  vehicles Vehicle[]
-
-  @@map("vehicle_models")
-}
-
 model Booking {
-  id               String        @id @default(uuid())
-  customer_id      String
-  vehicle_id       String
-  center_id        String
-  total_cost       Float
-  status           BookingStatus @default(PENDING)
-  note             String?
-  booking_datetime DateTime
-  created_at       DateTime      @default(now())
-  updated_at       DateTime      @updatedAt
+  id              String        @id @default(uuid())
+  customerId      String        @map("customer_id")
+  vehicleId       String        @map("vehicle_id")
+  centerId        String        @map("center_id")
+  totalCost       Float         @map("total_cost")
+  status          BookingStatus @default(PENDING)
+  note            String?
+  bookingDate DateTime      @map("booking_date")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  customer           Customer            @relation(fields: [customer_id], references: [account_id], onDelete: Cascade)
-  vehicle            Vehicle             @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
-  serviceCenter      ServiceCenter       @relation(fields: [center_id], references: [id], onDelete: Cascade)
+  customer           Customer            @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
+  vehicle            Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  serviceCenter      ServiceCenter       @relation(fields: [centerId], references: [id], onDelete: Cascade)
   bookingDetails     BookingDetail[]
   bookingAssignments BookingAssignment[]
+  transactions       Transaction[]
 
-  @@index([customer_id])
+  @@index([customerId])
   @@index([status])
-  @@index([booking_datetime])
+  @@index([bookingDate])
   @@map("bookings")
 }
 
 model BookingDetail {
-  booking_id String
-  service_id String
-  quantity   Int    @default(1)
-  price      Float
+  id        String   @id @default(uuid())
+  bookingId String   @map("booking_id")
+  serviceId String?  @map("service_id")
+  packageId String?  @map("package_id")
+  quantity  Int
+  unitPrice Float    @map("unit_price")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  booking Booking @relation(fields: [booking_id], references: [id], onDelete: Cascade)
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
+  booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id])
+  package Package? @relation(fields: [packageId], references: [id])
 
-  @@id([booking_id, service_id])
   @@map("booking_details")
 }
 
 model BookingAssignment {
-  id          String   @id @default(uuid())
-  booking_id  String
-  employee_id String
-  assigned_by String
-  assigned_at DateTime @default(now())
-  status      String   @default("ASSIGNED")
-  notes       String?
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  id         String   @id @default(uuid())
+  bookingId  String   @map("booking_id")
+  employeeId String   @map("employee_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
 
-  booking  Booking  @relation(fields: [booking_id], references: [id], onDelete: Cascade)
-  employee Employee @relation(fields: [employee_id], references: [account_id], onDelete: Cascade)
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
 
   @@map("booking_assignments")
 }
 
 model Service {
-  id               String   @id @default(uuid())
-  name             String
-  type             String
-  description      String?
-  base_price       Float
-  duration_minutes Int
-  created_at       DateTime @default(now())
-  updated_at       DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  price     Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   bookingDetails BookingDetail[]
-  serviceParts   ServicePart[]
+  packageDetails PackageDetail[]
 
   @@map("services")
 }
 
-model ServicePart {
-  service_id        String
-  part_id           String
-  quantity_required Int
-  created_at        DateTime @default(now())
-  updated_at        DateTime @updatedAt
+model Package {
+  id        String   @id @default(uuid())
+  name      String
+  price     Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  service Service @relation(fields: [service_id], references: [id], onDelete: Cascade)
-  part    Part    @relation(fields: [part_id], references: [part_id], onDelete: Cascade)
+  packageDetails PackageDetail[]
+  bookingDetails BookingDetail[]
 
-  @@id([service_id, part_id])
-  @@map("service_parts")
+  @@map("packages")
 }
 
-model Part {
-  part_id         String   @id @default(uuid())
-  category_id     Int
-  name            String
-  description     String?
-  stock           Int
-  min_stock_level Int
-  unit_price      Float
-  brand           String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+model PackageDetail {
+  id        String @id @default(uuid())
+  packageId String
+  serviceId String
+  quantity  Int    @default(1)
 
-  // Relations
-  category     Category      @relation(fields: [category_id], references: [category_id], onDelete: Cascade)
-  serviceParts ServicePart[]
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
-  @@map("parts")
+  @@map("package_details")
 }
 
-model Category {
-  category_id Int      @id @default(autoincrement())
+model ServiceCenter {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookings    Booking[]
+  workCenters WorkCenter[]
+
+  @@map("service_centers")
+}
+
+model Shift {
+  id          String    @id @default(uuid())
   name        String
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
+  startTime   DateTime  @map("start_time")
+  endTime     DateTime  @map("end_time")
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  maximumSlot Int?      @map("maximum_slot")
+  repeatDays  String?   @map("repeat_days")
+  centerId    String    @map("center_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  parts Part[]
+  workSchedules WorkSchedule[]
 
-  @@map("categories")
+  @@map("shifts")
+}
+
+model WorkSchedule {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  shiftId    String   @map("shift_id")
+  date       DateTime
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@map("work_schedules")
+}
+
+model WorkCenter {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  centerId   String   @map("center_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
+  serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+  @@map("work_centers")
+}
+
+model EmployeeCertificate {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  name       String
+  issuedAt   DateTime @map("issued_at")
+  expiresAt  DateTime @map("expires_at")
+
+  employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
+
+  @@map("employee_certificates")
 }
 
 model Transaction {
-  id             String                   @id @default(uuid())
-  customer_id    String
-  amount         Float
-  reference_type TransactionReferenceType // BOOKING or SUBSCRIPTION
-  reference_id   String // booking_id or subscription_id
-  payment_method String
-  payment_status PaymentStatus            @default(PENDING)
-  paid_at        DateTime?
-  created_at     DateTime                 @default(now())
-  updated_at     DateTime                 @updatedAt
+  id         String            @id @default(uuid())
+  customerId String            @map("customer_id")
+  bookingId  String            @map("booking_id")
+  amount     Float
+  status     TransactionStatus @default(PENDING)
+  createdAt  DateTime          @default(now()) @map("created_at")
 
-  // Relations
-  customer Customer @relation(fields: [customer_id], references: [account_id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
+  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
-  @@index([customer_id])
-  @@index([payment_status])
-  @@index([reference_type, reference_id])
   @@map("transactions")
 }
 
 model Subscription {
-  id            String   @id @default(uuid())
-  customer_id   String
-  membership_id Int
-  status        String   @default("ACTIVE")
-  start_date    DateTime @db.Date
-  end_date      DateTime @db.Date
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+  id         String   @id @default(uuid())
+  customerId String   @map("customer_id")
+  type       String
+  startDate  DateTime @map("start_date")
+  endDate    DateTime @map("end_date")
 
-  // Relations
-  customer   Customer   @relation(fields: [customer_id], references: [account_id], onDelete: Cascade)
-  membership Membership @relation(fields: [membership_id], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
 
-  @@index([customer_id])
-  @@index([status])
-  @@index([end_date])
   @@map("subscriptions")
 }
 
-model Membership {
-  id            Int      @id @default(autoincrement())
-  name          String
-  duration_days Int
-  price         Float
-  currency      String   @default("USD")
-  description   String?
-  created_at    DateTime @default(now())
-  updated_at    DateTime @updatedAt
+model Token {
+  id           String   @id @default(uuid())
+  accountId    String   @map("account_id")
+  refreshToken String
+  expiresAt    DateTime @map("expires_at")
 
-  // Relations
-  subscriptions Subscription[]
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@map("memberships")
+  @@map("tokens")
 }
