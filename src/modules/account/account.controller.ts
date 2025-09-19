@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Query, Patch, Param, Delete } from '@nestjs/common';
 import { AccountService } from './account.service';
 import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
-import { Account, Role } from '@prisma/client';
+import { Account, AccountRole } from '@prisma/client';
 import { UpdateAccountDTO } from './dto/update-account.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { Roles } from 'src/common/decorator/role.decorator';
@@ -12,7 +12,7 @@ export class AccountController {
   constructor(private readonly accountService: AccountService) {}
 
   @Get('/')
-  @Roles(Role.ADMIN)
+  @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   @ApiQuery({
     name: 'where',
@@ -74,13 +74,13 @@ export class AccountController {
   @ApiBearerAuth('jwt-auth')
   @ApiBody({ type: UpdateAccountDTO })
   async updateAccount(@CurrentUser() user: Account, @Body() updateAccountDto: UpdateAccountDTO) {
-    await this.accountService.updateAccount(user.accountId, updateAccountDto);
+    await this.accountService.updateAccount(user.id, updateAccountDto);
     return { message: 'Account updated successfully', status: 'success' };
   }
 
   @Delete('/:id')
   @ApiBearerAuth('jwt-auth')
-  @Roles(Role.ADMIN)
+  @Roles(AccountRole.ADMIN)
   async deleteAccount(@Param('id') id: string) {
     await this.accountService.deleteAccount(id);
     return { message: 'Account deleted successfully', status: 'success' };

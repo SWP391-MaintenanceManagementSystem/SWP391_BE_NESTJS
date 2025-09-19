@@ -17,7 +17,7 @@ export class ScheduleService {
     this.logger.debug('DELETE EXPIRED TOKEN');
     await this.prisma.token.deleteMany({
       where: {
-        expiredAt: {
+        expiresAt: {
           lt: new Date(),
         },
       },

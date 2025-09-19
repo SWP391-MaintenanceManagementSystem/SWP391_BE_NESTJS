@@ -1,3 +1,4 @@
+import { AccountRole } from '@prisma/client';
 import { IsEmail, IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class CreateAccountDTO {
@@ -9,11 +10,11 @@ export class CreateAccountDTO {
   @IsString()
   password: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  firstName: string;
+  phone?: string;
 
-  @IsNotEmpty()
-  @IsString()
-  lastName: string;
+  @IsOptional()
+  role?: AccountRole;
+
 }
