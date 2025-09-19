@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { AccountService } from 'src/modules/account/account.service';
 import { SignUpDTO } from './dto/signup.dto';
 import { CreateAccountDTO } from 'src/modules/account/dto/create-account.dto';
@@ -15,15 +15,19 @@ import * as ms from 'ms';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
 import { randomInt } from 'crypto';
 import { ValidationException } from 'src/common/exception/validation.exception';
+import { CustomerService } from '../customer/customer.service';
+import { CreateCustomerDTO } from '../customer/dto/create-customer.dto';
+import { AccountWithProfileDTO } from '../account/dto/account-with-profile.dto';
 @Injectable()
 export class AuthService {
   constructor(
     private readonly accountService: AccountService,
+    private readonly customerService: CustomerService,
     private readonly tokenService: TokenService,
     private readonly emailService: EmailService,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService
-  ) {}
+  ) { }
 
   getConfig() {
     return {
@@ -32,7 +36,7 @@ export class AuthService {
   }
 
   async signUp(signUpDTO: SignUpDTO) {
-    const { email, password, confirmPassword, firstName, lastName } = signUpDTO;
+    const { email, password, confirmPassword, firstName, lastName, phone, address } = signUpDTO;
 
     if (password !== confirmPassword) {
       throw new ValidationException({ confirmPassword: 'Password confirmation does not match password' });
@@ -48,11 +52,21 @@ export class AuthService {
     const createBody: CreateAccountDTO = {
       email,
       password: hashedPassword,
-      firstName,
-      lastName,
+      phone,
     };
 
     const account = await this.accountService.createAccount(createBody);
+
+    if (!account) {
+      throw new InternalServerErrorException('Failed to create account');
+    }
+    const customerBody: CreateCustomerDTO = {
+      accountId: account?.id,
+      firstName,
+      lastName,
+      address
+    };
+    const customer = await this.customerService.createCustomer(customerBody);
 
     // send verification mail
     const activationCode = uuidv4();
@@ -75,11 +89,13 @@ export class AuthService {
       ),
     ]);
     this.emailService.sendActivationEmail(email, firstName, activationCode);
-
-    return account;
+    return {
+      account,
+      customer
+    }
   }
 
-  async validateUser(signInDTO: SignInDTO): Promise<Account | null> {
+  async validateUser(signInDTO: SignInDTO): Promise<AccountWithProfileDTO | null> {
     const account = await this.accountService.getAccountByEmail(signInDTO.email);
     if (!account) {
       return null;
@@ -97,7 +113,7 @@ export class AuthService {
   ): Promise<{ accessToken: string; refreshToken: string; account: Account }> {
     const payload: JWT_Payload = {
       email: account.email,
-      sub: account.accountId,
+      sub: account.id,
       role: account.role,
       status: account.status,
     };
@@ -106,7 +122,7 @@ export class AuthService {
       this.tokenService.generateToken(payload, TokenType.ACCESS),
       this.tokenService.generateToken(payload, TokenType.REFRESH),
     ]);
-    await this.tokenService.storeToken(account.accountId, refreshToken);
+    await this.tokenService.storeToken(account.id, refreshToken);
     return {
       accessToken,
       account,
@@ -145,7 +161,7 @@ export class AuthService {
     return { accessToken, refreshToken: newRefreshToken };
   }
 
-  async verifyEmail(activationCode: string) {
+  async verifyEmail(activationCode: string): Promise<boolean> {
     const data = await this.redisService.get(`activation:${activationCode}`);
     if (!data) {
       throw new BadRequestException('Invalid or expired activation code');
@@ -161,10 +177,11 @@ export class AuthService {
     }
 
     // Activate email
-    await this.accountService.activateAccount(email);
+    const isSuccess = await this.accountService.activateAccount(email);
     // Delete activation codes
     await this.redisService.del(`activation:${activationCode}`);
     await this.redisService.del(`activation:account:${email}`);
+    return isSuccess
   }
 
   async changePassword(
@@ -201,6 +218,8 @@ export class AuthService {
       return;
     }
 
+    const { profile } = account
+
     if (account.status === AccountStatus.VERIFIED) {
       throw new BadRequestException('Account is already verified');
     }
@@ -224,7 +243,7 @@ export class AuthService {
       expiredTime
     );
     await this.redisService.set(`activation:account:${account.email}`, activationCode, expiredTime);
-    this.emailService.sendActivationEmail(account.email, account.firstName, activationCode);
+    this.emailService.sendActivationEmail(account.email, profile?.firstName || "", activationCode);
   }
 
   async requestResetPassword(email: string) {
@@ -232,7 +251,7 @@ export class AuthService {
     if (!account) {
       return;
     }
-
+    const { profile } = account
     const oldOtp = await this.redisService.get(`reset_password:account:${email}`);
     if (oldOtp) {
       await this.redisService.del(`reset_password:${oldOtp}`);
@@ -243,14 +262,14 @@ export class AuthService {
       ms(this.configService.get<ms.StringValue>('RESET_PASSWORD_EXPIRE_TIME')!) / 1000;
     const otpData = {
       email,
-      id: account.accountId,
+      id: account.id,
       createdAt: new Date().toISOString(),
     };
     await Promise.all([
       this.redisService.set(`reset_password:${otp}`, JSON.stringify(otpData), expiredTime),
       this.redisService.set(`reset_password:account:${email}`, otp, expiredTime),
     ]);
-    this.emailService.sendResetPasswordEmail(account.email, account.firstName, otp);
+    this.emailService.sendResetPasswordEmail(account.email, profile?.firstName || "", otp);
   }
 
   async verifyResetCode(code: string, email: string): Promise<boolean> {
@@ -289,7 +308,7 @@ export class AuthService {
     const account = await this.accountService.findOrCreateOAuthAccount(oauthUser);
     const payload: JWT_Payload = {
       email: account.email,
-      sub: account.accountId,
+      sub: account.id,
       role: account.role,
       status: account.status,
     };
@@ -298,7 +317,7 @@ export class AuthService {
 
     const refreshToken = await this.tokenService.generateToken(payload, TokenType.REFRESH);
 
-    await this.tokenService.storeToken(account.accountId, refreshToken);
+    await this.tokenService.storeToken(account.id, refreshToken);
 
     return {
       accessToken,

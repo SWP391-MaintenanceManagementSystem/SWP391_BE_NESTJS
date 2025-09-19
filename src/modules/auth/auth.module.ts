@@ -10,10 +10,12 @@ import { JwtStrategy } from './passport/jwt.strategy';
 import { GoogleOauth2 } from './passport/google.strategy';
 import { ConfigService } from '@nestjs/config';
 import { EmailModule } from 'src/modules/email/email.module';
+import { CustomerModule } from '../customer/customer.module';
 
 @Module({
   imports: [
     AccountModule,
+    CustomerModule,
     PassportModule,
     EmailModule,
     JwtModule.registerAsync({
@@ -30,4 +32,4 @@ import { EmailModule } from 'src/modules/email/email.module';
   providers: [AuthService, TokenService, LocalStrategy, JwtStrategy, GoogleOauth2],
   exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }

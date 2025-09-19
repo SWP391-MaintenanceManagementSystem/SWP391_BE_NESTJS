@@ -1,4 +1,4 @@
-import { AccountStatus, Role } from '@prisma/client';
+import { AccountStatus, AccountRole } from '@prisma/client';
 
 export interface FilterOptions<T> {
   where?: Partial<Record<keyof T, any>>;
@@ -10,7 +10,7 @@ export interface FilterOptions<T> {
 export interface JWT_Payload {
   email: string;
   sub: string;
-  role: Role;
+  role: AccountRole;
   status: AccountStatus;
   iat?: number;
   exp?: number;

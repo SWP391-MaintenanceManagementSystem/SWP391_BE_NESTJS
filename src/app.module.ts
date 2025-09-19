@@ -15,6 +15,8 @@ import { RedisModule } from './modules/redis/redis.module';
 import { RoleGuard } from './common/guard/role.guard';
 import { ResponseInterceptor } from './common/interceptor/response.interceptor';
 import { HttpExceptionFilter } from './common/filter/http-exception.filter';
+import { CustomerModule } from './modules/customer/customer.module';
+import { EmployeeModule } from './modules/employee/employee.module';
 
 @Module({
   imports: [
@@ -54,6 +56,8 @@ import { HttpExceptionFilter } from './common/filter/http-exception.filter';
     }),
     EmailModule,
     RedisModule,
+    CustomerModule,
+    EmployeeModule,
   ],
   controllers: [AppController],
   providers: [

@@ -47,7 +47,7 @@ export class TokenService {
         data: {
           accountId,
           refreshToken,
-          expiredAt: expiredDate,
+          expiresAt: expiredDate,
         },
       });
     });

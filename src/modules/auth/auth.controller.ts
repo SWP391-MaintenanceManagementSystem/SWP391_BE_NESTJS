@@ -1,13 +1,12 @@
 import { Controller, Post, Req, UseGuards, Res, Get, Query, Patch } from '@nestjs/common';
 import { Body } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { SignUpDTO } from './dto/signup.dto';
+import { SignUpDTO, SignUpResponseDTO } from './dto/signup.dto';
 import { LocalAuthGuard } from './guard/local-auth.guard';
 import { GoogleOauthGuard } from './guard/google-oauth.guard';
 import { Response, Request } from 'express';
 import { Public } from '../../common/decorator/public.decorator';
 import { Serialize } from 'src/common/interceptor/serialize.interceptor';
-import { AccountResponseDTO } from './dto/account-response.dto';
 import { OAuthUserDTO } from './dto/oauth-user.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { JWT_Payload } from 'src/common/types';
@@ -18,7 +17,7 @@ import {
   ApiCookieAuth,
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
-import { SignInDTO } from './dto/signin.dto';
+import { SignInDTO, SignInResponseDTO } from './dto/signin.dto';
 import ResetPasswordBodyDTO from './dto/reset-password-body.dto';
 import ChangePasswordBodyDTO from './dto/change-password-body.dto';
 import { RequestResetPasswordDTO } from './dto/request-reset-password.dto';
@@ -26,6 +25,11 @@ import { VerifyResetPasswordDTO } from './dto/verify-reset-password.dto';
 import * as ms from 'ms';
 import { ConfigService } from '@nestjs/config';
 import { AccountService } from 'src/modules/account/account.service';
+import { AccountWithProfileDTO, Profile } from '../account/dto/account-with-profile.dto';
+import { plainToInstance } from 'class-transformer';
+import { CustomerDTO } from '../customer/dto/customer.dto';
+import { SkipResponseInterceptor } from 'src/common/decorator/skip-response.decorator';
+
 
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
   user: OAuthUserDTO;
@@ -42,22 +46,29 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
     private readonly accountService: AccountService
-  ) {}
+  ) { }
 
   @Public()
   @Post('/signup')
-  @Serialize(AccountResponseDTO)
+  @Serialize(SignUpResponseDTO)
   async signUp(@Body() body: SignUpDTO) {
-    const account = await this.authService.signUp(body);
+    const { account, customer } = await this.authService.signUp(body);
+
+    const accountWithProfile: AccountWithProfileDTO = {
+      ...account,
+      // password: account.password ?? '',
+      profile: plainToInstance(CustomerDTO, customer) as Profile,
+    }
     return {
-      account: account,
+      account: accountWithProfile,
       message: 'Sign up successful',
     };
   }
 
+
   @Public()
   @UseGuards(LocalAuthGuard)
-  @Serialize(AccountResponseDTO)
+  @Serialize(SignInResponseDTO)
   @Post('/signin')
   @ApiBody({ type: SignInDTO })
   async signIn(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -109,11 +120,12 @@ export class AuthController {
 
   @Get('verify-email')
   @Public()
-  async verifyEmail(@Query('code') code: string) {
-    await this.authService.verifyEmail(code);
-    return {
-      message: 'Email verified successfully',
-    };
+  @SkipResponseInterceptor()
+  async verifyEmail(@Query('code') code: string, @Res() res: Response) {
+    const isSuccess = await this.authService.verifyEmail(code);
+    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/auth/verify?success=${isSuccess}`);
+
   }
 
   @Public()
@@ -138,9 +150,10 @@ export class AuthController {
   @ApiExcludeEndpoint()
   @Get('google/callback')
   @UseGuards(GoogleOauthGuard)
+  @SkipResponseInterceptor()
   async googleAuthCallback(
     @Req() req: RequestWithOAuthUser,
-    @Res({ passthrough: true }) res: Response
+    @Res() res: Response
   ) {
     const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
 
@@ -161,7 +174,7 @@ export class AuthController {
 
   @Get('/me')
   @ApiBearerAuth('jwt-auth')
-  @Serialize(AccountResponseDTO)
+  @Serialize(SignInResponseDTO)
   async getMe(@CurrentUser() user: JWT_Payload) {
     const account = await this.accountService.getAccountById(user.sub);
     return {
