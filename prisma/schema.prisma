@@ -44,12 +44,15 @@ enum TransactionStatus {
   FAILED
 }
 
+<<<<<<< HEAD
 enum WorkShift {
   MORNING
   AFTERNOON
   EVENING
 }
 
+=======
+>>>>>>> e9218799c5a76dac96d48df6b882063462bec368
 /**
  * ================= MODELS =================
  */
@@ -145,7 +148,11 @@ model Booking {
   totalCost       Float         @map("total_cost")
   status          BookingStatus @default(PENDING)
   note            String?
+<<<<<<< HEAD
   bookingDatetime DateTime      @map("booking_datetime")
+=======
+  bookingDate DateTime      @map("booking_date")
+>>>>>>> e9218799c5a76dac96d48df6b882063462bec368
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
@@ -158,21 +165,36 @@ model Booking {
 
   @@index([customerId])
   @@index([status])
+<<<<<<< HEAD
   @@index([bookingDatetime])
+=======
+  @@index([bookingDate])
+>>>>>>> e9218799c5a76dac96d48df6b882063462bec368
   @@map("bookings")
 }
 
 model BookingDetail {
   id        String   @id @default(uuid())
   bookingId String   @map("booking_id")
+<<<<<<< HEAD
   serviceId String   @map("service_id")
+=======
+  serviceId String?  @map("service_id")
+  packageId String?  @map("package_id")
+>>>>>>> e9218799c5a76dac96d48df6b882063462bec368
   quantity  Int
   unitPrice Float    @map("unit_price")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+<<<<<<< HEAD
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+=======
+  booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  service Service? @relation(fields: [serviceId], references: [id])
+  package Package? @relation(fields: [packageId], references: [id])
+>>>>>>> e9218799c5a76dac96d48df6b882063462bec368
 
   @@map("booking_details")
 }
@@ -197,10 +219,15 @@ model Service {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   bookingDetails BookingDetail[]
+<<<<<<< HEAD
+=======
+  packageDetails PackageDetail[]
+>>>>>>> e9218799c5a76dac96d48df6b882063462bec368
 
   @@map("services")
 }
 
+<<<<<<< HEAD
 model ServiceCenter {
   id        String   @id @default(uuid())
   name      String
@@ -236,6 +263,87 @@ model WorkCenter {
   employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
   serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
 
+=======
+model Package {
+  id        String   @id @default(uuid())
+  name      String
+  price     Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  packageDetails PackageDetail[]
+  bookingDetails BookingDetail[]
+
+  @@map("packages")
+}
+
+model PackageDetail {
+  id        String @id @default(uuid())
+  packageId String
+  serviceId String
+  quantity  Int    @default(1)
+
+  package Package @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@map("package_details")
+}
+
+model ServiceCenter {
+  id        String   @id @default(uuid())
+  name      String
+  address   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookings    Booking[]
+  workCenters WorkCenter[]
+
+  @@map("service_centers")
+}
+
+model Shift {
+  id          String    @id @default(uuid())
+  name        String
+  startTime   DateTime  @map("start_time")
+  endTime     DateTime  @map("end_time")
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  maximumSlot Int?      @map("maximum_slot")
+  repeatDays  String?   @map("repeat_days")
+  centerId    String    @map("center_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workSchedules WorkSchedule[]
+
+  @@map("shifts")
+}
+
+model WorkSchedule {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  shiftId    String   @map("shift_id")
+  date       DateTime
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@map("work_schedules")
+}
+
+model WorkCenter {
+  id         String   @id @default(uuid())
+  employeeId String   @map("employee_id")
+  centerId   String   @map("center_id")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
+  serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+
+>>>>>>> e9218799c5a76dac96d48df6b882063462bec368
   @@map("work_centers")
 }
 
