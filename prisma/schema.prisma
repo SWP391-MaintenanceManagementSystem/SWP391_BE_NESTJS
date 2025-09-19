@@ -44,11 +44,6 @@ enum TransactionStatus {
   FAILED
 }
 
-enum WorkShift {
-  MORNING
-  AFTERNOON
-  EVENING
-}
 
 /**
  * ================= MODELS =================
