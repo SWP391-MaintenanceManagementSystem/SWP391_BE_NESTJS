@@ -132,16 +132,16 @@ model Vehicle {
 }
 
 model Booking {
-  id              String        @id @default(uuid())
-  customerId      String        @map("customer_id")
-  vehicleId       String        @map("vehicle_id")
-  centerId        String        @map("center_id")
-  totalCost       Float         @map("total_cost")
-  status          BookingStatus @default(PENDING)
-  note            String?
+  id          String        @id @default(uuid())
+  customerId  String        @map("customer_id")
+  vehicleId   String        @map("vehicle_id")
+  centerId    String        @map("center_id")
+  totalCost   Float         @map("total_cost")
+  status      BookingStatus @default(PENDING)
+  note        String?
   bookingDate DateTime      @map("booking_date")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
 
   customer           Customer            @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
   vehicle            Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
