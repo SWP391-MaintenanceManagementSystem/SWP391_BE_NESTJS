@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 async function main() {
     // Tạo admin account
 
-
     const electricCarBrands = await prisma.brand.createMany({
         data: [
             {
@@ -32,6 +31,7 @@ async function main() {
     const vehicleModels = await prisma.vehicleModel.createMany({
         data: [
             {
+                id: 1,
                 brandId: 1,
                 name: 'Model S',
                 productionYear: 2022,
@@ -39,6 +39,7 @@ async function main() {
                 updatedAt: new Date()
             },
             {
+                id: 2,
                 brandId: 1,
                 name: 'Model 3',
                 productionYear: 2021,
@@ -46,6 +47,7 @@ async function main() {
                 updatedAt: new Date()
             },
             {
+                id: 3,
                 brandId: 2,
                 name: 'VF e34',
                 productionYear: 2021,

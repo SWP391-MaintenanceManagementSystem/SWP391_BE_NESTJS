@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { ROLE_KEY } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 import { Request } from 'express';
+import { JWT_Payload } from '../types';
 
 @Injectable()
 export class RoleGuard implements CanActivate {
@@ -25,7 +26,7 @@ export class RoleGuard implements CanActivate {
     }
 
     const request: Request = context.switchToHttp().getRequest();
-    const user = request.user;
+    const user = request.user as JWT_Payload;
 
     if (!user) {
       throw new UnauthorizedException('User not authenticated');

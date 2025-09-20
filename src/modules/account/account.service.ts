@@ -3,7 +3,7 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
 import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
 import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
-import { FilterOptionsDTO } from './dto/filter-options.dto';
+import { FilterOptionsDTO } from '../../common/dto/filter-options.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
 import { CustomerDTO } from '../customer/dto/customer.dto';

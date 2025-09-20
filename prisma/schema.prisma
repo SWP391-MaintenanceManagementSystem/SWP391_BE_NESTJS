@@ -44,6 +44,11 @@ enum TransactionStatus {
   FAILED
 }
 
+enum VehicleStatus {
+  ACTIVE
+  INACTIVE
+}
+
 /**
  * ================= MODELS =================
  */
@@ -116,15 +121,17 @@ model Admin {
 }
 
 model Vehicle {
-  id             String       @id @default(uuid())
-  customerId     String       @map("customer_id")
-  plate          String       @unique
-  createdAt      DateTime     @default(now()) @map("created_at")
-  updatedAt      DateTime     @updatedAt @map("updated_at")
-  customer       Customer     @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
-  vehicleModelId Int          @map("model_id")
-  vehicleModel   VehicleModel @relation(fields: [vehicleModelId], references: [id])
-  bookings       Booking[]
+  id           String       @id @default(uuid())
+  vin          String       @unique
+  customerId   String       @map("customer_id")
+  licensePlate String       @unique @map("license_plate")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  status       VehicleStatus @default(ACTIVE)
+  customer     Customer     @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
+  modelId      Int          @map("model_id")
+  vehicleModel VehicleModel @relation(fields: [modelId], references: [id])
+  bookings     Booking[]
 
   @@map("vehicles")
 }
@@ -136,9 +143,10 @@ model VehicleModel {
   productionYear Int      @map("production_year")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
-
   brand    Brand     @relation(fields: [brandId], references: [id])
   vehicles Vehicle[]
+
+  @@map("vehicle_models")
 }
 
 model Brand {

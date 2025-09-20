@@ -17,6 +17,7 @@ import { ResponseInterceptor } from './common/interceptor/response.interceptor';
 import { HttpExceptionFilter } from './common/filter/http-exception.filter';
 import { CustomerModule } from './modules/customer/customer.module';
 import { EmployeeModule } from './modules/employee/employee.module';
+import { VehicleModule } from './modules/vehicle/vehicle.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { EmployeeModule } from './modules/employee/employee.module';
     RedisModule,
     CustomerModule,
     EmployeeModule,
+    VehicleModule,
   ],
   controllers: [AppController],
   providers: [
