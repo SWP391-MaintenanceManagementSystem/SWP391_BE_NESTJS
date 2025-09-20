@@ -122,7 +122,7 @@ model Vehicle {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
   customer       Customer     @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
-  vehicleModelId Int          @map("vehicle_model_id")
+  vehicleModelId Int          @map("model_id")
   vehicleModel   VehicleModel @relation(fields: [vehicleModelId], references: [id])
   bookings       Booking[]
 
@@ -131,13 +131,24 @@ model Vehicle {
 
 model VehicleModel {
   id             Int      @id @default(autoincrement())
-  brand          String
-  model          String
+  brandId        Int      @map("brand_id")
+  name           String
   productionYear Int      @map("production_year")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
+  brand    Brand     @relation(fields: [brandId], references: [id])
   vehicles Vehicle[]
+}
+
+model Brand {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  vehicleModels VehicleModel[]
+
+  @@map("brands")
 }
 
 model Booking {
