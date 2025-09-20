@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
-import { Account, AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
+import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
 import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
 import { FilterOptionsDTO } from './dto/filter-options.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
@@ -181,8 +181,9 @@ export class AccountService {
   async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { id: id } });
     if (!exists) {
-      throw new NotFoundException(`Account with id ${id} not found`);
+      throw new NotFoundException(`Account with id ${id} not found`)
     }
+
     await this.prisma.account.update({
       where: { id: id },
       data: updateData,
