@@ -1,0 +1,70 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+async function main() {
+    // Tạo admin account
+
+
+    const electricCarBrands = await prisma.brand.createMany({
+        data: [
+            {
+                id: 1,
+                name: 'Tesla',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+            {
+                id: 2,
+                name: 'Vinfast',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+            {
+                id: 3,
+                name: 'BMW',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        ]
+    });
+
+    const vehicleModels = await prisma.vehicleModel.createMany({
+        data: [
+            {
+                brandId: 1,
+                name: 'Model S',
+                productionYear: 2022,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+            {
+                brandId: 1,
+                name: 'Model 3',
+                productionYear: 2021,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+            {
+                brandId: 2,
+                name: 'VF e34',
+                productionYear: 2021,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+        ]
+    })
+
+
+    console.log({ electricCarBrands, vehicleModels });
+}
+
+main()
+    .then(async () => {
+        await prisma.$disconnect();
+    })
+    .catch(async (e) => {
+        console.error(e);
+        await prisma.$disconnect();
+        process.exit(1);
+    });
