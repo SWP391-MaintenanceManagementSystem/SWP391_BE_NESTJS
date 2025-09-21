@@ -5,6 +5,7 @@ import { CreateVehicleDTO } from './dto/create-vehicle.dto';
 import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 import { Vehicle } from '@prisma/client';
 import { VehicleDTO } from './dto/vehicle.dto';
+import { SuggestVehicleDTO } from './dto/suggest-vehicle.dto';
 
 @Injectable()
 export class VehicleService {
@@ -36,7 +37,6 @@ export class VehicleService {
         const models = await this.prismaService.vehicleModel.findMany({
             include: { brand: true }
         });
-        console.log("🚀 ~ VehicleService ~ getAllVehicleModels ~ models:", models)
         return models;
     }
 
@@ -48,7 +48,7 @@ export class VehicleService {
         return models;
     }
 
-    async createVehicle(newVehicle: CreateVehicleDTO, customerId: string) {
+    async createVehicle(newVehicle: CreateVehicleDTO, customerId: string): Promise<VehicleDTO> {
         const errors: Record<string, string> = {};
         const vinExists = await this.prismaService.vehicle.findUnique({
             where: { vin: newVehicle.vin }
@@ -91,17 +91,24 @@ export class VehicleService {
     }
 
 
-    async updateVehicle(vehicleId: string, updatedVehicle: UpdateVehicleDTO) {
+    async updateVehicle(vehicleId: string, updatedVehicle: UpdateVehicleDTO): Promise<VehicleDTO> {
         const errors: Record<string, string> = {};
-        const plateExists = await this.prismaService.vehicle.findUnique({
-            where: { licensePlate: updatedVehicle.licensePlate }
+
+        const existingVehicle = await this.prismaService.vehicle.findUnique({
+            where: { id: vehicleId },
+        });
+        if (!existingVehicle) {
+            errors['id'] = 'Vehicle not found';
+        }
+
+        const plateExists = await this.prismaService.vehicle.findFirst({
+            where: {
+                licensePlate: updatedVehicle.licensePlate,
+                NOT: { id: vehicleId },
+            },
         });
         if (plateExists) {
             errors['licensePlate'] = 'License plate already exists';
-        }
-
-        if (plateExists?.id !== vehicleId) {
-            errors['id'] = 'Vehicle ID does not match';
         }
 
         if (Object.keys(errors).length > 0) {
@@ -111,9 +118,10 @@ export class VehicleService {
         const vehicle = await this.prismaService.vehicle.update({
             where: { id: vehicleId },
             data: updatedVehicle,
-            include: { vehicleModel: { include: { brand: true } } }
+            include: { vehicleModel: { include: { brand: true } } },
         });
-        const vehicleDTO: VehicleDTO = {
+
+        return {
             id: vehicle.id,
             vin: vehicle.vin,
             model: vehicle.vehicleModel.name,
@@ -122,13 +130,12 @@ export class VehicleService {
             customerId: vehicle.customerId,
             status: vehicle.status,
             createdAt: vehicle.createdAt,
-            updatedAt: vehicle.updatedAt
-        }
-
-        return vehicleDTO;
+            updatedAt: vehicle.updatedAt,
+        };
     }
 
-    async deleteVehicle(vehicleId: string) {
+
+    async deleteVehicle(vehicleId: string): Promise<VehicleDTO> {
         const errors: Record<string, string> = {};
         const exists = await this.prismaService.vehicle.findUnique({ where: { id: vehicleId } });
         if (!exists) {
@@ -144,7 +151,7 @@ export class VehicleService {
             data: { status: 'INACTIVE' },
             include: { vehicleModel: { include: { brand: true } } }
         });
-        const vehicleDTO: VehicleDTO = {
+        return {
             id: vehicle.id,
             vin: vehicle.vin,
             model: vehicle.vehicleModel.name,
@@ -156,7 +163,37 @@ export class VehicleService {
             updatedAt: vehicle.updatedAt
         }
 
-        return vehicleDTO;
+    }
+
+
+    async suggestVehicles(query: string): Promise<SuggestVehicleDTO[]> {
+        if (!query || query.trim() === '' || query.length < 2) {
+            return [];
+        }
+        const vehicles = await this.prismaService.vehicle.findMany({
+            where: {
+                AND: [
+                    {
+                        OR: [
+                            { licensePlate: { contains: query, mode: 'insensitive' } },
+                            { vin: { contains: query, mode: 'insensitive' } },
+                            { vehicleModel: { name: { contains: query, mode: 'insensitive' } } },
+                            { vehicleModel: { brand: { name: { contains: query, mode: 'insensitive' } } } }
+                        ]
+                    },
+                    { status: 'ACTIVE' }
+                ]
+            },
+            include: { vehicleModel: { include: { brand: true } } },
+            take: 10
+        })
+
+        return vehicles.map(v => ({
+            id: v.id,
+            label: v.licensePlate,
+            subLabel: `${v.vehicleModel.brand.name} ${v.vehicleModel.name} (${v.vin.slice(-6)})`,
+        }));
+
     }
 
 }
