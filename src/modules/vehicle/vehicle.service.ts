@@ -196,4 +196,44 @@ export class VehicleService {
 
     }
 
+
+    async getVehicleById(vehicleId: string): Promise<VehicleDTO | null> {
+        const vehicle = await this.prismaService.vehicle.findUnique({
+            where: { id: vehicleId },
+            include: { vehicleModel: { include: { brand: true } } }
+        });
+        if (!vehicle) {
+            return null;
+        }
+        return {
+            id: vehicle.id,
+            vin: vehicle.vin,
+            model: vehicle.vehicleModel.name,
+            brand: vehicle.vehicleModel.brand.name,
+            licensePlate: vehicle.licensePlate,
+            customerId: vehicle.customerId,
+            status: vehicle.status,
+            createdAt: vehicle.createdAt,
+            updatedAt: vehicle.updatedAt
+        };
+    }
+
+    async getVehiclesByCustomer(customerId: string): Promise<VehicleDTO[]> {
+        const vehicles = await this.prismaService.vehicle.findMany({
+            where: { customerId, status: 'ACTIVE' },
+            include: { vehicleModel: { include: { brand: true } } }
+        });
+        return vehicles.map(vehicle => ({
+            id: vehicle.id,
+            vin: vehicle.vin,
+            model: vehicle.vehicleModel.name,
+            brand: vehicle.vehicleModel.brand.name,
+            licensePlate: vehicle.licensePlate,
+            customerId: vehicle.customerId,
+            status: vehicle.status,
+            createdAt: vehicle.createdAt,
+            updatedAt: vehicle.updatedAt
+        }));
+    }
+
 }

@@ -33,6 +33,18 @@ export class VehicleController {
   }
 
 
+  @Roles(AccountRole.CUSTOMER)
+  @Get('/')
+  async getVehicles(@Req() req: Request) {
+    const user = req.user as JWT_Payload;
+    const vehicles = await this.vehicleService.getVehiclesByCustomer(user.sub);
+    return {
+      message: 'Vehicles retrieved successfully',
+      data: vehicles
+    };
+  }
+
+
   @Roles(AccountRole.CUSTOMER, AccountRole.ADMIN)
   @ApiQuery({ name: 'q', required: false, type: String, description: 'Search query for vehicle brand, vin, model, or license plate' })
   @Get('/suggest')
