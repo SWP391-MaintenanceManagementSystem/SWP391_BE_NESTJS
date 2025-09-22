@@ -18,6 +18,7 @@ import { HttpExceptionFilter } from './common/filter/http-exception.filter';
 import { CustomerModule } from './modules/customer/customer.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
+import { UploadModule } from './modules/upload/upload.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
       isGlobal: true,
       envFilePath: `.env${process.env.NODE_ENV ? '.' + process.env.NODE_ENV : ''}`,
     }),
+    UploadModule,
     AccountModule,
     AuthModule,
     PrismaModule,
@@ -82,4 +84,4 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
