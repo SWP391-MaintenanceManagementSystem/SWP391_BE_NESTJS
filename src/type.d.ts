@@ -1,11 +1,10 @@
-import { Account } from '@prisma/client';
+interface LocalUser extends Account { }
+interface JwtUser extends JWT_Payload { }
 
 declare global {
   namespace Express {
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-    interface User extends Account {}
     interface Request {
-      user;
+      user?: LocalUser | JwtUser;
     }
   }
 }

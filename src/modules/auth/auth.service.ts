@@ -251,6 +251,15 @@ export class AuthService {
     if (!account) {
       return;
     }
+
+    if (account.provider.length === 1 && account.provider.includes(AuthProvider.GOOGLE)) {
+      throw new BadRequestException('Account registered with Google OAuth cannot reset password');
+    }
+
+    if (account.status !== AccountStatus.VERIFIED) {
+      throw new BadRequestException('Only verified account can request reset password');
+    }
+
     const { profile } = account
     const oldOtp = await this.redisService.get(`reset_password:account:${email}`);
     if (oldOtp) {
@@ -289,18 +298,35 @@ export class AuthService {
     if (newPassword !== confirmNewPassword) {
       throw new BadRequestException('Passwords do not match');
     }
+
     const data = await this.redisService.get(`reset_password:${code}`);
     if (!data) {
       throw new BadRequestException('Invalid or expired reset password code');
     }
+
     const { email, id } = JSON.parse(data);
+
+    // Lấy account hiện tại
+    const account = await this.accountService.getAccountById(id);
+    if (!account) {
+      throw new BadRequestException('Account not found');
+    }
+    if (account.password) {
+      const isSamePassword = await comparePassword(newPassword, account.password || '');
+      if (isSamePassword) {
+        throw new BadRequestException('New password cannot be the same as the old password');
+      }
+    }
+
     const hashed = await hashPassword(newPassword);
     await this.accountService.updateAccount(id, { password: hashed });
+
     await Promise.all([
       this.redisService.del(`reset_password:${code}`),
       this.redisService.del(`reset_password:account:${email}`),
     ]);
   }
+
 
   async googleOAuthSignIn(
     oauthUser: OAuthUserDTO

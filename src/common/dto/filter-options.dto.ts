@@ -7,7 +7,6 @@ export class FilterOptionsDTO<T> {
   @IsOptional()
   @IsObject()
   where?: Partial<Record<keyof T, any>>;
-
   @ApiPropertyOptional({ description: 'Sorting criteria' })
   @IsOptional()
   @IsObject()

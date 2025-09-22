@@ -29,6 +29,7 @@ import { AccountWithProfileDTO, Profile } from '../account/dto/account-with-prof
 import { plainToInstance } from 'class-transformer';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { SkipResponseInterceptor } from 'src/common/decorator/skip-response.decorator';
+import { Account } from '@prisma/client';
 
 
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
@@ -72,7 +73,7 @@ export class AuthController {
   @Post('/signin')
   @ApiBody({ type: SignInDTO })
   async signIn(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, account } = await this.authService.signIn(req.user!);
+    const { accessToken, refreshToken, account } = await this.authService.signIn(req.user as Account);
     const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
     const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
     res.cookie('refreshToken', refreshToken, {
