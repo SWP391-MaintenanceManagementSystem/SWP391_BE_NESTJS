@@ -12,7 +12,7 @@ import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class AccountService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -26,14 +26,13 @@ export class AccountService {
       where: { email: email },
       include: {
         customer: true,
-        employee: true
-      }
+        employee: true,
+      },
     });
 
     if (!account) {
       return null;
     }
-
 
     let profile: Profile | null = null;
 
@@ -55,9 +54,9 @@ export class AccountService {
     const response: AccountWithProfileDTO = {
       ...account,
       password: account.password || null,
-      profile
-    }
-    return response
+      profile,
+    };
+    return response;
   }
 
   async activateAccount(email: string): Promise<boolean> {
@@ -66,7 +65,7 @@ export class AccountService {
         where: { email },
         data: { status: AccountStatus.VERIFIED },
       });
-      return !!account
+      return !!account;
     } catch (error) {
       console.error('Error activating account:', error);
       return false;
@@ -104,16 +103,15 @@ export class AccountService {
         firstName: oauthUser.firstName || 'FirstName',
         lastName: oauthUser.lastName || 'LastName',
         accountId: account.id,
-      }
-    })
+      },
+    });
     const response: AccountWithProfileDTO = {
       ...account,
       password: account.password || null,
-      profile: plainToInstance(CustomerDTO, customer)
-    }
+      profile: plainToInstance(CustomerDTO, customer),
+    };
     return response;
   }
-
 
   async getAccounts(options: FilterOptionsDTO<Account>): Promise<PaginationResponse<Account>> {
     const page = options.page && options.page > 0 ? options.page : 1;
@@ -141,14 +139,13 @@ export class AccountService {
       where: { id: id },
       include: {
         customer: true,
-        employee: true
-      }
+        employee: true,
+      },
     });
 
     if (!account) {
       return null;
     }
-
 
     let profile: Profile | null = null;
 
@@ -170,13 +167,10 @@ export class AccountService {
     const response: AccountWithProfileDTO = {
       ...account,
       password: account.password || null,
-      profile: profile
-    }
-    return response
+      profile: profile,
+    };
+    return response;
   }
-
-
-
 
   async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { id: id } });

@@ -36,6 +36,7 @@ enum BookingStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
+  IN_PROCESS
 }
 
 enum TransactionStatus {
