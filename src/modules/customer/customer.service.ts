@@ -7,11 +7,12 @@ export class CustomerService {
 
     constructor(private readonly prismaService: PrismaService) { }
 
-
     async createCustomer(newCustomer: CreateCustomerDTO) {
         const customer = await this.prismaService.customer.create({
             data: newCustomer
         })
         return customer;
     }
+
+    
 }

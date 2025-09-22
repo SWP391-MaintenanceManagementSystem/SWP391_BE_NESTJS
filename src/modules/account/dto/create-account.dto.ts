@@ -16,5 +16,4 @@ export class CreateAccountDTO {
 
   @IsOptional()
   role?: AccountRole;
-
 }
