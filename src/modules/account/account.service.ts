@@ -175,7 +175,7 @@ export class AccountService {
   async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { id: id } });
     if (!exists) {
-      throw new NotFoundException(`Account with id ${id} not found`)
+      throw new NotFoundException(`Account with id ${id} not found`);
     }
 
     await this.prisma.account.update({
