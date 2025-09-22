@@ -9,10 +9,11 @@ import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { EmployeeDTO } from '../employee/dto/employee.dto';
 import { plainToInstance } from 'class-transformer';
+import { CloudinaryService } from '../upload/cloudinary.service';
 
 @Injectable()
 export class AccountService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService, private readonly cloudinaryService: CloudinaryService) { }
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -199,5 +200,26 @@ export class AccountService {
       where: { id: id },
       data: { status: AccountStatus.DISABLED },
     });
+  }
+
+  async uploadAvatar(accountId: string, avatar: Express.Multer.File) {
+    const exists = await this.prisma.account.findUnique({ where: { id: accountId } });
+    if (!exists) {
+      throw new NotFoundException(`Account with id ${accountId} not found`);
+    }
+    const { secure_url, public_id } = await this.cloudinaryService.uploadImage(avatar, accountId);
+      const updated = await this.prisma.account.update({
+        where: { id: accountId },
+        data: {
+          avatar: secure_url,
+          avatarPublicId: public_id,
+        },
+      });
+      return {
+        id: updated.id,
+        email: updated.email,
+        role: updated.role,
+        avatar: updated.avatar,
+      };
   }
 }
