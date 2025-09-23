@@ -7,10 +7,15 @@ import { Employee, AccountRole } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { TechnicianDTO } from './dto/technician.dto';
 import { FilterTechnicianDto } from './dto/filter-technician.dto';
+import { AccountService } from 'src/modules/account/account.service';
+import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
 @Injectable()
 export class TechnicianService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly accountService: AccountService
+  ) {}
 
   async createTechnician(createTechnicianDto: CreateTechnicianDto): Promise<Employee | null> {
     const technicianAccount = await this.prisma.account.create({
@@ -50,25 +55,17 @@ export class TechnicianService {
 
   async getTechnicians(
     options: FilterTechnicianDto<Employee>
-  ): Promise<PaginationResponse<TechnicianDTO>> {
+  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
     const page = options.page && options.page > 0 ? options.page : 1;
     const pageSize = options.pageSize || 10;
     const where = {
       ...(options.where || {}),
       account: { role: AccountRole.TECHNICIAN },
     };
-    const [data, total] = await this.prisma.$transaction([
-      this.prisma.employee.findMany({
-        where,
-        orderBy: options.orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: { account: true, certificates: true },
-      }),
-      this.prisma.employee.count({ where }),
-    ]);
+    const { data, total } = await this.accountService.getAccounts({ where, page, pageSize });
+
     return {
-      data: data.map((item: Employee) => plainToInstance(TechnicianDTO, item)),
+      data,
       page,
       pageSize,
       total,

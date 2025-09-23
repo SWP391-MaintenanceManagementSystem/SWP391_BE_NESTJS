@@ -13,11 +13,10 @@ import { CloudinaryService } from '../upload/cloudinary.service';
 
 @Injectable()
 export class AccountService {
-<<<<<<< HEAD
-  constructor(private prisma: PrismaService) {}
-=======
-  constructor(private prisma: PrismaService, private readonly cloudinaryService: CloudinaryService) { }
->>>>>>> aa4c9950c846bf9d42823ad42a5e09e5a35780d4
+  constructor(
+    private prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService
+  ) {}
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -118,18 +117,52 @@ export class AccountService {
     return response;
   }
 
-  async getAccounts(options: FilterOptionsDTO<Account>): Promise<PaginationResponse<Account>> {
+  async getAccounts(
+    options: FilterOptionsDTO<Account>
+  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
     const page = options.page && options.page > 0 ? options.page : 1;
     const pageSize = options.pageSize || 10;
-    const [data, total] = await Promise.all([
+
+    const [accounts, total] = await Promise.all([
       this.prisma.account.findMany({
         where: options.where,
         orderBy: options.orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          customer: true,
+          employee: true,
+        },
       }),
       this.prisma.account.count({ where: options.where }),
     ]);
+
+    // map từng account sang DTO có profile
+    const data: AccountWithProfileDTO[] = accounts.map(account => {
+      let profile: Profile | null = null;
+
+      switch (account.role) {
+        case AccountRole.CUSTOMER:
+          if (account.customer) {
+            profile = plainToInstance(CustomerDTO, account.customer);
+          }
+          break;
+        case AccountRole.TECHNICIAN || AccountRole.STAFF:
+          if (account.employee) {
+            profile = plainToInstance(EmployeeDTO, account.employee);
+          }
+          break;
+        default:
+          profile = null;
+      }
+
+      return {
+        ...account,
+        password: account.password || null,
+        profile,
+      };
+    });
+
     return {
       data,
       page,
@@ -206,18 +239,18 @@ export class AccountService {
       throw new NotFoundException(`Account with id ${accountId} not found`);
     }
     const { secure_url, public_id } = await this.cloudinaryService.uploadImage(avatar, accountId);
-      const updated = await this.prisma.account.update({
-        where: { id: accountId },
-        data: {
-          avatar: secure_url,
-          avatarPublicId: public_id,
-        },
-      });
-      return {
-        id: updated.id,
-        email: updated.email,
-        role: updated.role,
-        avatar: updated.avatar,
-      };
+    const updated = await this.prisma.account.update({
+      where: { id: accountId },
+      data: {
+        avatar: secure_url,
+        avatarPublicId: public_id,
+      },
+    });
+    return {
+      id: updated.id,
+      email: updated.email,
+      role: updated.role,
+      avatar: updated.avatar,
+    };
   }
 }
