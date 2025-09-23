@@ -36,6 +36,7 @@ enum BookingStatus {
   CONFIRMED
   COMPLETED
   CANCELLED
+  IN_PROCESS
 }
 
 enum TransactionStatus {
@@ -54,17 +55,18 @@ enum VehicleStatus {
  */
 
 model Account {
-  id         String         @id @default(uuid()) @map("id")
-  email      String         @unique
-  password   String?
-  phone      String?
-  role       AccountRole    @default(CUSTOMER)
-  status     AccountStatus  @default(NOT_VERIFY)
-  avatar     String?
-  provider   AuthProvider[] @default([EMAIL])
-  providerId Json?          @map("provider_id")
-  createdAt  DateTime       @default(now()) @map("created_at")
-  updatedAt  DateTime       @updatedAt @map("updated_at")
+  id             String         @id @default(uuid()) @map("id")
+  email          String         @unique
+  password       String?
+  phone          String?
+  role           AccountRole    @default(CUSTOMER)
+  status         AccountStatus  @default(NOT_VERIFY)
+  avatar         String?
+  avatarPublicId String?        @map("avatar_public_id")
+  provider       AuthProvider[] @default([EMAIL])
+  providerId     Json?          @map("provider_id")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
 
   customer Customer?
   employee Employee?

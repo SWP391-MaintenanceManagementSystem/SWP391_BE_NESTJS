@@ -9,10 +9,14 @@ import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { EmployeeDTO } from '../employee/dto/employee.dto';
 import { plainToInstance } from 'class-transformer';
+import { CloudinaryService } from '../upload/cloudinary.service';
 
 @Injectable()
 export class AccountService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private readonly cloudinaryService: CloudinaryService
+  ) {}
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -26,14 +30,13 @@ export class AccountService {
       where: { email: email },
       include: {
         customer: true,
-        employee: true
-      }
+        employee: true,
+      },
     });
 
     if (!account) {
       return null;
     }
-
 
     let profile: Profile | null = null;
 
@@ -55,9 +58,9 @@ export class AccountService {
     const response: AccountWithProfileDTO = {
       ...account,
       password: account.password || null,
-      profile
-    }
-    return response
+      profile,
+    };
+    return response;
   }
 
   async activateAccount(email: string): Promise<boolean> {
@@ -66,7 +69,7 @@ export class AccountService {
         where: { email },
         data: { status: AccountStatus.VERIFIED },
       });
-      return !!account
+      return !!account;
     } catch (error) {
       console.error('Error activating account:', error);
       return false;
@@ -104,29 +107,62 @@ export class AccountService {
         firstName: oauthUser.firstName || 'FirstName',
         lastName: oauthUser.lastName || 'LastName',
         accountId: account.id,
-      }
-    })
+      },
+    });
     const response: AccountWithProfileDTO = {
       ...account,
       password: account.password || null,
-      profile: plainToInstance(CustomerDTO, customer)
-    }
+      profile: plainToInstance(CustomerDTO, customer),
+    };
     return response;
   }
 
-
-  async getAccounts(options: FilterOptionsDTO<Account>): Promise<PaginationResponse<Account>> {
+  async getAccounts(
+    options: FilterOptionsDTO<Account>
+  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
     const page = options.page && options.page > 0 ? options.page : 1;
     const pageSize = options.pageSize || 10;
-    const [data, total] = await Promise.all([
+
+    const [accounts, total] = await Promise.all([
       this.prisma.account.findMany({
         where: options.where,
         orderBy: options.orderBy,
         skip: (page - 1) * pageSize,
         take: pageSize,
+        include: {
+          customer: true,
+          employee: true,
+        },
       }),
       this.prisma.account.count({ where: options.where }),
     ]);
+
+    // map từng account sang DTO có profile
+    const data: AccountWithProfileDTO[] = accounts.map(account => {
+      let profile: Profile | null = null;
+
+      switch (account.role) {
+        case AccountRole.CUSTOMER:
+          if (account.customer) {
+            profile = plainToInstance(CustomerDTO, account.customer);
+          }
+          break;
+        case AccountRole.TECHNICIAN || AccountRole.STAFF:
+          if (account.employee) {
+            profile = plainToInstance(EmployeeDTO, account.employee);
+          }
+          break;
+        default:
+          profile = null;
+      }
+
+      return {
+        ...account,
+        password: account.password || null,
+        profile,
+      };
+    });
+
     return {
       data,
       page,
@@ -141,14 +177,13 @@ export class AccountService {
       where: { id: id },
       include: {
         customer: true,
-        employee: true
-      }
+        employee: true,
+      },
     });
 
     if (!account) {
       return null;
     }
-
 
     let profile: Profile | null = null;
 
@@ -170,18 +205,15 @@ export class AccountService {
     const response: AccountWithProfileDTO = {
       ...account,
       password: account.password || null,
-      profile: profile
-    }
-    return response
+      profile: profile,
+    };
+    return response;
   }
-
-
-
 
   async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { id: id } });
     if (!exists) {
-      throw new NotFoundException(`Account with id ${id} not found`)
+      throw new NotFoundException(`Account with id ${id} not found`);
     }
 
     await this.prisma.account.update({
@@ -199,5 +231,26 @@ export class AccountService {
       where: { id: id },
       data: { status: AccountStatus.DISABLED },
     });
+  }
+
+  async uploadAvatar(accountId: string, avatar: Express.Multer.File) {
+    const exists = await this.prisma.account.findUnique({ where: { id: accountId } });
+    if (!exists) {
+      throw new NotFoundException(`Account with id ${accountId} not found`);
+    }
+    const { secure_url, public_id } = await this.cloudinaryService.uploadImage(avatar, accountId);
+    const updated = await this.prisma.account.update({
+      where: { id: accountId },
+      data: {
+        avatar: secure_url,
+        avatarPublicId: public_id,
+      },
+    });
+    return {
+      id: updated.id,
+      email: updated.email,
+      role: updated.role,
+      avatar: updated.avatar,
+    };
   }
 }

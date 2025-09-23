@@ -1,19 +1,32 @@
-import { Body, Controller, Get, Query, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Query,
+  Patch,
+  Param,
+  Delete,
+  Post,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
 import { AccountService } from './account.service';
-import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { Account, AccountRole } from '@prisma/client';
 import { UpdateAccountDTO } from './dto/update-account.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { Roles } from 'src/common/decorator/role.decorator';
-
+import { JWT_Payload } from 'src/common/types';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UseInterceptors } from '@nestjs/common';
 @ApiTags('Account')
+@ApiBearerAuth('jwt-auth')
 @Controller('api/account')
 export class AccountController {
   constructor(private readonly accountService: AccountService) { }
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
-  @ApiBearerAuth('jwt-auth')
   @ApiQuery({
     name: 'where',
     required: false,
@@ -71,7 +84,6 @@ export class AccountController {
   }
 
   @Patch('/')
-  @ApiBearerAuth('jwt-auth')
   @ApiBody({ type: UpdateAccountDTO })
   async updateAccount(@CurrentUser() user: Account, @Body() updateAccountDto: UpdateAccountDTO) {
     await this.accountService.updateAccount(user.id, updateAccountDto);
@@ -79,10 +91,38 @@ export class AccountController {
   }
 
   @Delete('/:id')
-  @ApiBearerAuth('jwt-auth')
   @Roles(AccountRole.ADMIN)
   async deleteAccount(@Param('id') id: string) {
     await this.accountService.deleteAccount(id);
     return { message: 'Account deleted successfully', status: 'success' };
+  }
+
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        avatar: { type: 'string', format: 'binary' },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('avatar', {
+      limits: { fileSize: 2 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+          return cb(new BadRequestException('Only image files are allowed!'), false);
+        }
+        cb(null, true);
+      },
+    })
+  )
+  @Post('avatar')
+  async uploadAvatar(
+    @CurrentUser() user: JWT_Payload,
+    @UploadedFile() avatar: Express.Multer.File
+  ) {
+    await this.accountService.uploadAvatar(user.sub, avatar);
+    return { message: 'Avatar uploaded successfully' };
   }
 }
