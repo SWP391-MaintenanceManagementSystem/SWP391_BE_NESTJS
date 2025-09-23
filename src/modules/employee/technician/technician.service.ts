@@ -3,7 +3,7 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateTechnicianDto } from './dto/create-technician.dto';
 import { UpdateTechnicianDto } from './dto/update-technician.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { Employee, AccountRole, Prisma } from '@prisma/client';
+import { Employee, AccountRole } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { TechnicianDTO } from './dto/technician.dto';
 import { FilterTechnicianDto } from './dto/filter-technician.dto';
@@ -22,20 +22,19 @@ export class TechnicianService {
       },
     });
 
-    // const employeeId = `TECH_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
     const employee = await this.prisma.employee.create({
       data: {
         accountId: technicianAccount.id,
         firstName: createTechnicianDto.firstName,
-        lastName: createTechnicianDto.lastName,
+        lastName: createTechnicianDto.lastName ? createTechnicianDto.lastName : '',
       },
     });
     return employee;
   }
 
-  async getTechnicianById(employeeId: string): Promise<TechnicianDTO | null> {
+  async getTechnicianById(accountId: string): Promise<TechnicianDTO | null> {
     const technician = await this.prisma.employee.findUnique({
-      where: { employeeId },
+      where: { accountId },
       include: {
         account: true,
         certificates: true,
@@ -78,32 +77,32 @@ export class TechnicianService {
   }
 
   async updateTechnician(
-    employeeId: string,
+    accountId: string,
     updateTechnicianDto: UpdateTechnicianDto
   ): Promise<void> {
     const existingTechnician = await this.prisma.employee.findUnique({
-      where: { employeeId },
+      where: { accountId },
       include: { account: true },
     });
     if (!existingTechnician || existingTechnician.account.role !== AccountRole.TECHNICIAN) {
-      throw new NotFoundException(`Technician with ID ${employeeId} not found`);
+      throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
     await this.prisma.employee.update({
-      where: { employeeId },
+      where: { accountId },
       data: updateTechnicianDto,
     });
   }
 
-  async deleteTechnician(employeeId: string): Promise<void> {
+  async deleteTechnician(accountId: string): Promise<void> {
     const existingTechnician = await this.prisma.employee.findUnique({
-      where: { employeeId },
+      where: { accountId },
       include: { account: true },
     });
     if (!existingTechnician || existingTechnician.account.role !== AccountRole.TECHNICIAN) {
-      throw new NotFoundException(`Technician with ID ${employeeId} not found`);
+      throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
     await this.prisma.employee.delete({
-      where: { employeeId },
+      where: { accountId },
     });
   }
 }
