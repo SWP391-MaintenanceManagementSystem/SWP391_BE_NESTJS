@@ -11,7 +11,7 @@ datasource db {
  * ================= ENUMS =================
  */
 
-enum AccountRole {
+enum AccountRole {  
   ADMIN
   STAFF
   TECHNICIAN
@@ -96,7 +96,6 @@ model Employee {
   accountId  String   @id @map("account_id")
   firstName  String   @map("first_name")
   lastName   String   @map("last_name")
-  employeeId String   @unique @map("employee_id")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 

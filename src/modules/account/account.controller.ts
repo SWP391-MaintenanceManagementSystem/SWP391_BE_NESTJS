@@ -9,7 +9,7 @@ import { Roles } from 'src/common/decorator/role.decorator';
 @ApiTags('Account')
 @Controller('api/account')
 export class AccountController {
-  constructor(private readonly accountService: AccountService) {}
+  constructor(private readonly accountService: AccountService) { }
 
   @Get('/')
   @Roles(AccountRole.ADMIN)

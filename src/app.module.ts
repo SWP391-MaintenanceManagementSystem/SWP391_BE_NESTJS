@@ -18,6 +18,7 @@ import { HttpExceptionFilter } from './common/filter/http-exception.filter';
 import { CustomerModule } from './modules/customer/customer.module';
 import { EmployeeModule } from './modules/employee/employee.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
+import { StaffModule } from './modules/staff/staff.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
     CustomerModule,
     EmployeeModule,
     VehicleModule,
+    StaffModule,
   ],
   controllers: [AppController],
   providers: [
