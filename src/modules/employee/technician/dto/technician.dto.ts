@@ -1,6 +1,10 @@
 import { Expose, Transform } from 'class-transformer';
+import { CertificateDTO } from '../../certificate/dto/certificate.dto';
 
-export class EmployeeDTO {
+export class TechnicianDTO {
+  @Expose()
+  employeeId: string;
+
   @Expose()
   firstName: string;
 
@@ -8,14 +12,7 @@ export class EmployeeDTO {
   lastName: string;
 
   @Expose()
-  specialization?: string;
-
-  @Expose()
-  experienceYears?: number;
-
-  // TODO: make certificate DTO
-  @Expose()
-  certificate?: string;
+  certificates?: CertificateDTO[];
 
   @Expose()
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
