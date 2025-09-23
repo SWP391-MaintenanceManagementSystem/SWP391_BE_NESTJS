@@ -1,10 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { TechnicianService } from './technician.service';
 import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
-import { Employee } from '@prisma/client';
 import { CreateTechnicianDto } from './dto/create-technician.dto';
 import { UpdateTechnicianDto } from './dto/update-technician.dto';
-import { FilterTechnicianDto } from './dto/filter-technician.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
@@ -73,7 +71,7 @@ export class TechnicianController {
   }
 
   @Get('/:id')
-  @Roles(AccountRole.TECHNICIAN)
+  @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getTechnicianById(@Param('id') id: string) {
     return this.technicianService.getTechnicianById(id);

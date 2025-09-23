@@ -3,9 +3,8 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateCertificateDto } from './dto/create-certificate.dto';
 import { UpdateCertificateDto } from './dto/update-certificate.dto';
 import { CertificateDTO } from './dto/certificate.dto';
-import { EmployeeCertificate, Prisma } from '@prisma/client';
+import { EmployeeCertificate } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
-import { create } from 'domain';
 
 @Injectable()
 export class CertificateService {
