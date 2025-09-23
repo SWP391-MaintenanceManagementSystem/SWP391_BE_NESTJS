@@ -1,6 +1,17 @@
-import { Body, Controller, Get, Query, Patch, Param, Delete, Post, UploadedFile, BadRequestException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Query,
+  Patch,
+  Param,
+  Delete,
+  Post,
+  UploadedFile,
+  BadRequestException,
+} from '@nestjs/common';
 import { AccountService } from './account.service';
-import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { Account, AccountRole } from '@prisma/client';
 import { UpdateAccountDTO } from './dto/update-account.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
@@ -12,7 +23,7 @@ import { UseInterceptors } from '@nestjs/common';
 @ApiBearerAuth('jwt-auth')
 @Controller('api/account')
 export class AccountController {
-  constructor(private readonly accountService: AccountService) { }
+  constructor(private readonly accountService: AccountService) {}
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
@@ -104,15 +115,14 @@ export class AccountController {
         }
         cb(null, true);
       },
-    }),
+    })
   )
   @Post('avatar')
   async uploadAvatar(
     @CurrentUser() user: JWT_Payload,
-    @UploadedFile() avatar: Express.Multer.File,
+    @UploadedFile() avatar: Express.Multer.File
   ) {
     await this.accountService.uploadAvatar(user.sub, avatar);
     return { message: 'Avatar uploaded successfully' };
   }
-
 }

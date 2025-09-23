@@ -3,7 +3,7 @@ import { CertificateDTO } from '../../certificate/dto/certificate.dto';
 
 export class TechnicianDTO {
   @Expose()
-  employeeId: string;
+  accountId: string;
 
   @Expose()
   firstName: string;
