@@ -46,7 +46,8 @@ export class AccountService {
           profile = plainToInstance(CustomerDTO, account.customer);
         }
         break;
-      case AccountRole.STAFF || AccountRole.TECHNICIAN:
+      case AccountRole.STAFF:
+      case AccountRole.TECHNICIAN:
         if (account.employee) {
           profile = plainToInstance(EmployeeDTO, account.employee);
         }
@@ -147,7 +148,8 @@ export class AccountService {
             profile = plainToInstance(CustomerDTO, account.customer);
           }
           break;
-        case AccountRole.TECHNICIAN || AccountRole.STAFF:
+        case AccountRole.TECHNICIAN:
+        case AccountRole.STAFF:
           if (account.employee) {
             profile = plainToInstance(EmployeeDTO, account.employee);
           }
@@ -193,7 +195,8 @@ export class AccountService {
           profile = plainToInstance(CustomerDTO, account.customer);
         }
         break;
-      case AccountRole.STAFF || AccountRole.TECHNICIAN:
+      case AccountRole.STAFF:
+      case AccountRole.TECHNICIAN:
         if (account.employee) {
           profile = plainToInstance(EmployeeDTO, account.employee);
         }

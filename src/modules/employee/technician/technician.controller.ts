@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Query, Param, Delete, Post, Patch } from '@nestjs/common';
 import { TechnicianService } from './technician.service';
 import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { CreateTechnicianDto } from './dto/create-technician.dto';
@@ -7,19 +7,19 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Technician')
-@Controller('api/employee/role/technician')
+@ApiBearerAuth('jwt-auth')
+@Controller('api/technician')
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
-  @ApiBearerAuth('jwt-auth')
   @ApiQuery({
     name: 'where',
     required: false,
     type: String,
     description: 'JSON string for filter conditions',
-    example: '{"status":"ACTIVE"}',
+    example: '{"status":"VERIFIED"}',
   })
   @ApiQuery({
     name: 'orderBy',
@@ -72,34 +72,34 @@ export class TechnicianController {
 
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
-  @ApiBearerAuth('jwt-auth')
   async getTechnicianById(@Param('id') id: string) {
-    return this.technicianService.getTechnicianById(id);
+    const data = await this.technicianService.getTechnicianById(id);
+    return { data, message: `Technician with ID retrieved successfully`, status: 'success' };
   }
 
   @Post('/create')
   @Roles(AccountRole.ADMIN)
-  @ApiBearerAuth('jwt-auth')
   @ApiBody({ type: CreateTechnicianDto })
   async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
-    return this.technicianService.createTechnician(createTechnicianDto);
+    const data = await this.technicianService.createTechnician(createTechnicianDto);
+    return { data, message: 'Technician created successfully', status: 'success' };
   }
 
-  @Put('/:id')
+  @Patch('/:id')
   @Roles(AccountRole.ADMIN)
-  @ApiBearerAuth('jwt-auth')
   @ApiBody({ type: UpdateTechnicianDto })
   async updateTechnician(
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    return this.technicianService.updateTechnician(id, updateTechnicianDto);
+    await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    return { message: `Technician updated successfully` };
   }
 
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)
-  @ApiBearerAuth('jwt-auth')
   async deleteTechnician(@Param('id') id: string) {
-    return this.technicianService.deleteTechnician(id);
+    await this.technicianService.deleteTechnician(id);
+    return { message: `Technician deleted successfully` };
   }
 }
