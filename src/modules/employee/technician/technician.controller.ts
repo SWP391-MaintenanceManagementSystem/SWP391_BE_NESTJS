@@ -9,7 +9,7 @@ import { AccountRole } from '@prisma/client';
 @ApiTags('Technician')
 @Controller('api/employee/role/technician')
 export class TechnicianController {
-  constructor(private readonly technicianService: TechnicianService) {}
+  constructor(private readonly technicianService: TechnicianService) { }
 
   @Get('/')
   @Roles(AccountRole.ADMIN)

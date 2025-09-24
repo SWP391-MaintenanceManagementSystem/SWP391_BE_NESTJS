@@ -12,6 +12,10 @@ export class CreateStaffDto {
     @IsEmail()
     email: string;
 
+    @IsNotEmpty()
+    @IsString()
+    password: string;
+
     @IsOptional()
     @IsString()
     phone?: string;
