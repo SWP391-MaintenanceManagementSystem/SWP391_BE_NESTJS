@@ -23,6 +23,7 @@ export class TechnicianService {
         email: createTechnicianDto.email,
         password: createTechnicianDto.password,
         role: AccountRole.TECHNICIAN,
+        phone: createTechnicianDto.phone,
         status: 'VERIFIED',
       },
     });
