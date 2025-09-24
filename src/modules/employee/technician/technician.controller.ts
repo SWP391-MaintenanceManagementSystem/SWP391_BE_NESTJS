@@ -19,7 +19,7 @@ export class TechnicianController {
     required: false,
     type: String,
     description: 'JSON string for filter conditions',
-    example: '{"status":"ACTIVE"}',
+    example: '{"status":"VERIFIED"}',
   })
   @ApiQuery({
     name: 'orderBy',
@@ -73,14 +73,16 @@ export class TechnicianController {
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   async getTechnicianById(@Param('id') id: string) {
-    return this.technicianService.getTechnicianById(id);
+    const data = await this.technicianService.getTechnicianById(id);
+    return { data, message: `Technician with ID retrieved successfully`, status: 'success' };
   }
 
   @Post('/create')
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateTechnicianDto })
   async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
-    return this.technicianService.createTechnician(createTechnicianDto);
+    const data = await this.technicianService.createTechnician(createTechnicianDto);
+    return { data, message: 'Technician created successfully', status: 'success' };
   }
 
   @Patch('/:id')
@@ -90,12 +92,14 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    return this.technicianService.updateTechnician(id, updateTechnicianDto);
+    await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    return { message: `Technician updated successfully` };
   }
 
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)
   async deleteTechnician(@Param('id') id: string) {
-    return this.technicianService.deleteTechnician(id);
+    await this.technicianService.deleteTechnician(id);
+    return { message: `Technician deleted successfully` };
   }
 }
