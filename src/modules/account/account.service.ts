@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
 import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
@@ -95,37 +95,44 @@ export class AccountService {
   }
 
   async getAccounts(
-    options: FilterOptionsDTO<Account>
+    filter: Prisma.AccountWhereInput,
+    sortBy: string,
+    orderBy: 'asc' | 'desc',
+    page: number,
+    pageSize: number,
   ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    const page = options.page && options.page > 0 ? options.page : 1;
-    const pageSize = options.pageSize || 10;
-
-    const [accounts, total] = await Promise.all([
-      this.prisma.account.findMany({
-        where: options.where,
-        orderBy: options.orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          customer: true,
-          employee: true,
-        },
-      }),
-      this.prisma.account.count({ where: options.where }),
-    ]);
-
-    const data: AccountWithProfileDTO[] = accounts.map(account => {
-      return this.mapAccountToDTO(account);
-    });
-
-    return {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    };
+    try {
+      const [total, accounts] = await this.prisma.$transaction([
+        this.prisma.account.count({ where: filter }),
+        this.prisma.account.findMany({
+          where: filter,
+          include: {
+            customer: filter.role === AccountRole.CUSTOMER ? true : false,
+            employee: filter.role === AccountRole.STAFF || filter.role === AccountRole.TECHNICIAN ? true : false,
+          },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: {
+            [sortBy]: orderBy,
+          },
+        }),
+      ]);
+      const accountDTOs = accounts.map(account => this.mapAccountToDTO(account));
+      return {
+        data: accountDTOs,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
+      };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new BadRequestException("Invalid query filter");
+      }
+      throw error;
+    }
   }
+
 
   async getAccountById(id: string): Promise<AccountWithProfileDTO | null> {
     const account = await this.prisma.account.findUnique({
@@ -145,7 +152,7 @@ export class AccountService {
 
 
 
-  private mapAccountToDTO(account: any): AccountWithProfileDTO {
+  mapAccountToDTO(account: any): AccountWithProfileDTO {
     let profile: Profile | null = null;
 
     switch (account.role) {
