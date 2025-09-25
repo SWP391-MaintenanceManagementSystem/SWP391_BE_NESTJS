@@ -11,7 +11,7 @@ datasource db {
  * ================= ENUMS =================
  */
 
-enum AccountRole {  
+enum AccountRole {
   ADMIN
   STAFF
   TECHNICIAN
@@ -95,11 +95,11 @@ model Customer {
 }
 
 model Employee {
-  accountId  String   @id @map("account_id")
-  firstName  String   @map("first_name")
-  lastName   String   @map("last_name")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  accountId String   @id @map("account_id")
+  firstName String   @map("first_name")
+  lastName  String   @map("last_name")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   account            Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   workSchedules      WorkSchedule[]
@@ -122,30 +122,30 @@ model Admin {
 }
 
 model Vehicle {
-  id           String       @id @default(uuid())
-  vin          String       @unique
-  customerId   String       @map("customer_id")
-  licensePlate String       @unique @map("license_plate")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  id           String        @id @default(uuid())
+  vin          String        @unique
+  customerId   String        @map("customer_id")
+  licensePlate String        @unique @map("license_plate")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
   status       VehicleStatus @default(ACTIVE)
-  customer     Customer     @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
-  modelId      Int          @map("model_id")
-  vehicleModel VehicleModel @relation(fields: [modelId], references: [id])
+  customer     Customer      @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
+  modelId      Int           @map("model_id")
+  vehicleModel VehicleModel  @relation(fields: [modelId], references: [id])
   bookings     Booking[]
 
   @@map("vehicles")
 }
 
 model VehicleModel {
-  id             Int      @id @default(autoincrement())
-  brandId        Int      @map("brand_id")
+  id             Int       @id @default(autoincrement())
+  brandId        Int       @map("brand_id")
   name           String
-  productionYear Int      @map("production_year")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  brand    Brand     @relation(fields: [brandId], references: [id])
-  vehicles Vehicle[]
+  productionYear Int       @map("production_year")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  brand          Brand     @relation(fields: [brandId], references: [id])
+  vehicles       Vehicle[]
 
   @@map("vehicle_models")
 }
