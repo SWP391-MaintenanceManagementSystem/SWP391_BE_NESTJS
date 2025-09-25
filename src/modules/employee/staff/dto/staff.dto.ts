@@ -1,8 +1,7 @@
-export class StaffDTO { }
 import { Expose, Transform } from 'class-transformer';
 import { CertificateDTO } from '../../certificate/dto/certificate.dto';
 
-export class TechnicianDTO {
+export class StaffDTO {
     @Expose()
     accountId: string;
 

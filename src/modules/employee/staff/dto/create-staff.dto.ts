@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches } from 'class-validator';
 export class CreateStaffDto {
     @ApiProperty({
         example: 'Nguyen',
@@ -29,6 +29,7 @@ export class CreateStaffDto {
         example: 'StrongPassword123!',
         description: 'Mật khẩu cho tài khoản',
     })
+
     @IsNotEmpty()
     @IsString()
     password: string;
