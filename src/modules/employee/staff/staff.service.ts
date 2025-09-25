@@ -9,6 +9,7 @@ import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-prof
 import { AccountService } from 'src/modules/account/account.service';
 import { StaffDTO } from './dto/staff.dto';
 import { plainToClass, plainToInstance } from 'class-transformer';
+import { hashPassword } from 'src/utils';
 
 @Injectable()
 export class StaffService {
@@ -21,7 +22,7 @@ export class StaffService {
     const pageSize = options.pageSize || 10;
     const where = {
       ...(options.where || {}),
-      account: { role: AccountRole.STAFF },
+      role: AccountRole.STAFF,
     };
     const { data, total } = await this.accountService.getAccounts({ where, page, pageSize });
 
@@ -46,11 +47,11 @@ export class StaffService {
     return plainToInstance(StaffDTO, staff);
   }
 
-  async createStaff(dto: CreateStaffDto) {
+  async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
     const staffAccount = await this.prisma.account.create({
       data: {
         email: dto.email,
-        password: dto.password,
+        password: await hashPassword(dto.password),
         phone: dto.phone,
         role: AccountRole.STAFF,
         status: 'VERIFIED', // Kiểm tra xem các trường này có đúng với schema không

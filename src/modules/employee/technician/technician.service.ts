@@ -9,7 +9,10 @@ import { TechnicianDTO } from './dto/technician.dto';
 import { FilterTechnicianDto } from './dto/filter-technician.dto';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { hashPassword } from 'src/utils';
+import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 
+// Chua validate du lieu dau vao
 @Injectable()
 export class TechnicianService {
   constructor(
@@ -21,8 +24,9 @@ export class TechnicianService {
     const technicianAccount = await this.prisma.account.create({
       data: {
         email: createTechnicianDto.email,
-        password: createTechnicianDto.password,
+        password: await hashPassword(createTechnicianDto.password),
         role: AccountRole.TECHNICIAN,
+        phone: createTechnicianDto.phone,
         status: 'VERIFIED',
       },
     });
@@ -37,20 +41,13 @@ export class TechnicianService {
     return employee;
   }
 
-  async getTechnicianById(accountId: string): Promise<TechnicianDTO | null> {
-    const technician = await this.prisma.employee.findUnique({
-      where: { accountId },
-      include: {
-        account: true,
-        certificates: true,
-      },
-    });
+  async getTechnicianById(accountId: string): Promise<AccountWithProfileDTO | null> {
+    const technician = await this.accountService.getAccountById(accountId);
 
-    if (!technician || technician.account.role !== AccountRole.TECHNICIAN) {
-      return null;
+    if (!technician || technician.role !== AccountRole.TECHNICIAN) {
+      throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
-
-    return plainToInstance(TechnicianDTO, technician);
+    return plainToInstance(AccountWithProfileDTO, technician);
   }
 
   async getTechnicians(
@@ -60,7 +57,7 @@ export class TechnicianService {
     const pageSize = options.pageSize || 10;
     const where = {
       ...(options.where || {}),
-      account: { role: AccountRole.TECHNICIAN },
+      role: AccountRole.TECHNICIAN,
     };
     const { data, total } = await this.accountService.getAccounts({ where, page, pageSize });
 
@@ -74,32 +71,80 @@ export class TechnicianService {
   }
 
   async updateTechnician(
-    accountId: string,
-    updateTechnicianDto: UpdateTechnicianDto
-  ): Promise<void> {
-    const existingTechnician = await this.prisma.employee.findUnique({
-      where: { accountId },
-      include: { account: true },
+  accountId: string,
+  updateTechnicianDto: UpdateTechnicianDto
+): Promise<void> {
+  const existingTechnician = await this.prisma.account.findUnique({
+    where: { id: accountId },
+    include: { employee: true },
+  });
+
+  if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
+    throw new NotFoundException(`Technician with ID ${accountId} not found`);
+  }
+
+  if (
+    updateTechnicianDto.email &&
+    updateTechnicianDto.email !== existingTechnician.email
+  ) {
+    const emailExists = await this.prisma.account.findUnique({
+      where: { email: updateTechnicianDto.email },
     });
-    if (!existingTechnician || existingTechnician.account.role !== AccountRole.TECHNICIAN) {
-      throw new NotFoundException(`Technician with ID ${accountId} not found`);
+    if (emailExists) {
+      throw new ConflictException(
+        `Email ${updateTechnicianDto.email} already exists`,
+      );
     }
-    await this.prisma.employee.update({
-      where: { accountId },
-      data: updateTechnicianDto,
+  }
+
+  const updateAccount: any = {};
+  if (updateTechnicianDto.email !== undefined) {
+    updateAccount.email = updateTechnicianDto.email;
+  }
+  if (updateTechnicianDto.phone !== undefined) {
+    updateAccount.phone = updateTechnicianDto.phone;
+  }
+  if (updateTechnicianDto.password !== undefined) {
+    updateAccount.password = await hashPassword(updateTechnicianDto.password);
+  }
+
+  if (Object.keys(updateAccount).length > 0) {
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: updateAccount,
     });
   }
 
+  const updateEmployee: any = {};
+  if (updateTechnicianDto.firstName !== undefined) {
+    updateEmployee.firstName = updateTechnicianDto.firstName;
+  }
+  if (updateTechnicianDto.lastName !== undefined) {
+    updateEmployee.lastName = updateTechnicianDto.lastName;
+  }
+
+  if (Object.keys(updateEmployee).length > 0) {
+    if (existingTechnician.employee) {
+      await this.prisma.employee.update({
+        where: { accountId },
+        data: updateEmployee,
+      });
+    };
+  }
+}
+
   async deleteTechnician(accountId: string): Promise<void> {
-    const existingTechnician = await this.prisma.employee.findUnique({
-      where: { accountId },
-      include: { account: true },
+    const existingTechnician = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { employee: true },
     });
-    if (!existingTechnician || existingTechnician.account.role !== AccountRole.TECHNICIAN) {
+
+    if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
       throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
-    await this.prisma.employee.delete({
-      where: { accountId },
+
+    await this.prisma.account.delete({
+      where: { id: accountId },
     });
   }
 }

@@ -12,6 +12,12 @@ export class TechnicianDTO {
   lastName: string;
 
   @Expose()
+  email: string;
+  
+  @Expose()
+  phone?: string;
+
+  @Expose()
   certificates?: CertificateDTO[];
 
   @Expose()
