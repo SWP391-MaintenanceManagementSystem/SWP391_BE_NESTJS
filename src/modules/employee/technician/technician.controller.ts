@@ -12,77 +12,86 @@ import { AccountRole } from '@prisma/client';
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 
-  @Get('/')
-  @Roles(AccountRole.ADMIN)
-  @ApiQuery({
-    name: 'where',
-    required: false,
-    type: String,
-    description: 'JSON string for filter conditions',
-    example: '{"status":"VERIFIED"}',
-  })
-  @ApiQuery({
-    name: 'orderBy',
-    required: false,
-    type: String,
-    description: 'JSON string for sorting criteria',
-    example: '{"createdAt":"desc"}',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Page number',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'pageSize',
-    required: false,
-    type: Number,
-    description: 'Number of records per page',
-    example: 10,
-  })
-  async getTechnicians(
-    @Query('where') where?: string,
-    @Query('orderBy') orderBy?: string,
-    @Query('page') page?: string,
-    @Query('pageSize') pageSize?: string
-  ) {
-    const {
-      data,
-      page: _page,
-      pageSize: _pageSize,
-      total,
-      totalPages,
-    } = await this.technicianService.getTechnicians({
-      where: where ? JSON.parse(where) : undefined,
-      orderBy: orderBy ? JSON.parse(orderBy) : undefined,
-      page: page ? parseInt(page) : 1,
-      pageSize: pageSize ? parseInt(pageSize) : 10,
-    });
-    return {
-      message: 'Technicians retrieved successfully',
-      data,
-      page: _page,
-      pageSize: _pageSize,
-      total,
-      totalPages,
-    };
-  }
+  // @Get('/')
+  // @Roles(AccountRole.ADMIN)
+  // @ApiQuery({
+  //   name: 'where',
+  //   required: false,
+  //   type: String,
+  //   description: 'JSON string for filter conditions',
+  //   example: '{"status":"VERIFIED"}',
+  // })
+  // @ApiQuery({
+  //   name: 'orderBy',
+  //   required: false,
+  //   type: String,
+  //   description: 'JSON string for sorting criteria',
+  //   example: '{"createdAt":"desc"}',
+  // })
+  // @ApiQuery({
+  //   name: 'page',
+  //   required: false,
+  //   type: Number,
+  //   description: 'Page number',
+  //   example: 1,
+  // })
+  // @ApiQuery({
+  //   name: 'pageSize',
+  //   required: false,
+  //   type: Number,
+  //   description: 'Number of records per page',
+  //   example: 10,
+  // })
+
+  // async getTechnicians(
+  //   @Query('where') where?: string,
+  //   @Query('orderBy') orderBy?: string,
+  //   @Query('page') page?: string,
+  //   @Query('pageSize') pageSize?: string
+  // ) {
+  //   const {
+  //     data,
+  //     page: _page,
+  //     pageSize: _pageSize,
+  //     total,
+  //     totalPages,
+  //   } = await this.technicianService.getTechnicians({
+  //     where: where ? JSON.parse(where) : undefined,
+  //     orderBy: orderBy ? JSON.parse(orderBy) : undefined,
+  //     page: page ? parseInt(page) : 1,
+  //     pageSize: pageSize ? parseInt(pageSize) : 10,
+  //   });
+  //   return {
+  //     message: 'Technicians retrieved successfully',
+  //     data,
+  //     page: _page,
+  //     pageSize: _pageSize,
+  //     total,
+  //     totalPages,
+  //   };
+  // }
 
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   async getTechnicianById(@Param('id') id: string) {
     const data = await this.technicianService.getTechnicianById(id);
-    return { data, message: `Technician with ID retrieved successfully`, status: 'success' };
+    return { 
+      message: `Technician with ID retrieved successfully`, 
+      status: 'success',
+      data
+     };
   }
 
-  @Post('/create')
+  @Post()
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateTechnicianDto })
   async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
     const data = await this.technicianService.createTechnician(createTechnicianDto);
-    return { data, message: 'Technician created successfully', status: 'success' };
+    return { 
+      message: 'Technician created successfully', 
+      status: 'success',
+      data
+     };
   }
 
   @Patch('/:id')
@@ -92,14 +101,17 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    await this.technicianService.updateTechnician(id, updateTechnicianDto);
-    return { message: `Technician updated successfully` };
+    const technician = await  this.technicianService.updateTechnician(id, updateTechnicianDto);
+    return { 
+      message: `Technician updated successfully`,
+      technician
+     };  
   }
 
-  @Delete('/:id')
-  @Roles(AccountRole.ADMIN)
-  async deleteTechnician(@Param('id') id: string) {
-    await this.technicianService.deleteTechnician(id);
-    return { message: `Technician deleted successfully` };
-  }
+  // @Delete('/:id')
+  // @Roles(AccountRole.ADMIN)
+  // async deleteTechnician(@Param('id') id: string) {
+  //   await this.technicianService.deleteTechnician(id);
+  //   return { message: `Technician deleted successfully` };
+  // }
 }

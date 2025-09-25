@@ -50,25 +50,25 @@ export class TechnicianService {
     return plainToInstance(AccountWithProfileDTO, technician);
   }
 
-  async getTechnicians(
-    options: FilterTechnicianDto<Employee>
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    const page = options.page && options.page > 0 ? options.page : 1;
-    const pageSize = options.pageSize || 10;
-    const where = {
-      ...(options.where || {}),
-      role: AccountRole.TECHNICIAN,
-    };
-    const { data, total } = await this.accountService.getAccounts({ where, page, pageSize });
+  // async getTechnicians(
+  //   options: FilterTechnicianDto<Employee>
+  // ): Promise<PaginationResponse<AccountWithProfileDTO>> {
+  //   const page = options.page && options.page > 0 ? options.page : 1;
+  //   const pageSize = options.pageSize || 10;
+  //   const where = {
+  //     ...(options.where|| {}),
+  //     role: AccountRole.TECHNICIAN,
+  //   };
+  //   const { data, total } = await this.accountService.getAccounts({ where, page, pageSize });
 
-    return {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    };
-  }
+  //   return {
+  //     data,
+  //     page,
+  //     pageSize,
+  //     total,
+  //     totalPages: Math.ceil(total / pageSize),
+  //   };
+  // }
 
   async updateTechnician(
   accountId: string,
@@ -133,18 +133,18 @@ export class TechnicianService {
   }
 }
 
-  async deleteTechnician(accountId: string): Promise<void> {
-    const existingTechnician = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      include: { employee: true },
-    });
+  // async deleteTechnician(accountId: string): Promise<void> {
+  //   const existingTechnician = await this.prisma.account.findUnique({
+  //     where: { id: accountId },
+  //     include: { employee: true },
+  //   });
 
-    if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
-      throw new NotFoundException(`Technician with ID ${accountId} not found`);
-    }
+  //   if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
+  //     throw new NotFoundException(`Technician with ID ${accountId} not found`);
+  //   }
 
-    await this.prisma.account.delete({
-      where: { id: accountId },
-    });
-  }
+  //   await this.prisma.account.delete({
+  //     where: { id: accountId },
+  //   });
+  // }
 }
