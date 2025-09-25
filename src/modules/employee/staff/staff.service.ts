@@ -15,25 +15,26 @@ import { hashPassword } from 'src/utils';
 export class StaffService {
   constructor(private prisma: PrismaService, private readonly accountService: AccountService) { }
 
-  async getStaffs(
-    options: FilterOptionsDTO<Employee>
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    const page = options.page && options.page > 0 ? options.page : 1;
-    const pageSize = options.pageSize || 10;
-    const where = {
-      ...(options.where || {}),
-      role: AccountRole.STAFF,
-    };
-    const { data, total } = await this.accountService.getAccounts({ where, page, pageSize });
+  // async getStaffs(
+  //   options: FilterOptionsDTO<Employee>
+  // ): Promise<PaginationResponse<AccountWithProfileDTO>> {
+  //   const page = options.page && options.page > 0 ? options.page : 1;
+  //   const pageSize = options.pageSize || 10;
+  //   const where = {
+  //     ...(options.where || {}),
+  //     role: AccountRole.STAFF,
 
-    return {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    };
-  }
+  //   };
+  //   const { data, total } = await this.accountService.getAccounts({ where, page, pageSize });
+
+  //   return {
+  //     data,
+  //     page,
+  //     pageSize,
+  //     total,
+  //     totalPages: Math.ceil(total / pageSize),
+  //   };
+  // }
 
   async getStaffById(accountId: string): Promise<StaffDTO | null> {
     const staff = await this.prisma.employee.findUnique({
@@ -86,13 +87,13 @@ export class StaffService {
     });
   }
 
-  async deleteStaff(accountId: string) {
-    const staff = await this.prisma.employee.findUnique({
-      where: { accountId },
-      include: { account: true },
-    });
-    if (!staff || staff.account.role !== AccountRole.STAFF) throw new NotFoundException(`Staff with id ${accountId} not found`);
+  // async deleteStaff(accountId: string) {
+  //   const staff = await this.prisma.employee.findUnique({
+  //     where: { accountId },
+  //     include: { account: true },
+  //   });
+  //   if (!staff || staff.account.role !== AccountRole.STAFF) throw new NotFoundException(`Staff with id ${accountId} not found`);
 
-    await this.prisma.employee.delete({ where: { accountId } });
-  }
+  //   await this.prisma.employee.delete({ where: { accountId } });
+  // }
 }
