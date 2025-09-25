@@ -34,6 +34,10 @@ export class AccountWithProfileDTO {
   @Expose()
   address?: string | null;
 
+  @IsOptional()
+  @Expose()
+  avatar?: string | null;
+
   @IsNotEmpty()
   @Expose()
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))

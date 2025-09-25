@@ -16,7 +16,7 @@ export class AccountService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService
-  ) {}
+  ) { }
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -37,31 +37,7 @@ export class AccountService {
     if (!account) {
       return null;
     }
-
-    let profile: Profile | null = null;
-
-    switch (account.role) {
-      case AccountRole.CUSTOMER:
-        if (account.customer) {
-          profile = plainToInstance(CustomerDTO, account.customer);
-        }
-        break;
-      case AccountRole.STAFF:
-      case AccountRole.TECHNICIAN:
-        if (account.employee) {
-          profile = plainToInstance(EmployeeDTO, account.employee);
-        }
-        break;
-      default:
-        profile = null;
-    }
-
-    const response: AccountWithProfileDTO = {
-      ...account,
-      password: account.password || null,
-      profile,
-    };
-    return response;
+    return this.mapAccountToDTO(account);
   }
 
   async activateAccount(email: string): Promise<boolean> {
@@ -138,31 +114,8 @@ export class AccountService {
       this.prisma.account.count({ where: options.where }),
     ]);
 
-    // map từng account sang DTO có profile
     const data: AccountWithProfileDTO[] = accounts.map(account => {
-      let profile: Profile | null = null;
-
-      switch (account.role) {
-        case AccountRole.CUSTOMER:
-          if (account.customer) {
-            profile = plainToInstance(CustomerDTO, account.customer);
-          }
-          break;
-        case AccountRole.TECHNICIAN:
-        case AccountRole.STAFF:
-          if (account.employee) {
-            profile = plainToInstance(EmployeeDTO, account.employee);
-          }
-          break;
-        default:
-          profile = null;
-      }
-
-      return {
-        ...account,
-        password: account.password || null,
-        profile,
-      };
+      return this.mapAccountToDTO(account);
     });
 
     return {
@@ -187,10 +140,17 @@ export class AccountService {
       return null;
     }
 
+    return this.mapAccountToDTO(account);
+  }
+
+
+
+  private mapAccountToDTO(account: any): AccountWithProfileDTO {
     let profile: Profile | null = null;
 
     switch (account.role) {
       case AccountRole.CUSTOMER:
+      case AccountRole.PREMIUM:
         if (account.customer) {
           profile = plainToInstance(CustomerDTO, account.customer);
         }
@@ -201,29 +161,73 @@ export class AccountService {
           profile = plainToInstance(EmployeeDTO, account.employee);
         }
         break;
-      default:
-        profile = null;
     }
 
-    const response: AccountWithProfileDTO = {
-      ...account,
+    return {
+      email: account.email,
+      id: account.id,
+      role: account.role,
+      phone: account.phone,
+      avatar: account.avatar,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+      status: account.status,
+      provider: account.provider,
       password: account.password || null,
-      profile: profile,
+      profile,
     };
-    return response;
   }
 
-  async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
-    const exists = await this.prisma.account.findUnique({ where: { id: id } });
-    if (!exists) {
-      throw new NotFoundException(`Account with id ${id} not found`);
+  async updateAccount(
+    id: string,
+    updateData: Partial<AccountWithProfileDTO>
+  ): Promise<AccountWithProfileDTO> {
+    const exists = await this.prisma.account.findUnique({
+      where: { id },
+      include: { customer: true, employee: true, admin: true },
+    });
+    if (!exists) throw new NotFoundException(`Account with id ${id} not found`);
+
+    const accountData: Prisma.AccountUpdateInput = {
+      phone: updateData.phone ?? exists.phone,
+    };
+
+    if (exists.role === AccountRole.CUSTOMER && exists.customer) {
+      const profile = updateData.profile as CustomerDTO;
+      accountData.customer = {
+        update: {
+          firstName: profile?.firstName ?? exists.customer.firstName,
+          lastName: profile?.lastName ?? exists.customer.lastName,
+          address: profile?.address ?? exists.customer.address,
+        },
+      };
     }
 
-    await this.prisma.account.update({
-      where: { id: id },
-      data: updateData,
+    if (
+      (exists.role === AccountRole.STAFF ||
+        exists.role === AccountRole.TECHNICIAN) &&
+      exists.employee
+    ) {
+      const profile = updateData.profile as EmployeeDTO;
+      accountData.employee = {
+        update: {
+          firstName: profile?.firstName ?? exists.employee.firstName,
+          lastName: profile?.lastName ?? exists.employee.lastName,
+        },
+      };
+    }
+
+    const updated = await this.prisma.account.update({
+      where: { id },
+      data: accountData,
+      include: { customer: true, employee: true, admin: true },
     });
+
+    return this.mapAccountToDTO(updated);
   }
+
+
+
 
   async deleteAccount(id: string): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { id: id } });

@@ -12,18 +12,21 @@ import {
 } from '@nestjs/common';
 import { AccountService } from './account.service';
 import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
-import { Account, AccountRole } from '@prisma/client';
+import { AccountRole } from '@prisma/client';
 import { UpdateAccountDTO } from './dto/update-account.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { JWT_Payload } from 'src/common/types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UseInterceptors } from '@nestjs/common';
+import { Serialize } from 'src/common/interceptor/serialize.interceptor';
+import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
+import { plainToInstance } from 'class-transformer';
 @ApiTags('Account')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/account')
 export class AccountController {
-  constructor(private readonly accountService: AccountService) {}
+  constructor(private readonly accountService: AccountService) { }
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
@@ -75,7 +78,7 @@ export class AccountController {
     });
     return {
       message: 'Accounts retrieved successfully',
-      accounts: data,
+      accounts: plainToInstance(AccountWithProfileDTO, data),
       page: _page,
       pageSize: _pageSize,
       total,
@@ -84,17 +87,18 @@ export class AccountController {
   }
 
   @Patch('/')
-  @ApiBody({ type: UpdateAccountDTO })
-  async updateAccount(@CurrentUser() user: Account, @Body() updateAccountDto: UpdateAccountDTO) {
-    await this.accountService.updateAccount(user.id, updateAccountDto);
-    return { message: 'Account updated successfully', status: 'success' };
+  async updateAccount(@CurrentUser() user: JWT_Payload, @Body() updateAccountDto: UpdateAccountDTO) {
+    const data = await this.accountService.updateAccount(user.sub, updateAccountDto);
+    return { message: 'Account updated successfully', data: plainToInstance(AccountWithProfileDTO, data) };
   }
+
+
 
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)
   async deleteAccount(@Param('id') id: string) {
     await this.accountService.deleteAccount(id);
-    return { message: 'Account deleted successfully', status: 'success' };
+    return { message: 'Account deleted successfully' };
   }
 
   @ApiConsumes('multipart/form-data')
