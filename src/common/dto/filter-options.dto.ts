@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsNumber, IsObject } from 'class-validator';
+import { IsOptional, IsNumber, IsObject, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class FilterOptionsDTO<T> {
@@ -7,10 +7,22 @@ export class FilterOptionsDTO<T> {
   @IsOptional()
   @IsObject()
   where?: Partial<Record<keyof T, any>>;
+
+
+  @ApiPropertyOptional({ description: 'Field to sort by' })
+  @IsOptional()
+  @IsString()
+  sortBy?: keyof T;
+
+  @ApiPropertyOptional({ description: 'Sort order', enum: ['asc', 'desc'] })
+  @IsOptional()
+  @IsString()
+  sortOrder?: string;
+
   @ApiPropertyOptional({ description: 'Sorting criteria' })
   @IsOptional()
   @IsObject()
-  orderBy?: Record<string, 'asc' | 'desc'>;
+  orderBy?: 'asc' | 'desc';
 
   @ApiPropertyOptional({ description: 'Number of records to skip', minimum: 0 })
   @IsOptional()

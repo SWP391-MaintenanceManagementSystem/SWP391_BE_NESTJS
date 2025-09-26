@@ -5,12 +5,12 @@ import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-prof
 export class SignInDTO {
   @IsNotEmpty({ message: 'Email is required' })
   @IsEmail({}, { message: 'Please provide a valid email address' })
-  @ApiProperty({ description: 'The email of the user', example: 'user@example.com' })
+  @ApiProperty({ description: 'The email of the user', example: 'admin@gmail.com' })
   email: string;
 
   @IsNotEmpty({ message: 'Password is required' })
   @IsString({ message: 'Password must be a string' })
-  @ApiProperty({ description: 'The password of the user', example: 'password123' })
+  @ApiProperty({ description: 'The password of the user', example: 'Password123!' })
   password: string;
 }
 

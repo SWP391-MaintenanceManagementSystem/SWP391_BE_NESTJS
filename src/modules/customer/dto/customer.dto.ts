@@ -1,6 +1,10 @@
-import { Expose, Transform } from "class-transformer";
+import { Exclude, Expose, Transform } from "class-transformer";
 
 export class CustomerDTO {
+
+    @Exclude()
+    accountId: string;
+
     @Expose()
     firstName: string;
 
@@ -11,7 +15,7 @@ export class CustomerDTO {
     address?: string;
 
     @Expose()
-    is_premium: boolean;
+    isPremium: boolean;
 
     @Expose()
     @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))

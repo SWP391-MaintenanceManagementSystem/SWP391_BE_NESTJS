@@ -10,7 +10,7 @@ import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Serialize } from 'src/common/interceptor/serialize.interceptor';
 import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 @UseGuards(JwtAuthGuard)
-@Controller('vehicle')
+@Controller('api/vehicle')
 @ApiBearerAuth('jwt-auth')
 @ApiTags('Vehicle')
 export class VehicleController {
