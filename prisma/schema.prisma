@@ -34,6 +34,7 @@ enum AuthProvider {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  CHECKED_IN
   COMPLETED
   CANCELLED
   IN_PROCESS
@@ -67,7 +68,6 @@ model Account {
   providerId     Json?          @map("provider_id")
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
-
   customer Customer?
   employee Employee?
   admin    Admin?
@@ -100,7 +100,6 @@ model Employee {
   lastName   String   @map("last_name")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
-
   account            Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   workSchedules      WorkSchedule[]
   workCenters        WorkCenter[]

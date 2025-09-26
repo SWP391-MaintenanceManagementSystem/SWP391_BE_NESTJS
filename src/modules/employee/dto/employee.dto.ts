@@ -1,6 +1,10 @@
-import { Expose, Transform } from 'class-transformer';
+import { Exclude, Expose, Transform } from 'class-transformer';
+import { CertificateDTO } from '../certificate/dto/certificate.dto';
 
 export class EmployeeDTO {
+  @Exclude()
+  accountId: string;
+
   @Expose()
   firstName: string;
 
@@ -8,14 +12,13 @@ export class EmployeeDTO {
   lastName: string;
 
   @Expose()
-  specialization?: string;
+  email: string;
 
   @Expose()
-  experienceYears?: number;
+  phone?: string;
 
-  // TODO: make certificate DTO
   @Expose()
-  certificate?: string;
+  certificates?: CertificateDTO[];
 
   @Expose()
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))

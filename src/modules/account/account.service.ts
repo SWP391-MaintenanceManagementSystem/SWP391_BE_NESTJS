@@ -1,22 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
 import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
 import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
-import { FilterOptionsDTO } from '../../common/dto/filter-options.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { EmployeeDTO } from '../employee/dto/employee.dto';
 import { plainToInstance } from 'class-transformer';
 import { CloudinaryService } from '../upload/cloudinary.service';
-
 @Injectable()
 export class AccountService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService
-  ) {}
+  ) { }
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -37,31 +35,7 @@ export class AccountService {
     if (!account) {
       return null;
     }
-
-    let profile: Profile | null = null;
-
-    switch (account.role) {
-      case AccountRole.CUSTOMER:
-        if (account.customer) {
-          profile = plainToInstance(CustomerDTO, account.customer);
-        }
-        break;
-      case AccountRole.STAFF:
-      case AccountRole.TECHNICIAN:
-        if (account.employee) {
-          profile = plainToInstance(EmployeeDTO, account.employee);
-        }
-        break;
-      default:
-        profile = null;
-    }
-
-    const response: AccountWithProfileDTO = {
-      ...account,
-      password: account.password || null,
-      profile,
-    };
-    return response;
+    return this.mapAccountToDTO(account);
   }
 
   async activateAccount(email: string): Promise<boolean> {
@@ -119,60 +93,44 @@ export class AccountService {
   }
 
   async getAccounts(
-    options: FilterOptionsDTO<Account>
+    filter: Prisma.AccountWhereInput,
+    sortBy: string,
+    orderBy: 'asc' | 'desc',
+    page: number,
+    pageSize: number,
   ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    const page = options.page && options.page > 0 ? options.page : 1;
-    const pageSize = options.pageSize || 10;
-
-    const [accounts, total] = await Promise.all([
-      this.prisma.account.findMany({
-        where: options.where,
-        orderBy: options.orderBy,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
-          customer: true,
-          employee: true,
-        },
-      }),
-      this.prisma.account.count({ where: options.where }),
-    ]);
-
-    // map từng account sang DTO có profile
-    const data: AccountWithProfileDTO[] = accounts.map(account => {
-      let profile: Profile | null = null;
-
-      switch (account.role) {
-        case AccountRole.CUSTOMER:
-          if (account.customer) {
-            profile = plainToInstance(CustomerDTO, account.customer);
-          }
-          break;
-        case AccountRole.TECHNICIAN:
-        case AccountRole.STAFF:
-          if (account.employee) {
-            profile = plainToInstance(EmployeeDTO, account.employee);
-          }
-          break;
-        default:
-          profile = null;
-      }
-
+    try {
+      const [total, accounts] = await this.prisma.$transaction([
+        this.prisma.account.count({ where: filter }),
+        this.prisma.account.findMany({
+          where: filter,
+          include: {
+            customer: filter.role === AccountRole.CUSTOMER ? true : false,
+            employee: filter.role === AccountRole.STAFF || filter.role === AccountRole.TECHNICIAN ? true : false,
+          },
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+          orderBy: {
+            [sortBy]: orderBy,
+          },
+        }),
+      ]);
+      const accountDTOs = accounts.map(account => this.mapAccountToDTO(account));
       return {
-        ...account,
-        password: account.password || null,
-        profile,
+        data: accountDTOs,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
       };
-    });
-
-    return {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages: Math.ceil(total / pageSize),
-    };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientValidationError) {
+        throw new BadRequestException("Invalid query filter");
+      }
+      throw error;
+    }
   }
+
 
   async getAccountById(id: string): Promise<AccountWithProfileDTO | null> {
     const account = await this.prisma.account.findUnique({
@@ -187,10 +145,17 @@ export class AccountService {
       return null;
     }
 
+    return this.mapAccountToDTO(account);
+  }
+
+
+
+  mapAccountToDTO(account: any): AccountWithProfileDTO {
     let profile: Profile | null = null;
 
     switch (account.role) {
       case AccountRole.CUSTOMER:
+      case AccountRole.PREMIUM:
         if (account.customer) {
           profile = plainToInstance(CustomerDTO, account.customer);
         }
@@ -201,29 +166,74 @@ export class AccountService {
           profile = plainToInstance(EmployeeDTO, account.employee);
         }
         break;
-      default:
-        profile = null;
     }
 
-    const response: AccountWithProfileDTO = {
-      ...account,
+    return {
+      email: account.email,
+      id: account.id,
+      role: account.role,
+      phone: account.phone,
+      avatar: account.avatar,
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
+      status: account.status,
+      provider: account.provider,
       password: account.password || null,
-      profile: profile,
+      profile,
     };
-    return response;
   }
 
-  async updateAccount(id: string, updateData: Prisma.AccountUpdateInput): Promise<void> {
-    const exists = await this.prisma.account.findUnique({ where: { id: id } });
-    if (!exists) {
-      throw new NotFoundException(`Account with id ${id} not found`);
+  async updateAccount(
+    id: string,
+    updateData: Partial<AccountWithProfileDTO>
+  ): Promise<AccountWithProfileDTO> {
+    const exists = await this.prisma.account.findUnique({
+      where: { id },
+      include: { customer: true, employee: true, admin: true },
+    });
+    if (!exists) throw new NotFoundException(`Account with id ${id} not found`);
+
+    const accountData: Prisma.AccountUpdateInput = {
+      ...(updateData.phone && { phone: updateData.phone }),
+    };
+
+    if (exists.role === AccountRole.CUSTOMER && exists.customer) {
+      const profile = { ...updateData } as CustomerDTO;
+      accountData.customer = {
+        update: {
+          ...(profile.firstName && { firstName: profile.firstName }),
+          ...(profile.lastName && { lastName: profile.lastName }),
+          ...(profile.address && { address: profile.address }),
+          ...(profile.isPremium !== undefined && { isPremium: profile.isPremium }),
+        },
+      };
     }
 
-    await this.prisma.account.update({
-      where: { id: id },
-      data: updateData,
+    if (
+      (exists.role === AccountRole.STAFF ||
+        exists.role === AccountRole.TECHNICIAN) &&
+      exists.employee
+    ) {
+      const profile = { ...updateData } as EmployeeDTO;
+      accountData.employee = {
+        update: {
+          ...(profile.firstName && { firstName: profile.firstName }),
+          ...(profile.lastName && { lastName: profile.lastName }),
+        },
+      };
+    }
+
+    const updated = await this.prisma.account.update({
+      where: { id },
+      data: accountData,
+      include: { customer: true, employee: true, admin: true },
     });
+
+    return this.mapAccountToDTO(updated);
   }
+
+
+
 
   async deleteAccount(id: string): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { id: id } });

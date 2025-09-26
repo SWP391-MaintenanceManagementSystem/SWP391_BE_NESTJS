@@ -5,81 +5,36 @@ import { CreateTechnicianDto } from './dto/create-technician.dto';
 import { UpdateTechnicianDto } from './dto/update-technician.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
+import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { plainToInstance } from 'class-transformer';
+import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
 @ApiTags('Technician')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/technician')
 export class TechnicianController {
-  constructor(private readonly technicianService: TechnicianService) {}
+  constructor(private readonly technicianService: TechnicianService) { }
 
-  // @Get('/')
-  // @Roles(AccountRole.ADMIN)
-  // @ApiQuery({
-  //   name: 'where',
-  //   required: false,
-  //   type: String,
-  //   description: 'JSON string for filter conditions',
-  //   example: '{"status":"VERIFIED"}',
-  // })
-  // @ApiQuery({
-  //   name: 'orderBy',
-  //   required: false,
-  //   type: String,
-  //   description: 'JSON string for sorting criteria',
-  //   example: '{"createdAt":"desc"}',
-  // })
-  // @ApiQuery({
-  //   name: 'page',
-  //   required: false,
-  //   type: Number,
-  //   description: 'Page number',
-  //   example: 1,
-  // })
-  // @ApiQuery({
-  //   name: 'pageSize',
-  //   required: false,
-  //   type: Number,
-  //   description: 'Number of records per page',
-  //   example: 10,
-  // })
-
-  // async getTechnicians(
-  //   @Query('where') where?: string,
-  //   @Query('orderBy') orderBy?: string,
-  //   @Query('page') page?: string,
-  //   @Query('pageSize') pageSize?: string
-  // ) {
-  //   const {
-  //     data,
-  //     page: _page,
-  //     pageSize: _pageSize,
-  //     total,
-  //     totalPages,
-  //   } = await this.technicianService.getTechnicians({
-  //     where: where ? JSON.parse(where) : undefined,
-  //     orderBy: orderBy ? JSON.parse(orderBy) : undefined,
-  //     page: page ? parseInt(page) : 1,
-  //     pageSize: pageSize ? parseInt(pageSize) : 10,
-  //   });
-  //   return {
-  //     message: 'Technicians retrieved successfully',
-  //     data,
-  //     page: _page,
-  //     pageSize: _pageSize,
-  //     total,
-  //     totalPages,
-  //   };
-  // }
+  @Get('/')
+  @Roles(AccountRole.ADMIN)
+  async getTechnicians(@Query() query: EmployeeQueryDTO) {
+    const { data, page, pageSize, total, totalPages } = await this.technicianService.getTechnicians(query);
+    const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
+    return {
+      message: 'Technicians retrieved successfully',
+      accounts,
+      page,
+      pageSize,
+      total,
+      totalPages
+    };
+  }
 
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   async getTechnicianById(@Param('id') id: string) {
     const data = await this.technicianService.getTechnicianById(id);
-    return { 
-      message: `Technician with ID retrieved successfully`, 
-      status: 'success',
-      data
-     };
+    return { data, message: `Technician with ID retrieved successfully` };
   }
 
   @Post()
@@ -87,11 +42,7 @@ export class TechnicianController {
   @ApiBody({ type: CreateTechnicianDto })
   async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
     const data = await this.technicianService.createTechnician(createTechnicianDto);
-    return { 
-      message: 'Technician created successfully', 
-      status: 'success',
-      data
-     };
+    return { data, message: 'Technician created successfully' };
   }
 
   @Patch('/:id')

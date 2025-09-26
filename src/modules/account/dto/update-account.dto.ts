@@ -5,15 +5,20 @@ export class UpdateAccountDTO {
   @IsOptional()
   @IsString()
   @ApiProperty({ example: 'John' })
-  firstName: string;
+  firstName?: string;
 
   @IsOptional()
   @IsString()
   @ApiProperty({ example: 'Doe' })
-  lastName: string;
+  lastName?: string;
 
   @IsOptional()
   @IsString()
-  @ApiProperty({ example: 'https://picsum.photos/id/237/200/300' })
-  avatar: string;
+  @ApiProperty({ example: '123 Main St, City, Country' })
+  address?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({ example: '+1234567890' })
+  phone?: string;
 }
