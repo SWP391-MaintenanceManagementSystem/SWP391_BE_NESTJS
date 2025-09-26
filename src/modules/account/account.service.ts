@@ -3,14 +3,12 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
 import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
 import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
-import { FilterOptionsDTO } from '../../common/dto/filter-options.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { EmployeeDTO } from '../employee/dto/employee.dto';
 import { plainToInstance } from 'class-transformer';
 import { CloudinaryService } from '../upload/cloudinary.service';
-
 @Injectable()
 export class AccountService {
   constructor(
@@ -196,16 +194,17 @@ export class AccountService {
     if (!exists) throw new NotFoundException(`Account with id ${id} not found`);
 
     const accountData: Prisma.AccountUpdateInput = {
-      phone: updateData.phone ?? exists.phone,
+      ...(updateData.phone && { phone: updateData.phone }),
     };
 
     if (exists.role === AccountRole.CUSTOMER && exists.customer) {
-      const profile = updateData.profile as CustomerDTO;
+      const profile = { ...updateData } as CustomerDTO;
       accountData.customer = {
         update: {
-          firstName: profile?.firstName ?? exists.customer.firstName,
-          lastName: profile?.lastName ?? exists.customer.lastName,
-          address: profile?.address ?? exists.customer.address,
+          ...(profile.firstName && { firstName: profile.firstName }),
+          ...(profile.lastName && { lastName: profile.lastName }),
+          ...(profile.address && { address: profile.address }),
+          ...(profile.isPremium !== undefined && { isPremium: profile.isPremium }),
         },
       };
     }
@@ -215,11 +214,11 @@ export class AccountService {
         exists.role === AccountRole.TECHNICIAN) &&
       exists.employee
     ) {
-      const profile = updateData.profile as EmployeeDTO;
+      const profile = { ...updateData } as EmployeeDTO;
       accountData.employee = {
         update: {
-          firstName: profile?.firstName ?? exists.employee.firstName,
-          lastName: profile?.lastName ?? exists.employee.lastName,
+          ...(profile.firstName && { firstName: profile.firstName }),
+          ...(profile.lastName && { lastName: profile.lastName }),
         },
       };
     }

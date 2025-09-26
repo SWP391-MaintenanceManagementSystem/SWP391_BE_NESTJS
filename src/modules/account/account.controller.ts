@@ -19,7 +19,6 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { JWT_Payload } from 'src/common/types';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UseInterceptors } from '@nestjs/common';
-import { Serialize } from 'src/common/interceptor/serialize.interceptor';
 import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
 @ApiTags('Account')

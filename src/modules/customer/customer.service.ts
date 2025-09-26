@@ -1,13 +1,12 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateCustomerDTO } from './dto/create-customer.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { FilterOptionsDTO } from 'src/common/dto/filter-options.dto';
 import { AccountRole, Prisma } from '@prisma/client';
 import { AccountWithProfileDTO } from '../account/dto/account-with-profile.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountService } from '../account/account.service';
-import { AccountFilterDTO } from 'src/common/dto/account-filter.dto';
 import { CustomerQueryDTO } from './dto/customer-query.dto';
+import { UpdateCustomerDTO } from './dto/update-customer.dto';
 
 @Injectable()
 export class CustomerService {
@@ -43,5 +42,23 @@ export class CustomerService {
             where, sortBy, orderBy, page, pageSize
         )
 
+    }
+
+    async getCustomerById(id: string): Promise<AccountWithProfileDTO | null> {
+        const account = await this.accountService.getAccountById(id);
+
+        if (!account) {
+            throw new BadRequestException('Account not found');
+        }
+
+        if (account.role !== AccountRole.CUSTOMER) {
+            throw new BadRequestException('Account is not a customer');
+        }
+        return account;
+    }
+
+    async updateCustomer(id: string, updateData: UpdateCustomerDTO): Promise<AccountWithProfileDTO> {
+        const customer = await this.accountService.updateAccount(id, updateData);
+        return customer;
     }
 }
