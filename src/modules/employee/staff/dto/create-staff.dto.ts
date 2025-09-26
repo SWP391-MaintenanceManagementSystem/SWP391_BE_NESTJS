@@ -3,44 +3,43 @@ import { IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLengt
 export class CreateStaffDto {
     @ApiProperty({
         example: 'Nguyen',
-        description: 'Họ (first name) của nhân viên',
+        description: 'First name of the staff',
     })
-    @IsNotEmpty({ message: 'First name không được để trống' })
-    @IsString({ message: 'First name phải là chuỗi ký tự' })
+    @IsNotEmpty({ message: 'First name must not be empty' })
+    @IsString({ message: 'First name must be a string' })
     @Matches(/^[A-Za-zÀ-ỹ\s]+$/, {
-        message: 'First name chỉ được chứa chữ cái và khoảng trắng',
+        message: 'First name can only contain letters and spaces',
     })
     firstName: string;
 
     @ApiProperty({
         example: 'Van A',
-        description: 'Tên (last name) của nhân viên',
+        description: 'Last name of the staff',
     })
-    @IsNotEmpty({ message: 'Last name không được để trống' })
-    @IsString({ message: 'Last name phải là chuỗi ký tự' })
+    @IsNotEmpty({ message: 'Last name must not be empty' })
+    @IsString({ message: 'Last name must be a string' })
     @Matches(/^[A-Za-zÀ-ỹ\s]+$/, {
-        message: 'Last name chỉ được chứa chữ cái và khoảng trắng',
+        message: 'Last name can only contain letters and spaces',
     })
     lastName: string;
 
     @ApiProperty({
         example: 'vana@example.com',
-        description: 'Email dùng để đăng nhập',
+        description: 'Email used for login',
     })
-    @IsNotEmpty({ message: 'Email không được để trống' })
-    @IsEmail({}, { message: 'Email không đúng định dạng' })
+    @IsNotEmpty({ message: 'Email must not be empty' })
+    @IsEmail({}, { message: 'Email is not in a valid format' })
     email: string;
-
-
 
     @ApiPropertyOptional({
         example: '+84987654321',
-        description: 'Số điện thoại của nhân viên (không bắt buộc)',
+        description: 'Phone number of the staff (optional)',
     })
     @IsOptional()
-    @IsString()
+    @IsString({ message: 'Phone number must be a string' })
     @Matches(/^(?:\+84|0)(?:\d{9})$/, {
-        message: 'Số điện thoại không hợp lệ, phải bắt đầu bằng +84 hoặc 0 và có 10 số',
+        message:
+            'Phone number is invalid. It must start with +84 or 0 and contain 10 digits',
     })
     phone?: string;
 }

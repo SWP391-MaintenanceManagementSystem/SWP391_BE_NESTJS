@@ -5,71 +5,38 @@ import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
+import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { plainToInstance } from 'class-transformer';
+import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
 @ApiTags('Staff')
 @Controller('api/staff')
 export class StaffController {
   constructor(private readonly staffService: StaffService) { }
 
-  // @Get('/')
-  // @Roles(AccountRole.ADMIN)
-  // @ApiBearerAuth('jwt-auth')
-  // @ApiQuery({
-  //   name: 'where',
-  //   required: false,
-  //   type: String,
-  //   description: 'JSON string for filter conditions',
-  //   example: '{"status":"ACTIVE"}',
-  // })
-  // @ApiQuery({
-  //   name: 'orderBy',
-  //   required: false,
-  //   type: String,
-  //   description: 'JSON string for sorting criteria',
-  //   example: '{"createdAt":"desc"}',
-  // })
-  // @ApiQuery({
-  //   name: 'page',
-  //   required: false,
-  //   type: Number,
-  //   description: 'Page number',
-  //   example: 1,
-  // })
-  // @ApiQuery({
-  //   name: 'pageSize',
-  //   required: false,
-  //   type: Number,
-  //   description: 'Number of records per page',
-  //   example: 10,
-  // })
-  // async getStaffs(
-  //   @Query('where') where?: string,
-  //   @Query('orderBy') orderBy?: string,
-  //   @Query('page') page?: string,
-  //   @Query('pageSize') pageSize?: string,
-  // ) {
-  //   const {
-  //     data,
-  //     page: _page,
-  //     pageSize: _pageSize,
-  //     total,
-  //     totalPages,
-  //   } = await this.staffService.getStaffs({
-  //     where: where ? JSON.parse(where) : undefined,
-  //     orderBy: orderBy ? JSON.parse(orderBy) : undefined,
-  //     page: page ? parseInt(page) : 1,
-  //     pageSize: pageSize ? parseInt(pageSize) : 10,
-  //   });
-
-  //   return {
-  //     message: 'Staffs retrieved successfully',
-  //     data,
-  //     page: _page,
-  //     pageSize: _pageSize,
-  //     total,
-  //     totalPages,
-  //   };
-  // }
+  @Get('/')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async getStaffs(
+    @Query() query: EmployeeQueryDTO,
+  ) {
+    const {
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages,
+    } = await this.staffService.getStaffs(query);
+    const staffs = data.map(staff => plainToInstance(AccountWithProfileDTO, staff));
+    return {
+      message: 'Staffs retrieved successfully',
+      staffs,
+      page,
+      pageSize,
+      total,
+      totalPages,
+    };
+  }
 
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
@@ -103,4 +70,12 @@ export class StaffController {
   // async deleteStaff(@Param('id') id: string) {
   //   return this.staffService.deleteStaff(id);
   // }
+
+  @Patch('/:id/reset-password')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async resetStaffPassword(@Param('id') id: string) {
+    await this.staffService.resetStaffPassword(id);
+    return { message: `Password for staff ${id} has been reset to default` };
+  }
 }
