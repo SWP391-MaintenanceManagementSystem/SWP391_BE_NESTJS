@@ -1,8 +1,14 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsOptional, IsString } from "class-validator";
+import { IsEmail, IsOptional, IsString } from "class-validator";
 
 
 export class UpdateCustomerDTO {
+
+    @IsOptional()
+    @IsEmail({}, { message: 'Please provide a valid email address' })
+    @ApiProperty({ required: false, example: '', description: 'The email of the customer' })
+    email?: string;
+
     @IsOptional()
     @IsString()
     @ApiProperty({ required: false, example: 'John' })
