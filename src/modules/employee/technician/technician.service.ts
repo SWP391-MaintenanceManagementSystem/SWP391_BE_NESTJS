@@ -5,27 +5,31 @@ import { UpdateTechnicianDto } from './dto/update-technician.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { Employee, AccountRole, Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
-import { TechnicianDTO } from './dto/technician.dto';
-import { FilterTechnicianDto } from './dto/filter-technician.dto';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { hashPassword } from 'src/utils';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { ConfigService } from '@nestjs/config';
+import { ResetDefaultPasswordTechnicianDto } from './dto/reset-default-password-technician.dto';
 
-// Chua validate du lieu dau vao
 @Injectable()
 export class TechnicianService {
   constructor(
     private prisma: PrismaService,
-    private readonly accountService: AccountService
+    private readonly accountService: AccountService,
+    private readonly configService: ConfigService
   ) { }
 
   async createTechnician(createTechnicianDto: CreateTechnicianDto): Promise<Employee | null> {
+    const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
+    if (!defaultPassword) {
+      throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
+    }
     const technicianAccount = await this.prisma.account.create({
       data: {
         email: createTechnicianDto.email,
-        password: await hashPassword(createTechnicianDto.password),
+        password: await hashPassword(defaultPassword),
         role: AccountRole.TECHNICIAN,
         phone: createTechnicianDto.phone,
         status: 'VERIFIED',
@@ -60,10 +64,10 @@ export class TechnicianService {
 
     const where: Prisma.AccountWhereInput = {
       employee: {
-        firstName: options?.firstName,
-        lastName: options?.lastName,
+        firstName: { contains: options?.firstName, mode: 'insensitive' },
+        lastName: { contains: options?.lastName, mode: 'insensitive' },
       },
-      email: options?.email,
+      email: { contains: options?.email, mode: 'insensitive' },
       phone: options?.phone,
       status: options?.status,
       role: AccountRole.TECHNICIAN,
@@ -142,18 +146,38 @@ export class TechnicianService {
     }
   }
 
-  async deleteTechnician(accountId: string): Promise<void> {
-    const existingTechnician = await this.prisma.account.findUnique({
-      where: { id: accountId },
+  // async deleteTechnician(accountId: string): Promise<void> {
+  //   const existingTechnician = await this.prisma.account.findUnique({
+  //     where: { id: accountId },
+  //     include: { employee: true },
+  //   });
+
+  //   if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
+  //     throw new NotFoundException(`Technician with ID ${accountId} not found`);
+  //   }
+
+  //   await this.prisma.account.delete({
+  //     where: { id: accountId },
+  //   });
+  // }
+
+  async resetDefaultPassword(resetDefaultPassword: ResetDefaultPasswordTechnicianDto): Promise<AccountWithProfileDTO | null> {
+    const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
+    if (!defaultPassword) {
+      throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
+    }
+    const account = await this.prisma.account.findUnique({
+      where: { email: resetDefaultPassword.email },
       include: { employee: true },
     });
-
-    if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
-      throw new NotFoundException(`Technician with ID ${accountId} not found`);
+    if (!account || account.role !== AccountRole.TECHNICIAN) {
+      throw new NotFoundException(`Technician with email ${resetDefaultPassword.email} not found`);
     }
-
-    await this.prisma.account.delete({
-      where: { id: accountId },
+    const updatedAccount = await this.prisma.account.update({
+      where: { email: resetDefaultPassword.email },
+      data: { password: await hashPassword(defaultPassword) },
+      include: { employee: true },
     });
+    return plainToInstance(AccountWithProfileDTO, updatedAccount);
   }
 }

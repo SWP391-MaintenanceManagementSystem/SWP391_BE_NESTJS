@@ -8,6 +8,7 @@ import { AccountRole } from '@prisma/client';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { ResetDefaultPasswordTechnicianDto } from './dto/reset-default-password-technician.dto';
 
 @ApiTags('Technician')
 @ApiBearerAuth('jwt-auth')
@@ -30,6 +31,17 @@ export class TechnicianController {
     };
   }
 
+  @Patch('reset-default-password')
+  @Roles(AccountRole.ADMIN)
+  @ApiBody({ type: ResetDefaultPasswordTechnicianDto })
+  async resetDefaultPassword(@Body() resetDefaultPassword: ResetDefaultPasswordTechnicianDto) {
+    const data = await this.technicianService.resetDefaultPassword(resetDefaultPassword);
+    return {
+      message: `Technician's password reset successfully`,
+      data
+    };
+  }
+
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   async getTechnicianById(@Param('id') id: string) {
@@ -37,7 +49,7 @@ export class TechnicianController {
     return { data, message: `Technician with ID retrieved successfully` };
   }
 
-  @Post('/create')
+  @Post()
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateTechnicianDto })
   async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
@@ -52,14 +64,16 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    await this.technicianService.updateTechnician(id, updateTechnicianDto);
-    return { message: `Technician updated successfully` };
-  }
-
-  @Delete('/:id')
-  @Roles(AccountRole.ADMIN)
-  async deleteTechnician(@Param('id') id: string) {
-    await this.technicianService.deleteTechnician(id);
-    return { message: `Technician deleted successfully` };
-  }
+    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    return { 
+      message: `Technician updated successfully`,
+      data
+    };
+  }  
+  // @Delete('/:id')
+  // @Roles(AccountRole.ADMIN)
+  // async deleteTechnician(@Param('id') id: string) {
+  //   await this.technicianService.deleteTechnician(id);
+  //   return { message: `Technician deleted successfully` };
+  // }
 }
