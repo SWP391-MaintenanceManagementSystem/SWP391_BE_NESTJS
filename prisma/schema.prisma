@@ -34,6 +34,7 @@ enum AuthProvider {
 enum BookingStatus {
   PENDING
   CONFIRMED
+  CHECKED_IN
   COMPLETED
   CANCELLED
   IN_PROCESS
