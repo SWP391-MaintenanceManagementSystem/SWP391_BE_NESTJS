@@ -19,7 +19,6 @@ export class SignInResponseDTO {
   @Type(() => AccountWithProfileDTO)
   account: AccountWithProfileDTO;
 
-
   @Expose()
   accessToken: string;
 

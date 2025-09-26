@@ -16,7 +16,7 @@ export class SignUpDTO {
   @IsNotEmpty({ message: 'Password is required' })
   @IsString({ message: 'Password must be a string' })
   @Length(8, 50, { message: 'Password must be between 8 and 50 characters long' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]+$/, {
     message:
       'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
   })
@@ -64,7 +64,6 @@ export class SignUpDTO {
   })
   lastName: string;
 
-
   @IsOptional()
   @IsString({ message: 'Phone number must be a string' })
   @Matches(/^(?:\+84|0)(3|5|7|8|9)\d{8}$/, {
@@ -76,7 +75,6 @@ export class SignUpDTO {
     required: false,
   })
   phone?: string;
-
 
   @IsOptional()
   @IsString({ message: 'Address must be a string' })
@@ -90,7 +88,6 @@ export class SignUpDTO {
   })
   address?: string;
 }
-
 
 export class SignUpResponseDTO {
   @Expose()

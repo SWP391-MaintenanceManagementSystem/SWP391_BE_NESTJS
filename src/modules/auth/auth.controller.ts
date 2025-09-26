@@ -31,7 +31,6 @@ import { CustomerDTO } from '../customer/dto/customer.dto';
 import { SkipResponseInterceptor } from 'src/common/decorator/skip-response.decorator';
 import { Account } from '@prisma/client';
 
-
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
   user: OAuthUserDTO;
 }
@@ -47,7 +46,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
     private readonly accountService: AccountService
-  ) { }
+  ) {}
 
   @Public()
   @Post('/signup')
@@ -59,13 +58,12 @@ export class AuthController {
       ...account,
       // password: account.password ?? '',
       profile: plainToInstance(CustomerDTO, customer) as Profile,
-    }
+    };
     return {
       account: accountWithProfile,
       message: 'Sign up successful',
     };
   }
-
 
   @Public()
   @UseGuards(LocalAuthGuard)
@@ -73,7 +71,9 @@ export class AuthController {
   @Post('/signin')
   @ApiBody({ type: SignInDTO })
   async signIn(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, account } = await this.authService.signIn(req.user as Account);
+    const { accessToken, refreshToken, account } = await this.authService.signIn(
+      req.user as Account
+    );
     const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
     const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
     res.cookie('refreshToken', refreshToken, {
@@ -126,7 +126,6 @@ export class AuthController {
     const isSuccess = await this.authService.verifyEmail(code);
     const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
     return res.redirect(`${frontendUrl}/auth/verify?success=${isSuccess}`);
-
   }
 
   @Public()
@@ -152,10 +151,7 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(GoogleOauthGuard)
   @SkipResponseInterceptor()
-  async googleAuthCallback(
-    @Req() req: RequestWithOAuthUser,
-    @Res() res: Response
-  ) {
+  async googleAuthCallback(@Req() req: RequestWithOAuthUser, @Res() res: Response) {
     const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
 
     const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
