@@ -61,4 +61,8 @@ export class CustomerService {
         const customer = await this.accountService.updateAccount(id, updateData);
         return customer;
     }
+
+    async deleteCustomer(id: string): Promise<void> {
+        return await this.accountService.deleteAccount(id);
+    }
 }

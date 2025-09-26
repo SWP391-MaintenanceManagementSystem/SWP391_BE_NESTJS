@@ -93,12 +93,12 @@ export class AccountController {
 
 
 
-  @Delete('/:id')
-  @Roles(AccountRole.ADMIN)
-  async deleteAccount(@Param('id') id: string) {
-    await this.accountService.deleteAccount(id);
-    return { message: 'Account deleted successfully' };
-  }
+  // @Delete('/:id')
+  // @Roles(AccountRole.ADMIN)
+  // async deleteAccount(@Param('id') id: string) {
+  //   await this.accountService.deleteAccount(id);
+  //   return { message: 'Account deleted successfully' };
+  // }
 
   @ApiConsumes('multipart/form-data')
   @ApiBody({
