@@ -3,9 +3,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import CreateVehicleModelDTO from './dto/create-vehicle-model.dto';
 import { CreateVehicleDTO } from './dto/create-vehicle.dto';
 import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
-import { Vehicle } from '@prisma/client';
 import { VehicleDTO } from './dto/vehicle.dto';
 import { SuggestVehicleDTO } from './dto/suggest-vehicle.dto';
+import { VehicleQueryDTO } from 'src/modules/vehicle/dto/vehicle-query.dto';
+import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class VehicleService {
@@ -64,6 +66,12 @@ export class VehicleService {
             errors['licensePlate'] = 'License plate already exists';
         }
 
+        const modelExists = await this.prismaService.vehicleModel.findUnique({
+            where: { id: newVehicle.modelId }
+        })
+        if (!modelExists) {
+            errors['modelId'] = 'Vehicle model does not exist';
+        }
         if (Object.keys(errors).length > 0) {
             throw new BadRequestException({ errors });
         }
@@ -75,7 +83,7 @@ export class VehicleService {
             },
             include: { vehicleModel: { include: { brand: true } } }
         })
-        const vehicleDTO: VehicleDTO = {
+        return {
             id: vehicle.id,
             vin: vehicle.vin,
             model: vehicle.vehicleModel.name,
@@ -87,7 +95,6 @@ export class VehicleService {
             updatedAt: vehicle.updatedAt
         }
 
-        return vehicleDTO;
     }
 
 
@@ -166,12 +173,15 @@ export class VehicleService {
     }
 
 
-    async suggestVehicles(query: string): Promise<SuggestVehicleDTO[]> {
+    async suggestVehicles(query: string, accountId: string): Promise<SuggestVehicleDTO[]> {
+        console.log("🚀 ~ VehicleService ~ suggestVehicles ~ accountId:", accountId)
+        console.log("🚀 ~ VehicleService ~ suggestVehicles ~ query:", query)
         if (!query || query.trim() === '' || query.length < 2) {
             return [];
         }
         const vehicles = await this.prismaService.vehicle.findMany({
             where: {
+                customerId: accountId,
                 AND: [
                     {
                         OR: [
@@ -235,5 +245,56 @@ export class VehicleService {
             updatedAt: vehicle.updatedAt
         }));
     }
+
+    async getVehicles(filter: VehicleQueryDTO): Promise<PaginationResponse<VehicleDTO>> {
+        let { page = 1, pageSize = 10 } = filter;
+        if (page < 1) page = 1;
+        if (pageSize < 1) pageSize = 10;
+
+        const where: Prisma.VehicleWhereInput = {
+            status: filter.status,
+            modelId: filter.modelId,
+            vin: filter.vin ? { contains: filter.vin, mode: 'insensitive' } : undefined,
+            licensePlate: filter.licensePlate
+                ? { contains: filter.licensePlate, mode: 'insensitive' }
+                : undefined,
+            vehicleModel: filter.brandId ? { brandId: filter.brandId } : undefined,
+        };
+
+        const [vehicles, total] = await this.prismaService.$transaction([
+            this.prismaService.vehicle.findMany({
+                where,
+                include: {
+                    vehicleModel: {
+                        include: { brand: true },
+                    },
+                },
+                skip: pageSize * (page - 1),
+                take: pageSize,
+            }),
+            this.prismaService.vehicle.count({ where }),
+        ]);
+
+        const data: VehicleDTO[] = vehicles.map((vehicle) => ({
+            id: vehicle.id,
+            vin: vehicle.vin,
+            model: vehicle.vehicleModel.name,
+            brand: vehicle.vehicleModel.brand.name,
+            licensePlate: vehicle.licensePlate,
+            customerId: vehicle.customerId,
+            status: vehicle.status,
+            createdAt: vehicle.createdAt,
+            updatedAt: vehicle.updatedAt,
+        }));
+
+        return {
+            data,
+            total,
+            page,
+            pageSize,
+            totalPages: Math.ceil(total / pageSize),
+        };
+    }
+
 
 }
