@@ -8,6 +8,7 @@ import { AccountRole } from '@prisma/client';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { ResetDefaultPasswordTechnicianDto } from './dto/reset-default-password-technician.dto';
 
 @ApiTags('Technician')
 @ApiBearerAuth('jwt-auth')
@@ -27,6 +28,17 @@ export class TechnicianController {
       pageSize,
       total,
       totalPages
+    };
+  }
+
+  @Patch('reset-default-password')
+  @Roles(AccountRole.ADMIN)
+  @ApiBody({ type: ResetDefaultPasswordTechnicianDto })
+  async resetDefaultPassword(@Body() resetDefaultPassword: ResetDefaultPasswordTechnicianDto) {
+    const data = await this.technicianService.resetDefaultPassword(resetDefaultPassword);
+    return {
+      message: `Technician's password reset successfully`,
+      data
     };
   }
 
@@ -52,13 +64,12 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    const technician = await  this.technicianService.updateTechnician(id, updateTechnicianDto);
+    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
     return { 
       message: `Technician updated successfully`,
-      technician
-     };  
-  }
-
+      data
+    };
+  }  
   // @Delete('/:id')
   // @Roles(AccountRole.ADMIN)
   // async deleteTechnician(@Param('id') id: string) {
