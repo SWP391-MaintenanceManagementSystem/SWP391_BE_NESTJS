@@ -10,10 +10,13 @@ import { AccountService } from 'src/modules/account/account.service';
 import { StaffDTO } from './dto/staff.dto';
 import { plainToClass, plainToInstance } from 'class-transformer';
 import { hashPassword } from 'src/utils';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService, private readonly accountService: AccountService) { }
+  constructor(private prisma: PrismaService,
+    private readonly accountService: AccountService,
+    private readonly configService: ConfigService) { }
 
   // async getStaffs(
   //   options: FilterOptionsDTO<Employee>
@@ -49,10 +52,11 @@ export class StaffService {
   }
 
   async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
+    const defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
     const staffAccount = await this.prisma.account.create({
       data: {
         email: dto.email,
-        password: await hashPassword(dto.password),
+        password: await hashPassword(defaultPassword),
         phone: dto.phone,
         role: AccountRole.STAFF,
         status: 'VERIFIED', // Kiểm tra xem các trường này có đúng với schema không
