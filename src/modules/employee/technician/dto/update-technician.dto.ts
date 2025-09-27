@@ -1,5 +1,6 @@
-import { IsString, IsOptional, IsEmail, Matches, MinLength, IsNumber, IsNotEmpty } from 'class-validator';
+import { IsString, IsOptional, Matches, IsNotEmpty, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { AccountStatus } from '@prisma/client';
 
 export class UpdateTechnicianDto {
   @IsOptional()
@@ -18,4 +19,9 @@ export class UpdateTechnicianDto {
   @Matches(/^[0-9]{10,11}$/, { message: 'Phone must be 10-11 digits' })
   @ApiPropertyOptional({ example: '0912345678' })
   phone?: string;
+
+  @IsOptional()
+  @IsEnum(AccountStatus)
+  @ApiPropertyOptional({ required: false, example: 'VERIFIED', enum: AccountStatus })
+  status?: AccountStatus;
 }

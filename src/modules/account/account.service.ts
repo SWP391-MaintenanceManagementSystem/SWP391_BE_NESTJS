@@ -99,8 +99,6 @@ export class AccountService {
     page: number,
     pageSize: number
   ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-
-    
     try {
       const [total, accounts] = await this.prisma.$transaction([
         this.prisma.account.count({ where: filter }),
@@ -197,6 +195,7 @@ export class AccountService {
 
     const accountData: Prisma.AccountUpdateInput = {
       ...(updateData.phone && { phone: updateData.phone }),
+      ...(updateData.status && { status: updateData.status }),
     };
 
     if (exists.role === AccountRole.CUSTOMER && exists.customer) {
