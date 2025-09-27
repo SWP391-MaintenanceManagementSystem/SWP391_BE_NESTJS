@@ -1,10 +1,10 @@
-import { IsString, IsOptional, Matches, IsNotEmpty, IsEnum } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountStatus } from '@prisma/client';
 
-export class UpdateTechnicianDto {
+import { IsEnum, IsOptional, IsString, Matches } from 'class-validator';
+
+export class UpdateStaffDto {
   @IsOptional()
-  @IsNotEmpty({ message: 'First name should not be empty' })
   @IsString({ message: 'First name must be a string' })
   @ApiPropertyOptional({ example: 'John' })
   firstName?: string;
