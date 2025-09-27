@@ -14,7 +14,7 @@ export class AccountService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService
-  ) { }
+  ) {}
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -97,7 +97,7 @@ export class AccountService {
     sortBy: string,
     orderBy: 'asc' | 'desc',
     page: number,
-    pageSize: number,
+    pageSize: number
   ): Promise<PaginationResponse<AccountWithProfileDTO>> {
     try {
       const [total, accounts] = await this.prisma.$transaction([
@@ -106,7 +106,10 @@ export class AccountService {
           where: filter,
           include: {
             customer: filter.role === AccountRole.CUSTOMER ? true : false,
-            employee: filter.role === AccountRole.STAFF || filter.role === AccountRole.TECHNICIAN ? true : false,
+            employee:
+              filter.role === AccountRole.STAFF || filter.role === AccountRole.TECHNICIAN
+                ? true
+                : false,
           },
           skip: (page - 1) * pageSize,
           take: pageSize,
@@ -125,12 +128,11 @@ export class AccountService {
       };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientValidationError) {
-        throw new BadRequestException("Invalid query filter");
+        throw new BadRequestException('Invalid query filter');
       }
       throw error;
     }
   }
-
 
   async getAccountById(id: string): Promise<AccountWithProfileDTO | null> {
     const account = await this.prisma.account.findUnique({
@@ -147,8 +149,6 @@ export class AccountService {
 
     return this.mapAccountToDTO(account);
   }
-
-
 
   mapAccountToDTO(account: any): AccountWithProfileDTO {
     let profile: Profile | null = null;
@@ -210,8 +210,7 @@ export class AccountService {
     }
 
     if (
-      (exists.role === AccountRole.STAFF ||
-        exists.role === AccountRole.TECHNICIAN) &&
+      (exists.role === AccountRole.STAFF || exists.role === AccountRole.TECHNICIAN) &&
       exists.employee
     ) {
       const profile = { ...updateData } as EmployeeDTO;
@@ -231,9 +230,6 @@ export class AccountService {
 
     return this.mapAccountToDTO(updated);
   }
-
-
-
 
   async deleteAccount(id: string): Promise<void> {
     const exists = await this.prisma.account.findUnique({ where: { id: id } });
@@ -265,5 +261,16 @@ export class AccountService {
       role: updated.role,
       avatar: updated.avatar,
     };
+  }
+
+  async changePassword(accountId: string, newPassword: string): Promise<void> {
+    const exists = await this.prisma.account.findUnique({ where: { id: accountId } });
+    if (!exists) {
+      throw new NotFoundException(`Account with id ${accountId} not found`);
+    }
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { password: newPassword },
+    });
   }
 }

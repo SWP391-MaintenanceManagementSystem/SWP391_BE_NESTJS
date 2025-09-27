@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AccountService } from 'src/modules/account/account.service';
 import { SignUpDTO } from './dto/signup.dto';
 import { CreateAccountDTO } from 'src/modules/account/dto/create-account.dto';
@@ -27,19 +32,21 @@ export class AuthService {
     private readonly emailService: EmailService,
     private readonly redisService: RedisService,
     private readonly configService: ConfigService
-  ) { }
+  ) {}
 
-  getConfig() {
-    return {
-      AT_Expired: this.configService.get<ms.StringValue>('AC_EXPIRE_TIME'),
-    };
-  }
+  // getConfig() {
+  //   return {
+  //     AT_Expired: this.configService.get<ms.StringValue>('AC_EXPIRE_TIME'),
+  //   };
+  // }
 
   async signUp(signUpDTO: SignUpDTO) {
     const { email, password, confirmPassword, firstName, lastName, phone, address } = signUpDTO;
 
     if (password !== confirmPassword) {
-      throw new ValidationException({ confirmPassword: 'Password confirmation does not match password' });
+      throw new ValidationException({
+        confirmPassword: 'Password confirmation does not match password',
+      });
     }
 
     const existingAccount = await this.accountService.getAccountByEmail(email);
@@ -64,7 +71,7 @@ export class AuthService {
       accountId: account?.id,
       firstName,
       lastName,
-      address
+      address,
     };
     const customer = await this.customerService.createCustomer(customerBody);
 
@@ -91,8 +98,8 @@ export class AuthService {
     this.emailService.sendActivationEmail(email, firstName, activationCode);
     return {
       account,
-      customer
-    }
+      customer,
+    };
   }
 
   async validateUser(signInDTO: SignInDTO): Promise<AccountWithProfileDTO | null> {
@@ -181,7 +188,7 @@ export class AuthService {
     // Delete activation codes
     await this.redisService.del(`activation:${activationCode}`);
     await this.redisService.del(`activation:account:${email}`);
-    return isSuccess
+    return isSuccess;
   }
 
   async changePassword(
@@ -207,9 +214,8 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new BadRequestException('Old password is incorrect');
     }
-
     const hashed = await hashPassword(newPassword);
-    await this.accountService.updateAccount(id, { password: hashed });
+    await this.accountService.changePassword(id, hashed);
   }
 
   async resendActivationEmail(email: string) {
@@ -218,7 +224,7 @@ export class AuthService {
       return;
     }
 
-    const { profile } = account
+    const { profile } = account;
 
     if (account.status === AccountStatus.VERIFIED) {
       throw new BadRequestException('Account is already verified');
@@ -243,7 +249,7 @@ export class AuthService {
       expiredTime
     );
     await this.redisService.set(`activation:account:${account.email}`, activationCode, expiredTime);
-    this.emailService.sendActivationEmail(account.email, profile?.firstName || "", activationCode);
+    this.emailService.sendActivationEmail(account.email, profile?.firstName || '', activationCode);
   }
 
   async requestResetPassword(email: string) {
@@ -260,7 +266,7 @@ export class AuthService {
       throw new BadRequestException('Only verified account can request reset password');
     }
 
-    const { profile } = account
+    const { profile } = account;
     const oldOtp = await this.redisService.get(`reset_password:account:${email}`);
     if (oldOtp) {
       await this.redisService.del(`reset_password:${oldOtp}`);
@@ -278,7 +284,7 @@ export class AuthService {
       this.redisService.set(`reset_password:${otp}`, JSON.stringify(otpData), expiredTime),
       this.redisService.set(`reset_password:account:${email}`, otp, expiredTime),
     ]);
-    this.emailService.sendResetPasswordEmail(account.email, profile?.firstName || "", otp);
+    this.emailService.sendResetPasswordEmail(account.email, profile?.firstName || '', otp);
   }
 
   async verifyResetCode(code: string, email: string): Promise<boolean> {
@@ -319,14 +325,13 @@ export class AuthService {
     }
 
     const hashed = await hashPassword(newPassword);
-    await this.accountService.updateAccount(id, { password: hashed });
+    await this.accountService.changePassword(id, hashed);
 
     await Promise.all([
       this.redisService.del(`reset_password:${code}`),
       this.redisService.del(`reset_password:account:${email}`),
     ]);
   }
-
 
   async googleOAuthSignIn(
     oauthUser: OAuthUserDTO
