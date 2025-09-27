@@ -64,12 +64,12 @@ export class StaffController {
     return this.staffService.updateStaff(id, updateStaffDto);
   }
 
-  // @Delete('/:id')
-  // @Roles(AccountRole.ADMIN)
-  // @ApiBearerAuth('jwt-auth')
-  // async deleteStaff(@Param('id') id: string) {
-  //   return this.staffService.deleteStaff(id);
-  // }
+  @Delete('/:id')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async deleteStaff(@Param('id') id: string) {
+    return this.staffService.deleteStaff(id);
+  }
 
   @Patch('/:id/reset-password')
   @Roles(AccountRole.ADMIN)

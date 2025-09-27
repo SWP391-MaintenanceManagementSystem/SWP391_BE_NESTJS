@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { AccountRole, Employee, Prisma } from '@prisma/client';
+import { AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { FilterOptionsDTO } from 'src/common/dto/filter-options.dto';
@@ -65,12 +65,12 @@ export class StaffService {
         password: await hashPassword(defaultPassword),
         phone: dto.phone,
         role: AccountRole.STAFF,
-        status: 'VERIFIED', // Kiểm tra xem các trường này có đúng với schema không
-        // Bổ sung các trường khác nếu cần
+        status: 'VERIFIED',
+
       },
     });
 
-    // Tạo thông tin nhân viên liên kết với tài khoản
+
     const employee = await this.prisma.employee.create({
       data: {
         accountId: staffAccount.id,
@@ -82,7 +82,10 @@ export class StaffService {
     return employee;
   }
 
-  async updateStaff(accountId: string, updateStaffDto: UpdateStaffDto): Promise<StaffDTO> {
+  async updateStaff(
+    accountId: string,
+    updateStaffDto: UpdateStaffDto,
+  ): Promise<StaffDTO> {
     const existingStaff = await this.prisma.account.findUnique({
       where: { id: accountId },
       include: { employee: true },
@@ -91,33 +94,17 @@ export class StaffService {
       throw new NotFoundException(`Staff with ID ${accountId} not found`);
     }
 
-    // Check trùng email
-    if (
-      updateStaffDto.email &&
-      updateStaffDto.email !== existingStaff.email
-    ) {
-      const emailExists = await this.prisma.account.findUnique({
-        where: { email: updateStaffDto.email },
-      });
-      if (emailExists) {
-        throw new ConflictException(
-          `Email ${updateStaffDto.email} already exists`,
-        );
-      }
+
+    if (updateStaffDto.email || updateStaffDto.password) {
+      throw new ConflictException(
+        'Updating email and password is not allowed via this endpoint',
+      );
     }
 
-    // Update account fields
     const updateAccount: any = {};
-    if (updateStaffDto.email !== undefined) {
-      updateAccount.email = updateStaffDto.email;
-    }
     if (updateStaffDto.phone !== undefined) {
       updateAccount.phone = updateStaffDto.phone;
     }
-    if (updateStaffDto.password !== undefined) {
-      updateAccount.password = await hashPassword(updateStaffDto.password);
-    }
-
     if (Object.keys(updateAccount).length > 0) {
       await this.prisma.account.update({
         where: { id: accountId },
@@ -125,7 +112,7 @@ export class StaffService {
       });
     }
 
-    // Update employee fields
+    // ✅ Update employee fields
     const updateEmployee: any = {};
     if (updateStaffDto.firstName !== undefined) {
       updateEmployee.firstName = updateStaffDto.firstName;
@@ -142,23 +129,33 @@ export class StaffService {
         });
       }
     }
-    const updateStaff = await this.getStaffById(accountId);
-    if (!updateStaff) {
-      throw new NotFoundException(`Staff with ID ${accountId} not found after update`);
+
+    const updatedStaff = await this.getStaffById(accountId);
+    if (!updatedStaff) {
+      throw new NotFoundException(
+        `Staff with ID ${accountId} not found after update`,
+      );
     }
-    return updateStaff;
+    return updatedStaff;
   }
 
-  // async deleteStaff(accountId: string) {
-  //   const staff = await this.prisma.employee.findUnique({
-  //     where: { accountId },
-  //     include: { account: true },
-  //   });
-  //   if (!staff || staff.account.role !== AccountRole.STAFF) throw new NotFoundException(`Staff with id ${accountId} not found`);
+  async deleteStaff(accountId: string): Promise<{ message: string }> {
+    const staff = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
+    if (!staff || staff.role !== AccountRole.STAFF) {
+      throw new NotFoundException(`Staff with ID ${accountId} not found`);
+    }
 
-  //   await this.prisma.employee.delete({ where: { accountId } });
-  // }
-  async resetStaffPassword(accountId: string): Promise<void> {
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { status: AccountStatus.DISABLED },
+    });
+
+    return { message: 'Staff has been disabled successfully' };
+  }
+
+  async resetStaffPassword(accountId: string): Promise<{ message: string }> {
     const staff = await this.prisma.account.findUnique({
       where: { id: accountId },
       include: { employee: true },
@@ -168,7 +165,9 @@ export class StaffService {
       throw new NotFoundException(`Staff with ID ${accountId} not found`);
     }
 
-    const defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
+    const defaultPassword =
+      this.configService.get<string>('DEFAULT_STAFF_PASSWORD') ||
+      'Staff123!';
 
     await this.prisma.account.update({
       where: { id: accountId },
@@ -176,5 +175,7 @@ export class StaffService {
         password: await hashPassword(defaultPassword),
       },
     });
+
+    return { message: "Staff's password reset successfully" };
   }
 }
