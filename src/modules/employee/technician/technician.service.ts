@@ -11,7 +11,6 @@ import { hashPassword } from 'src/utils';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
-import { ResetDefaultPasswordTechnicianDto } from './dto/reset-default-password-technician.dto';
 
 @Injectable()
 export class TechnicianService {
@@ -96,29 +95,9 @@ export class TechnicianService {
       throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
 
-    if (
-      updateTechnicianDto.email &&
-      updateTechnicianDto.email !== existingTechnician.email
-    ) {
-      const emailExists = await this.prisma.account.findUnique({
-        where: { email: updateTechnicianDto.email },
-      });
-      if (emailExists) {
-        throw new ConflictException(
-          `Email ${updateTechnicianDto.email} already exists`,
-        );
-      }
-    }
-
     const updateAccount: any = {};
-    if (updateTechnicianDto.email !== undefined) {
-      updateAccount.email = updateTechnicianDto.email;
-    }
     if (updateTechnicianDto.phone !== undefined) {
       updateAccount.phone = updateTechnicianDto.phone;
-    }
-    if (updateTechnicianDto.password !== undefined) {
-      updateAccount.password = await hashPassword(updateTechnicianDto.password);
     }
 
     if (Object.keys(updateAccount).length > 0) {
@@ -167,19 +146,19 @@ export class TechnicianService {
     });
   }
 
-  async resetDefaultPassword(resetDefaultPassword: ResetDefaultPasswordTechnicianDto): Promise<void> {
+  async resetDefaultPassword(accountId: string): Promise<void> {
     const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
     if (!defaultPassword) {
       throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
     }
     const account = await this.prisma.account.findUnique({
-      where: { email: resetDefaultPassword.email },
+      where: { id: accountId },
     });
     if (!account || account.role !== AccountRole.TECHNICIAN) {
-      throw new NotFoundException(`Technician with email ${resetDefaultPassword.email} not found`);
+      throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
-    const updatedAccount = await this.prisma.account.update({
-      where: { email: resetDefaultPassword.email },
+    await this.prisma.account.update({
+      where: { id: accountId },
       data: { password: await hashPassword(defaultPassword) },
     });
   }
