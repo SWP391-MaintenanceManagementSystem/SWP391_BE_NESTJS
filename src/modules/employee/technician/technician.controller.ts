@@ -14,12 +14,13 @@ import { ResetDefaultPasswordTechnicianDto } from './dto/reset-default-password-
 @ApiBearerAuth('jwt-auth')
 @Controller('api/technician')
 export class TechnicianController {
-  constructor(private readonly technicianService: TechnicianService) { }
+  constructor(private readonly technicianService: TechnicianService) {}
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
   async getTechnicians(@Query() query: EmployeeQueryDTO) {
-    const { data, page, pageSize, total, totalPages } = await this.technicianService.getTechnicians(query);
+    const { data, page, pageSize, total, totalPages } =
+      await this.technicianService.getTechnicians(query);
     const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
     return {
       message: 'Technicians retrieved successfully',
@@ -27,7 +28,7 @@ export class TechnicianController {
       page,
       pageSize,
       total,
-      totalPages
+      totalPages,
     };
   }
 
@@ -38,7 +39,7 @@ export class TechnicianController {
     const data = await this.technicianService.resetDefaultPassword(resetDefaultPassword);
     return {
       message: `Technician's password reset successfully`,
-      data
+      data,
     };
   }
 
@@ -65,11 +66,11 @@ export class TechnicianController {
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
     const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
-    return { 
+    return {
       message: `Technician updated successfully`,
-      data
+      data,
     };
-  }  
+  }
   // @Delete('/:id')
   // @Roles(AccountRole.ADMIN)
   // async deleteTechnician(@Param('id') id: string) {

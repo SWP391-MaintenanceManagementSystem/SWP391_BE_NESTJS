@@ -32,4 +32,4 @@ import { CustomerModule } from '../customer/customer.module';
   providers: [AuthService, TokenService, LocalStrategy, JwtStrategy, GoogleOauth2],
   exports: [AuthService],
 })
-export class AuthModule { }
+export class AuthModule {}

@@ -19,7 +19,7 @@ export class TechnicianService {
     private prisma: PrismaService,
     private readonly accountService: AccountService,
     private readonly configService: ConfigService
-  ) { }
+  ) {}
 
   async createTechnician(createTechnicianDto: CreateTechnicianDto): Promise<Employee | null> {
     const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
@@ -73,15 +73,8 @@ export class TechnicianService {
       role: AccountRole.TECHNICIAN,
     };
 
-    return await this.accountService.getAccounts(
-      where,
-      sortBy,
-      orderBy,
-      page,
-      pageSize
-    );
+    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
-
 
   async updateTechnician(
     accountId: string,
@@ -96,17 +89,12 @@ export class TechnicianService {
       throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
 
-    if (
-      updateTechnicianDto.email &&
-      updateTechnicianDto.email !== existingTechnician.email
-    ) {
+    if (updateTechnicianDto.email && updateTechnicianDto.email !== existingTechnician.email) {
       const emailExists = await this.prisma.account.findUnique({
         where: { email: updateTechnicianDto.email },
       });
       if (emailExists) {
-        throw new ConflictException(
-          `Email ${updateTechnicianDto.email} already exists`,
-        );
+        throw new ConflictException(`Email ${updateTechnicianDto.email} already exists`);
       }
     }
 
@@ -142,7 +130,7 @@ export class TechnicianService {
           where: { accountId },
           data: updateEmployee,
         });
-      };
+      }
     }
   }
 
@@ -161,7 +149,9 @@ export class TechnicianService {
   //   });
   // }
 
-  async resetDefaultPassword(resetDefaultPassword: ResetDefaultPasswordTechnicianDto): Promise<AccountWithProfileDTO | null> {
+  async resetDefaultPassword(
+    resetDefaultPassword: ResetDefaultPasswordTechnicianDto
+  ): Promise<AccountWithProfileDTO | null> {
     const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
     if (!defaultPassword) {
       throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');

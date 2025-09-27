@@ -3,7 +3,6 @@ import { Request, Response } from 'express';
 import { ValidationErrorResponse, DefaultErrorResponse } from '../types/exceptions.type';
 import { AccountStatus } from '@prisma/client';
 
-
 type CustomErrorResponse = ValidationErrorResponse | DefaultErrorResponse | string;
 
 @Catch(HttpException)

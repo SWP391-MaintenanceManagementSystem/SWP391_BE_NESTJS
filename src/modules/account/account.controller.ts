@@ -25,7 +25,7 @@ import { plainToInstance } from 'class-transformer';
 @ApiBearerAuth('jwt-auth')
 @Controller('api/account')
 export class AccountController {
-  constructor(private readonly accountService: AccountService) { }
+  constructor(private readonly accountService: AccountService) {}
 
   // @Get('/')
   // @Roles(AccountRole.ADMIN)
@@ -86,12 +86,16 @@ export class AccountController {
   // }
 
   @Patch('/')
-  async updateAccount(@CurrentUser() user: JWT_Payload, @Body() updateAccountDto: UpdateAccountDTO) {
+  async updateAccount(
+    @CurrentUser() user: JWT_Payload,
+    @Body() updateAccountDto: UpdateAccountDTO
+  ) {
     const data = await this.accountService.updateAccount(user.sub, updateAccountDto);
-    return { message: 'Account updated successfully', data: plainToInstance(AccountWithProfileDTO, data) };
+    return {
+      message: 'Account updated successfully',
+      data: plainToInstance(AccountWithProfileDTO, data),
+    };
   }
-
-
 
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)

@@ -27,7 +27,7 @@ import { VehicleQueryDTO } from './dto/vehicle-query.dto';
 @ApiBearerAuth('jwt-auth')
 @ApiTags('Vehicles')
 export class VehicleController {
-  constructor(private readonly vehicleService: VehicleService) { }
+  constructor(private readonly vehicleService: VehicleService) {}
 
   @Get('brands')
   async getAllVehicleBrands() {
@@ -58,7 +58,8 @@ export class VehicleController {
   @Roles(AccountRole.ADMIN)
   @Get()
   async getAllVehicles(@Query() query: VehicleQueryDTO) {
-    const { data, page, pageSize, total, totalPages } = await this.vehicleService.getVehicles(query);
+    const { data, page, pageSize, total, totalPages } =
+      await this.vehicleService.getVehicles(query);
     return {
       message: 'Vehicles retrieved successfully',
       data,
@@ -66,7 +67,7 @@ export class VehicleController {
       pageSize,
       total,
       totalPages,
-    }
+    };
   }
 
   @Roles(AccountRole.ADMIN)
@@ -86,10 +87,9 @@ export class VehicleController {
     const data = await this.vehicleService.suggestVehicles(q, user.sub);
     return {
       message: 'Vehicle suggestions retrieved successfully',
-      data
-    }
+      data,
+    };
   }
-
 
   @Get('/:vehicleId')
   async getVehicleById(@Param('vehicleId') vehicleId: string) {
@@ -99,8 +99,6 @@ export class VehicleController {
       data: vehicle,
     };
   }
-
-
 
   @Roles(AccountRole.CUSTOMER)
   @Post()
@@ -115,10 +113,7 @@ export class VehicleController {
 
   @Roles(AccountRole.CUSTOMER)
   @Patch('/:vehicleId')
-  async updateVehicle(
-    @Param('vehicleId') vehicleId: string,
-    @Body() body: UpdateVehicleDTO,
-  ) {
+  async updateVehicle(@Param('vehicleId') vehicleId: string, @Body() body: UpdateVehicleDTO) {
     const vehicle = await this.vehicleService.updateVehicle(vehicleId, body);
     return {
       message: 'Vehicle updated successfully',

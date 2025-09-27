@@ -99,8 +99,6 @@ export class AccountService {
     page: number,
     pageSize: number
   ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-
-    
     try {
       const [total, accounts] = await this.prisma.$transaction([
         this.prisma.account.count({ where: filter }),

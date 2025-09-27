@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcryptjs';
-import { } from 'date-fns';
+import {} from 'date-fns';
 import * as ms from 'ms';
 import { PaginationResponseDTO } from 'src/common/dto/pagination-response.dto';
 
@@ -20,8 +20,5 @@ const convertMStoDate = (duration: ms.StringValue) => {
 function isEmpty(obj: object) {
   return obj && Object.keys(obj).length === 0 && obj.constructor === Object;
 }
-
-
-
 
 export { hashPassword, comparePassword, convertMStoDate, isEmpty };
