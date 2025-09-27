@@ -30,6 +30,13 @@ export class TechnicianController {
     };
   }
 
+  @Patch('/:id/reset-password') 
+  @Roles(AccountRole.ADMIN)
+  async resetDefaultPassword(@Param('id') id: string) {
+    await this.technicianService.resetDefaultPassword(id);
+    return { message: `Technician's password reset successfully`,};
+  }
+
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   async getTechnicianById(@Param('id') id: string) {
@@ -37,7 +44,7 @@ export class TechnicianController {
     return { data, message: `Technician with ID retrieved successfully` };
   }
 
-  @Post('/create')
+  @Post()
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateTechnicianDto })
   async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
@@ -52,14 +59,17 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    await this.technicianService.updateTechnician(id, updateTechnicianDto);
-    return { message: `Technician updated successfully` };
-  }
-
+    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    return { 
+      message: `Technician updated successfully`,
+      data
+    };
+  }  
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)
   async deleteTechnician(@Param('id') id: string) {
-    await this.technicianService.deleteTechnician(id);
-    return { message: `Technician deleted successfully` };
+    const data = await this.technicianService.deleteTechnician(id);
+    return { 
+      message: `Technician deleted successfully` };
   }
 }

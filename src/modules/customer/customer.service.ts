@@ -29,10 +29,10 @@ export class CustomerService {
         const where: Prisma.AccountWhereInput = {
             customer: {
                 isPremium: filterOptions?.isPremium,
-                firstName: filterOptions?.firstName,
-                lastName: filterOptions?.lastName,
+                firstName: { contains: filterOptions?.firstName, mode: 'insensitive' },
+                lastName: { contains: filterOptions?.lastName, mode: 'insensitive' },
             },
-            email: filterOptions?.email,
+            email: { contains: filterOptions?.email, mode: 'insensitive' },
             phone: filterOptions?.phone,
             status: filterOptions?.status,
             role: AccountRole.CUSTOMER
