@@ -37,8 +37,8 @@ export class TechnicianController {
   async resetDefaultPassword(@Body() resetDefaultPassword: ResetDefaultPasswordTechnicianDto) {
     const data = await this.technicianService.resetDefaultPassword(resetDefaultPassword);
     return {
+      data,
       message: `Technician's password reset successfully`,
-      data
     };
   }
 
@@ -66,14 +66,15 @@ export class TechnicianController {
   ) {
     const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
     return { 
+      success: true,
       message: `Technician updated successfully`,
       data
     };
   }  
-  // @Delete('/:id')
-  // @Roles(AccountRole.ADMIN)
-  // async deleteTechnician(@Param('id') id: string) {
-  //   await this.technicianService.deleteTechnician(id);
-  //   return { message: `Technician deleted successfully` };
-  // }
+  @Delete('/:id')
+  @Roles(AccountRole.ADMIN)
+  async deleteTechnician(@Param('id') id: string) {
+    const data = await this.technicianService.deleteTechnician(id);
+    return { data, message: `Technician deleted successfully` };
+  }
 }

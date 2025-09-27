@@ -86,7 +86,7 @@ export class TechnicianService {
   async updateTechnician(
     accountId: string,
     updateTechnicianDto: UpdateTechnicianDto
-  ): Promise<void> {
+  ): Promise<AccountWithProfileDTO | null> {
     const existingTechnician = await this.prisma.account.findUnique({
       where: { id: accountId },
       include: { employee: true },
@@ -144,31 +144,36 @@ export class TechnicianService {
         });
       };
     }
+
+    const updateTechnician = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      include: { employee: true },
+    });
+    return plainToInstance(AccountWithProfileDTO, updateTechnician);
   }
 
-  // async deleteTechnician(accountId: string): Promise<void> {
-  //   const existingTechnician = await this.prisma.account.findUnique({
-  //     where: { id: accountId },
-  //     include: { employee: true },
-  //   });
+  async deleteTechnician(accountId: string): Promise<void> {
+    const existingTechnician = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
 
-  //   if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
-  //     throw new NotFoundException(`Technician with ID ${accountId} not found`);
-  //   }
+    if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
+      throw new NotFoundException(`Technician with ID ${accountId} not found`);
+    }
 
-  //   await this.prisma.account.delete({
-  //     where: { id: accountId },
-  //   });
-  // }
+    await this.prisma.account.update({
+      where: { id: accountId },
+      data: { status: 'DISABLED' },
+    });
+  }
 
-  async resetDefaultPassword(resetDefaultPassword: ResetDefaultPasswordTechnicianDto): Promise<AccountWithProfileDTO | null> {
+  async resetDefaultPassword(resetDefaultPassword: ResetDefaultPasswordTechnicianDto): Promise<void> {
     const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
     if (!defaultPassword) {
       throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
     }
     const account = await this.prisma.account.findUnique({
       where: { email: resetDefaultPassword.email },
-      include: { employee: true },
     });
     if (!account || account.role !== AccountRole.TECHNICIAN) {
       throw new NotFoundException(`Technician with email ${resetDefaultPassword.email} not found`);
@@ -176,8 +181,6 @@ export class TechnicianService {
     const updatedAccount = await this.prisma.account.update({
       where: { email: resetDefaultPassword.email },
       data: { password: await hashPassword(defaultPassword) },
-      include: { employee: true },
     });
-    return plainToInstance(AccountWithProfileDTO, updatedAccount);
   }
 }
