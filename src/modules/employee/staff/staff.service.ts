@@ -15,12 +15,13 @@ import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService,
+  constructor(
+    private prisma: PrismaService,
     private readonly accountService: AccountService,
-    private readonly configService: ConfigService) { }
+    private readonly configService: ConfigService
+  ) {}
 
-  async getStaffs(options: EmployeeQueryDTO
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
+  async getStaffs(options: EmployeeQueryDTO): Promise<PaginationResponse<AccountWithProfileDTO>> {
     let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = options;
     page < 1 && (page = 1);
     pageSize < 1 && (pageSize = 10);
@@ -36,20 +37,13 @@ export class StaffService {
       role: AccountRole.STAFF,
     };
 
-    return await this.accountService.getAccounts(
-      where,
-      sortBy,
-      orderBy,
-      page,
-      pageSize
-    );
+    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
 
   async getStaffById(accountId: string): Promise<StaffDTO | null> {
     const staff = await this.prisma.employee.findUnique({
       where: { accountId },
-      include: { account: true }
-      ,
+      include: { account: true },
     });
     if (!staff || staff.account.role !== AccountRole.STAFF) {
       return null;
@@ -66,10 +60,8 @@ export class StaffService {
         phone: dto.phone,
         role: AccountRole.STAFF,
         status: 'VERIFIED',
-
       },
     });
-
 
     const employee = await this.prisma.employee.create({
       data: {
@@ -84,59 +76,10 @@ export class StaffService {
 
   async updateStaff(
     accountId: string,
-    updateStaffDto: UpdateStaffDto,
-  ): Promise<StaffDTO> {
-    const existingStaff = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      include: { employee: true },
-    });
-    if (!existingStaff || existingStaff.role !== AccountRole.STAFF) {
-      throw new NotFoundException(`Staff with ID ${accountId} not found`);
-    }
-
-
-    if (updateStaffDto.email || updateStaffDto.password) {
-      throw new ConflictException(
-        'Updating email and password is not allowed via this endpoint',
-      );
-    }
-
-    const updateAccount: any = {};
-    if (updateStaffDto.phone !== undefined) {
-      updateAccount.phone = updateStaffDto.phone;
-    }
-    if (Object.keys(updateAccount).length > 0) {
-      await this.prisma.account.update({
-        where: { id: accountId },
-        data: updateAccount,
-      });
-    }
-
-    // ✅ Update employee fields
-    const updateEmployee: any = {};
-    if (updateStaffDto.firstName !== undefined) {
-      updateEmployee.firstName = updateStaffDto.firstName;
-    }
-    if (updateStaffDto.lastName !== undefined) {
-      updateEmployee.lastName = updateStaffDto.lastName;
-    }
-
-    if (Object.keys(updateEmployee).length > 0) {
-      if (existingStaff.employee) {
-        await this.prisma.employee.update({
-          where: { accountId },
-          data: updateEmployee,
-        });
-      }
-    }
-
-    const updatedStaff = await this.getStaffById(accountId);
-    if (!updatedStaff) {
-      throw new NotFoundException(
-        `Staff with ID ${accountId} not found after update`,
-      );
-    }
-    return updatedStaff;
+    updateStaffDto: UpdateStaffDto
+  ): Promise<AccountWithProfileDTO> {
+    const updatedStaff = await this.accountService.updateAccount(accountId, updateStaffDto);
+    return plainToInstance(AccountWithProfileDTO, updatedStaff);
   }
 
   async deleteStaff(accountId: string): Promise<{ message: string }> {
@@ -165,9 +108,7 @@ export class StaffService {
       throw new NotFoundException(`Staff with ID ${accountId} not found`);
     }
 
-    const defaultPassword =
-      this.configService.get<string>('DEFAULT_STAFF_PASSWORD') ||
-      'Staff123!';
+    const defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
 
     await this.prisma.account.update({
       where: { id: accountId },

@@ -8,6 +8,11 @@ export type Profile = CustomerDTO | EmployeeDTO;
 
 export class AccountWithProfileDTO {
   @IsNotEmpty()
+  @IsString()
+  @Expose()
+  id: string;
+
+  @IsNotEmpty()
   @IsEmail()
   @Expose()
   email: string;
@@ -16,11 +21,6 @@ export class AccountWithProfileDTO {
   @IsOptional()
   @Exclude()
   password?: string | null;
-
-  @IsNotEmpty()
-  @IsString()
-  @Expose()
-  id: string;
 
   @IsNotEmpty()
   @Expose()

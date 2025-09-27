@@ -18,7 +18,7 @@ export class TechnicianService {
     private prisma: PrismaService,
     private readonly accountService: AccountService,
     private readonly configService: ConfigService
-  ) { }
+  ) {}
 
   async createTechnician(createTechnicianDto: CreateTechnicianDto): Promise<Employee | null> {
     const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
@@ -72,63 +72,18 @@ export class TechnicianService {
       role: AccountRole.TECHNICIAN,
     };
 
-    return await this.accountService.getAccounts(
-      where,
-      sortBy,
-      orderBy,
-      page,
-      pageSize
-    );
+    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
-
 
   async updateTechnician(
     accountId: string,
     updateTechnicianDto: UpdateTechnicianDto
-  ): Promise<AccountWithProfileDTO | null> {
-    const existingTechnician = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      include: { employee: true },
-    });
-
-    if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
-      throw new NotFoundException(`Technician with ID ${accountId} not found`);
-    }
-
-    const updateAccount: any = {};
-    if (updateTechnicianDto.phone !== undefined) {
-      updateAccount.phone = updateTechnicianDto.phone;
-    }
-
-    if (Object.keys(updateAccount).length > 0) {
-      await this.prisma.account.update({
-        where: { id: accountId },
-        data: updateAccount,
-      });
-    }
-
-    const updateEmployee: any = {};
-    if (updateTechnicianDto.firstName !== undefined) {
-      updateEmployee.firstName = updateTechnicianDto.firstName;
-    }
-    if (updateTechnicianDto.lastName !== undefined) {
-      updateEmployee.lastName = updateTechnicianDto.lastName;
-    }
-
-    if (Object.keys(updateEmployee).length > 0) {
-      if (existingTechnician.employee) {
-        await this.prisma.employee.update({
-          where: { accountId },
-          data: updateEmployee,
-        });
-      };
-    }
-
-    const updateTechnician = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      include: { employee: true },
-    });
-    return plainToInstance(AccountWithProfileDTO, updateTechnician);
+  ): Promise<AccountWithProfileDTO> {
+    const updatedTechnician = await this.accountService.updateAccount(
+      accountId,
+      updateTechnicianDto
+    );
+    return plainToInstance(AccountWithProfileDTO, updatedTechnician);
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
