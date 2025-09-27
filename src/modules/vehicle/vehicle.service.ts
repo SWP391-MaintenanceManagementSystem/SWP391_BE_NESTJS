@@ -1,17 +1,17 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import CreateVehicleModelDTO from './dto/create-vehicle-model.dto';
 import { CreateVehicleDTO } from './dto/create-vehicle.dto';
-import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 import { VehicleDTO } from './dto/vehicle.dto';
 import { SuggestVehicleDTO } from './dto/suggest-vehicle.dto';
 import { VehicleQueryDTO } from 'src/modules/vehicle/dto/vehicle-query.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { Prisma } from '@prisma/client';
+import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 
 @Injectable()
 export class VehicleService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService) { }
 
   async createVehicleModel(newModel: CreateVehicleModelDTO) {
     const vehicleModel = await this.prismaService.vehicleModel.create({
@@ -50,7 +50,11 @@ export class VehicleService {
   async createVehicle(newVehicle: CreateVehicleDTO, customerId: string): Promise<VehicleDTO> {
     const errors: Record<string, string> = {};
     const vinExists = await this.prismaService.vehicle.findUnique({
-      where: { vin: newVehicle.vin },
+      where: {
+        vin: newVehicle.vin,
+        status: 'ACTIVE',
+        deletedAt: null
+      },
     });
     if (vinExists) {
       errors['vin'] = 'VIN already exists';
@@ -100,17 +104,44 @@ export class VehicleService {
       where: { id: vehicleId },
     });
     if (!existingVehicle) {
-      errors['id'] = 'Vehicle not found';
+      throw new NotFoundException('Vehicle not found');
+    }
+
+    const vinExists = await this.prismaService.vehicle.findFirst({
+      where: {
+        AND: [
+          { vin: updatedVehicle.vin },
+          { status: 'ACTIVE' },
+          { deletedAt: null }
+        ],
+
+        NOT: { id: vehicleId },
+      },
+    })
+    if (vinExists) {
+      errors['vin'] = 'VIN already exists';
     }
 
     const plateExists = await this.prismaService.vehicle.findFirst({
       where: {
-        licensePlate: updatedVehicle.licensePlate,
+        AND: [
+          { licensePlate: updatedVehicle.licensePlate },
+          { status: 'ACTIVE' },
+          { deletedAt: null }
+        ],
         NOT: { id: vehicleId },
       },
     });
     if (plateExists) {
       errors['licensePlate'] = 'License plate already exists';
+    }
+
+
+    const modelExists = await this.prismaService.vehicleModel.findUnique({
+      where: { id: updatedVehicle.modelId },
+    });
+    if (updatedVehicle.modelId && !modelExists) {
+      errors['modelId'] = 'Vehicle model does not exist';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -137,19 +168,14 @@ export class VehicleService {
   }
 
   async deleteVehicle(vehicleId: string): Promise<VehicleDTO> {
-    const errors: Record<string, string> = {};
     const exists = await this.prismaService.vehicle.findUnique({ where: { id: vehicleId } });
     if (!exists) {
-      errors['id'] = 'Vehicle ID does not exist';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      throw new BadRequestException({ errors });
+      throw new NotFoundException('Vehicle not found');
     }
 
     const vehicle = await this.prismaService.vehicle.update({
       where: { id: vehicleId },
-      data: { status: 'INACTIVE' },
+      data: { status: 'INACTIVE', deletedAt: new Date() },
       include: { vehicleModel: { include: { brand: true } } },
     });
     return {
@@ -166,8 +192,6 @@ export class VehicleService {
   }
 
   async suggestVehicles(query: string, accountId: string): Promise<SuggestVehicleDTO[]> {
-    console.log('🚀 ~ VehicleService ~ suggestVehicles ~ accountId:', accountId);
-    console.log('🚀 ~ VehicleService ~ suggestVehicles ~ query:', query);
     if (!query || query.trim() === '' || query.length < 2) {
       return [];
     }

@@ -13,21 +13,20 @@ import {
 import { VehicleService } from './vehicle.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { Roles } from 'src/common/decorator/role.decorator';
-import { AccountRole, Vehicle } from '@prisma/client';
+import { AccountRole } from '@prisma/client';
 import { CreateVehicleDTO } from './dto/create-vehicle.dto';
 import { JWT_Payload } from 'src/common/types';
 import { Request } from 'express';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
-import { SuggestVehicleDTO } from './dto/suggest-vehicle.dto';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { VehicleQueryDTO } from './dto/vehicle-query.dto';
+import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('api/vehicles')
 @ApiBearerAuth('jwt-auth')
 @ApiTags('Vehicles')
 export class VehicleController {
-  constructor(private readonly vehicleService: VehicleService) {}
+  constructor(private readonly vehicleService: VehicleService) { }
 
   @Get('brands')
   async getAllVehicleBrands() {
@@ -111,7 +110,7 @@ export class VehicleController {
     };
   }
 
-  @Roles(AccountRole.CUSTOMER)
+  @Roles(AccountRole.ADMIN)
   @Patch('/:vehicleId')
   async updateVehicle(@Param('vehicleId') vehicleId: string, @Body() body: UpdateVehicleDTO) {
     const vehicle = await this.vehicleService.updateVehicle(vehicleId, body);

@@ -26,7 +26,7 @@ export class CreateVehicleDTO {
 
   @ApiProperty({
     description: 'ID of the vehicle model',
-    example: 101,
+    example: 1,
   })
   @IsNotEmpty()
   @IsNumber()
