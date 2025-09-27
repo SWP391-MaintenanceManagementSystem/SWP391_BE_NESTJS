@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Query } from '@nestjs/common';
 import { CustomerService } from './customer.service';
 import { AccountService } from '../account/account.service';
 import { AccountRole } from '@prisma/client';
@@ -52,6 +52,15 @@ export class CustomerController {
     return {
       message: 'Update customer successfully',
       account: plainToInstance(AccountWithProfileDTO, account),
+    };
+  }
+
+  @Delete('/:id')
+  @Roles(AccountRole.ADMIN)
+  async deleteCustomer(@Param('id') id: string) {
+    await this.customerService.deleteCustomer(id);
+    return {
+      message: 'Delete customer successfully',
     };
   }
 }

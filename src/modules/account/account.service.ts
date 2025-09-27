@@ -195,6 +195,7 @@ export class AccountService {
 
     const accountData: Prisma.AccountUpdateInput = {
       ...(updateData.phone && { phone: updateData.phone }),
+      ...(updateData.status && { status: updateData.status }),
     };
 
     if (exists.role === AccountRole.CUSTOMER && exists.customer) {
