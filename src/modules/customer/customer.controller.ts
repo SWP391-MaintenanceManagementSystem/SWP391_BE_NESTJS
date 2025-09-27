@@ -11,16 +11,18 @@ import { UpdateCustomerDTO } from './dto/update-customer.dto';
 
 @ApiTags('Customers')
 @ApiBearerAuth('jwt-auth')
-@Controller('customer')
+@Controller('customers')
 export class CustomerController {
-  constructor(private readonly customerService: CustomerService, private readonly accountService: AccountService) { }
-
-
+  constructor(
+    private readonly customerService: CustomerService,
+    private readonly accountService: AccountService
+  ) {}
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
   async getCustomers(@Query() query: CustomerQueryDTO) {
-    const { data, page, pageSize, total, totalPages } = await this.customerService.getCustomers(query)
+    const { data, page, pageSize, total, totalPages } =
+      await this.customerService.getCustomers(query);
 
     return {
       message: 'Accounts retrieved successfully',
@@ -30,9 +32,7 @@ export class CustomerController {
       total,
       totalPages,
     };
-
   }
-
 
   @Get('/:id')
   @Roles(AccountRole.ADMIN)

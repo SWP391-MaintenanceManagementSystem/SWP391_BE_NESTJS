@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, UseGuards, Req, Delete, Patch, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+  Req,
+  Delete,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { VehicleService } from './vehicle.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { Roles } from 'src/common/decorator/role.decorator';
@@ -6,16 +17,16 @@ import { AccountRole } from '@prisma/client';
 import { CreateVehicleDTO } from './dto/create-vehicle.dto';
 import { JWT_Payload } from 'src/common/types';
 import { Request } from 'express';
-import { ApiBearerAuth, ApiBody, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { Serialize } from 'src/common/interceptor/serialize.interceptor';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { VehicleQueryDTO } from './dto/vehicle-query.dto';
 import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
+
 @UseGuards(JwtAuthGuard)
-@Controller('api/vehicle')
+@Controller('api/vehicles')
 @ApiBearerAuth('jwt-auth')
-@ApiTags('Vehicle')
+@ApiTags('Vehicles')
 export class VehicleController {
   constructor(private readonly vehicleService: VehicleService) { }
-
 
   @Get('brands')
   async getAllVehicleBrands() {
@@ -27,29 +38,65 @@ export class VehicleController {
     return this.vehicleService.getAllVehicleModels();
   }
 
-  @Get('models/:brandId')
+  @Get('brands/:brandId/models')
   async getModelsByBrand(@Param('brandId') brandId: number) {
     return this.vehicleService.getModelsByBrand(brandId);
   }
 
+  // @Roles(AccountRole.CUSTOMER)
+  // @Get()
+  // async getMyVehicles(@Req() req: Request) {
+  //   const user = req.user as JWT_Payload;
+  //   const vehicles = await this.vehicleService.getVehiclesByCustomer(user.sub);
+  //   return {
+  //     message: 'Vehicles retrieved successfully',
+  //     data: vehicles,
+  //   };
+  // }
 
-  @Roles(AccountRole.CUSTOMER)
-  @Get('/')
-  async getVehicles(@Req() req: Request) {
-    const user = req.user as JWT_Payload;
-    const vehicles = await this.vehicleService.getVehiclesByCustomer(user.sub);
+  @Roles(AccountRole.ADMIN)
+  @Get()
+  async getAllVehicles(@Query() query: VehicleQueryDTO) {
+    const { data, page, pageSize, total, totalPages } =
+      await this.vehicleService.getVehicles(query);
     return {
       message: 'Vehicles retrieved successfully',
-      data: vehicles
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages,
     };
   }
 
+  @Roles(AccountRole.ADMIN)
+  @Get('/accounts/:accountId')
+  async getVehiclesByAccount(@Param('accountId') accountId: string) {
+    const vehicles = await this.vehicleService.getVehiclesByCustomer(accountId);
+    return {
+      message: 'Vehicles retrieved successfully',
+      data: vehicles,
+    };
+  }
 
-  @Roles(AccountRole.CUSTOMER, AccountRole.ADMIN)
-  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search query for vehicle brand, vin, model, or license plate' })
-  @Get('/suggest')
-  async suggestVehicles(@Query('q') query: string) {
-    return this.vehicleService.suggestVehicles(query);
+  @Roles(AccountRole.CUSTOMER)
+  @Get('/actions/suggest')
+  async suggestVehicles(@Query('q') q: string, @Req() req: Request) {
+    const user = req.user as JWT_Payload;
+    const data = await this.vehicleService.suggestVehicles(q, user.sub);
+    return {
+      message: 'Vehicle suggestions retrieved successfully',
+      data,
+    };
+  }
+
+  @Get('/:vehicleId')
+  async getVehicleById(@Param('vehicleId') vehicleId: string) {
+    const vehicle = await this.vehicleService.getVehicleById(vehicleId);
+    return {
+      message: 'Vehicle retrieved successfully',
+      data: vehicle,
+    };
   }
 
   @Roles(AccountRole.CUSTOMER)
@@ -59,28 +106,27 @@ export class VehicleController {
     const vehicle = await this.vehicleService.createVehicle(newVehicle, user.sub);
     return {
       message: 'Vehicle created successfully',
-      data: vehicle
+      data: vehicle,
     };
   }
 
-  @Roles(AccountRole.CUSTOMER)
-  @Patch(':vehicleId')
+  @Roles(AccountRole.ADMIN)
+  @Patch('/:vehicleId')
   async updateVehicle(@Param('vehicleId') vehicleId: string, @Body() body: UpdateVehicleDTO) {
     const vehicle = await this.vehicleService.updateVehicle(vehicleId, body);
     return {
       message: 'Vehicle updated successfully',
-      vehicle
+      data: vehicle,
     };
   }
 
   @Roles(AccountRole.CUSTOMER, AccountRole.ADMIN)
-  @Delete(':vehicleId')
+  @Delete('/:vehicleId')
   async deleteVehicle(@Param('vehicleId') vehicleId: string) {
     const vehicle = await this.vehicleService.deleteVehicle(vehicleId);
     return {
       message: 'Vehicle deleted successfully',
-      data: vehicle
+      data: vehicle,
     };
   }
-
 }
