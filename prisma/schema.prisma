@@ -127,6 +127,7 @@ model Vehicle {
   customerId   String        @map("customer_id")
   licensePlate String        @unique @map("license_plate")
   deletedAt    DateTime?
+  lastService  DateTime?     @map("last_service")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
   status       VehicleStatus @default(ACTIVE)
