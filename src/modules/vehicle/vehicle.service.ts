@@ -92,6 +92,8 @@ export class VehicleService {
       licensePlate: vehicle.licensePlate,
       customerId: vehicle.customerId,
       status: vehicle.status,
+      lastService: vehicle.lastService,
+      deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
     };
@@ -162,6 +164,8 @@ export class VehicleService {
       licensePlate: vehicle.licensePlate,
       customerId: vehicle.customerId,
       status: vehicle.status,
+      lastService: vehicle.lastService,
+      deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
     };
@@ -186,6 +190,8 @@ export class VehicleService {
       licensePlate: vehicle.licensePlate,
       customerId: vehicle.customerId,
       status: vehicle.status,
+      lastService: vehicle.lastService,
+      deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
     };
@@ -236,6 +242,8 @@ export class VehicleService {
       brand: vehicle.vehicleModel.brand.name,
       licensePlate: vehicle.licensePlate,
       customerId: vehicle.customerId,
+      lastService: vehicle.lastService,
+      deletedAt: vehicle.deletedAt,
       status: vehicle.status,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
@@ -255,6 +263,8 @@ export class VehicleService {
       licensePlate: vehicle.licensePlate,
       customerId: vehicle.customerId,
       status: vehicle.status,
+      lastService: vehicle.lastService,
+      deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
     }));
@@ -297,6 +307,8 @@ export class VehicleService {
       licensePlate: vehicle.licensePlate,
       customerId: vehicle.customerId,
       status: vehicle.status,
+      lastService: vehicle.lastService,
+      deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
     }));
