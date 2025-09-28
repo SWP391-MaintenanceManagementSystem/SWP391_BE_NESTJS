@@ -88,17 +88,17 @@ export class AccountController {
   //   };
   // }
 
-  // @Patch('/')
-  // async updateAccount(
-  //   @CurrentUser() user: JWT_Payload,
-  //   @Body() updateAccountDto: UpdateAccountDTO
-  // ) {
-  //   const data = await this.accountService.updateAccount(user.sub, updateAccountDto);
-  //   return {
-  //     message: 'Account updated successfully',
-  //     data: plainToInstance(AccountWithProfileDTO, data),
-  //   };
-  // }
+  @Patch('/')
+  async updateAccount(
+    @CurrentUser() user: JWT_Payload,
+    @Body() updateAccountDto: UpdateAccountDTO
+  ) {
+    const data = await this.accountService.updateAccount(user.sub, updateAccountDto);
+    return {
+      message: 'Account updated successfully',
+      data: plainToInstance(AccountWithProfileDTO, data),
+    };
+  }
 
   // @Delete('/:id')
   // @Roles(AccountRole.ADMIN)
