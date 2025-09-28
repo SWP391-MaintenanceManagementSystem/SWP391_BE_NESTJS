@@ -1,3 +1,3 @@
 export const FILE_FOLDER = {
-    AVATAR: 'avatars',
-}
+  AVATAR: 'avatars',
+};

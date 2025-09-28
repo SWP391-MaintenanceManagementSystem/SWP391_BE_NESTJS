@@ -13,12 +13,13 @@ import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-prof
 @ApiBearerAuth('jwt-auth')
 @Controller('api/technician')
 export class TechnicianController {
-  constructor(private readonly technicianService: TechnicianService) { }
+  constructor(private readonly technicianService: TechnicianService) {}
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
   async getTechnicians(@Query() query: EmployeeQueryDTO) {
-    const { data, page, pageSize, total, totalPages } = await this.technicianService.getTechnicians(query);
+    const { data, page, pageSize, total, totalPages } =
+      await this.technicianService.getTechnicians(query);
     const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
     return {
       message: 'Technicians retrieved successfully',
@@ -26,8 +27,15 @@ export class TechnicianController {
       page,
       pageSize,
       total,
-      totalPages
+      totalPages,
     };
+  }
+
+  @Patch('/:id/reset-password')
+  @Roles(AccountRole.ADMIN)
+  async resetDefaultPassword(@Param('id') id: string) {
+    await this.technicianService.resetDefaultPassword(id);
+    return { message: `Technician's password reset successfully`,};
   }
 
   @Get('/:id')
@@ -37,7 +45,7 @@ export class TechnicianController {
     return { data, message: `Technician with ID retrieved successfully` };
   }
 
-  @Post('/create')
+  @Post()
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateTechnicianDto })
   async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
@@ -52,14 +60,17 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    await this.technicianService.updateTechnician(id, updateTechnicianDto);
-    return { message: `Technician updated successfully` };
+    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    return {
+      message: `Technician updated successfully`,
+      data,
+    };
   }
-
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)
   async deleteTechnician(@Param('id') id: string) {
-    await this.technicianService.deleteTechnician(id);
-    return { message: `Technician deleted successfully` };
+    const data = await this.technicianService.deleteTechnician(id);
+    return {
+      message: `Technician deleted successfully` };
   }
 }

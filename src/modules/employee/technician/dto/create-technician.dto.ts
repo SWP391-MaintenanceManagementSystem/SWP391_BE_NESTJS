@@ -1,4 +1,12 @@
-import { IsNotEmpty, IsString, IsOptional, IsEmail, Matches, MinLength, IsNumber } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsEmail,
+  Matches,
+  MinLength,
+  IsNumber,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTechnicianDto {
@@ -7,18 +15,6 @@ export class CreateTechnicianDto {
   @IsEmail({}, { message: 'Invalid email format' })
   @ApiProperty({ example: 'tech@example.com', description: 'Technician email address' })
   email: string;
-
-  @IsString({ message: 'Password must be a string' })
-  @IsNotEmpty({ message: 'Password is required' })
-  @MinLength(8, { message: 'Password must be at least 8 characters long' })
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
-    message: 'Password must contain uppercase, lowercase, number and special character'
-  })
-  @ApiProperty({ 
-    example: 'Password123!', 
-    description: 'Strong password with uppercase, lowercase, number and special character' 
-  })
-  password: string;
 
   @IsString({ message: 'First name must be a string' })
   @IsNotEmpty({ message: 'First name is required' })

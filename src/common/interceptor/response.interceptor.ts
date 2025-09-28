@@ -6,7 +6,7 @@ import { isEmpty } from 'src/utils';
 
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const skip = this.reflector.get<boolean>('skipResponse', context.getHandler());
     if (skip) return next.handle();

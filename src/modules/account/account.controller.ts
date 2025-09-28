@@ -1,17 +1,16 @@
 import {
   Body,
   Controller,
-  Get,
-  Query,
   Patch,
   Param,
   Delete,
   Post,
   UploadedFile,
   BadRequestException,
+  Get,
 } from '@nestjs/common';
 import { AccountService } from './account.service';
-import { ApiTags, ApiBody, ApiQuery, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiBody, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { AccountRole } from '@prisma/client';
 import { UpdateAccountDTO } from './dto/update-account.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
@@ -21,11 +20,15 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { UseInterceptors } from '@nestjs/common';
 import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
-@ApiTags('Account')
+import { VehicleService } from '../vehicle/vehicle.service';
+@ApiTags('Me')
 @ApiBearerAuth('jwt-auth')
-@Controller('api/account')
+@Controller('api/me')
 export class AccountController {
-  constructor(private readonly accountService: AccountService) { }
+  constructor(
+    private readonly accountService: AccountService,
+    private readonly vehicleService: VehicleService
+  ) {}
 
   // @Get('/')
   // @Roles(AccountRole.ADMIN)
@@ -86,18 +89,32 @@ export class AccountController {
   // }
 
   @Patch('/')
-  async updateAccount(@CurrentUser() user: JWT_Payload, @Body() updateAccountDto: UpdateAccountDTO) {
+  async updateAccount(
+    @CurrentUser() user: JWT_Payload,
+    @Body() updateAccountDto: UpdateAccountDTO
+  ) {
     const data = await this.accountService.updateAccount(user.sub, updateAccountDto);
-    return { message: 'Account updated successfully', data: plainToInstance(AccountWithProfileDTO, data) };
+    return {
+      message: 'Account updated successfully',
+      data: plainToInstance(AccountWithProfileDTO, data),
+    };
   }
 
+  // @Delete('/:id')
+  // @Roles(AccountRole.ADMIN)
+  // async deleteAccount(@Param('id') id: string) {
+  //   await this.accountService.deleteAccount(id);
+  //   return { message: 'Account deleted successfully' };
+  // }
 
-
-  @Delete('/:id')
-  @Roles(AccountRole.ADMIN)
-  async deleteAccount(@Param('id') id: string) {
-    await this.accountService.deleteAccount(id);
-    return { message: 'Account deleted successfully' };
+  @Get('/vehicles')
+  @Roles(AccountRole.CUSTOMER)
+  async getMyVehicles(@CurrentUser() user: JWT_Payload) {
+    const vehicles = await this.vehicleService.getVehiclesByCustomer(user.sub);
+    return {
+      message: 'Vehicles retrieved successfully',
+      data: vehicles,
+    };
   }
 
   @ApiConsumes('multipart/form-data')

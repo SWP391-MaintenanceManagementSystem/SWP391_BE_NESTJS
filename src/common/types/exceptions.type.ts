@@ -1,10 +1,10 @@
 export interface ValidationErrorResponse {
-    statusCode: number;
-    message: string;
-    errors: Record<string, string>;
+  statusCode: number;
+  message: string;
+  errors: Record<string, string>;
 }
 
 export interface DefaultErrorResponse {
-    statusCode: number;
-    message: string | string[];
+  statusCode: number;
+  message: string | string[];
 }
