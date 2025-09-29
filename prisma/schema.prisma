@@ -51,6 +51,11 @@ enum VehicleStatus {
   INACTIVE
 }
 
+enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+}
+
 /**
  * ================= MODELS =================
  */
@@ -221,6 +226,7 @@ model Service {
   name           String
   description    String?
   price          Float
+  status         ServiceStatus   @default(ACTIVE)
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
   bookingDetails BookingDetail[]
