@@ -26,7 +26,7 @@ export class CustomerController {
 
     return {
       message: 'Accounts retrieved successfully',
-      accounts: plainToInstance(AccountWithProfileDTO, data),
+      data: plainToInstance(AccountWithProfileDTO, data),
       page,
       pageSize,
       total,

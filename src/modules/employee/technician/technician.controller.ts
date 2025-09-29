@@ -23,7 +23,7 @@ export class TechnicianController {
     const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
     return {
       message: 'Technicians retrieved successfully',
-      accounts,
+      data: accounts,
       page,
       pageSize,
       total,

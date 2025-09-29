@@ -30,7 +30,7 @@ export class StaffController {
     const staffs = data.map(staff => plainToInstance(AccountWithProfileDTO, staff));
     return {
       message: 'Staffs retrieved successfully',
-      staffs,
+      data: staffs,
       page,
       pageSize,
       total,
