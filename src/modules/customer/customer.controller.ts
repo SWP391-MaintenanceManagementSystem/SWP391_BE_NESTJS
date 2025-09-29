@@ -11,7 +11,7 @@ import { UpdateCustomerDTO } from './dto/update-customer.dto';
 
 @ApiTags('Customers')
 @ApiBearerAuth('jwt-auth')
-@Controller('customers')
+@Controller('api/customers')
 export class CustomerController {
   constructor(
     private readonly customerService: CustomerService,
@@ -26,7 +26,7 @@ export class CustomerController {
 
     return {
       message: 'Accounts retrieved successfully',
-      accounts: plainToInstance(AccountWithProfileDTO, data),
+      data: plainToInstance(AccountWithProfileDTO, data),
       page,
       pageSize,
       total,
