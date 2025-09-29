@@ -112,7 +112,7 @@ export class StaffService {
       });
     }
 
-    // ✅ Update employee fields
+
     const updateEmployee: any = {};
     if (updateStaffDto.firstName !== undefined) {
       updateEmployee.firstName = updateStaffDto.firstName;
