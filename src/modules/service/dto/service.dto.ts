@@ -25,6 +25,11 @@ export class ServiceDto {
   price: number;
 
   @IsNotEmpty()
+  @IsString()
+  @Expose()
+  status: string;
+
+  @IsNotEmpty()
   @Expose()
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   createdAt: Date;

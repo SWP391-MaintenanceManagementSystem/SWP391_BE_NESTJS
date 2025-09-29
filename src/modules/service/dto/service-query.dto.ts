@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
+import { ServiceStatus } from '@prisma/client';
 
 export class ServiceQueryDTO {
   @ApiPropertyOptional({ description: 'Search by service name' })
@@ -19,6 +20,11 @@ export class ServiceQueryDTO {
   @Type(() => Number)
   @IsNumber()
   maxPrice?: number;
+
+  @ApiPropertyOptional({ description: 'Filter by status (ACTIVE | INACTIVE)' })
+  @IsOptional()
+  @IsEnum(ServiceStatus)
+  status?: ServiceStatus;
 
   @ApiPropertyOptional({ description: 'Sort field', example: 'createdAt' })
   @IsOptional()
