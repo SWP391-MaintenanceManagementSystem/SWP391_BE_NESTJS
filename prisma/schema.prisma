@@ -51,6 +51,11 @@ enum VehicleStatus {
   INACTIVE
 }
 
+enum CenterStatus {
+  OPEN
+  CLOSED
+}
+
 enum ServiceStatus {
   ACTIVE
   INACTIVE
@@ -131,7 +136,7 @@ model Vehicle {
   vin          String        @unique
   customerId   String        @map("customer_id")
   licensePlate String        @unique @map("license_plate")
-  deletedAt    DateTime?
+  deletedAt    DateTime?     @map("deleted_at")
   lastService  DateTime?     @map("last_service")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
@@ -303,11 +308,13 @@ model ServiceCenter {
   id        String   @id @default(uuid())
   name      String
   address   String
+  status    CenterStatus @default(OPEN)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   bookings    Booking[]
   workCenters WorkCenter[]
+  shifts Shift[]
 
   @@map("service_centers")
 }
@@ -325,6 +332,7 @@ model Shift {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  serviceCenter  ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
   workSchedules WorkSchedule[]
 
   @@map("shifts")
