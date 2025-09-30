@@ -39,7 +39,7 @@ export class ServiceCenterController {
     } else {
       const userCenter = data.find(center => center.id === user.centerId);
       return {
-        message: 'Service centers retrieved successfully',
+        message: 'Assigned service centers retrieved successfully',
         data: userCenter ? [userCenter] : [],
         page: 1,
         pageSize: userCenter ? 1 : 0,

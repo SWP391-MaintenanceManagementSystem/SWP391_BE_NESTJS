@@ -7,6 +7,8 @@ import { PaginationResponse } from "src/common/dto/pagination-response.dto";
 import { ServiceCenterQueryDTO } from "./dto/service-center.query.dto";
 import { ServiceCenterDto } from "./dto/service-center.dto";
 import { plainToInstance } from "class-transformer";
+import { BookingStatus } from "@prisma/client";
+import { ConflictException } from "@nestjs/common/exceptions/conflict.exception";
 
 
 @Injectable()
@@ -14,6 +16,16 @@ export class ServiceCenterService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createServiceCenter(createServiceCenterDto: CreateServiceCenterDto) {
+    const existingCenter = await this.prisma.serviceCenter.findFirst({
+      where: {
+        name: createServiceCenterDto.name,
+        address: createServiceCenterDto.address,
+      },
+    });
+
+    if (existingCenter) {
+      throw new ConflictException('A service center with the same name and address already exists');
+    }
 
     const serviceCenter = await this.prisma.serviceCenter.create({
       data: createServiceCenterDto,
@@ -55,7 +67,7 @@ export class ServiceCenterService {
 
   }
 
-async getServiceCenterById(id: string): Promise<ServiceCenterDto> {
+  async getServiceCenterById(id: string): Promise<ServiceCenterDto> {
     const serviceCenter = await this.prisma.serviceCenter.findUnique({
       where: { id },
       include: {
@@ -93,21 +105,61 @@ async getServiceCenterById(id: string): Promise<ServiceCenterDto> {
       throw new NotFoundException(`Service center with ID ${id} not found`);
     }
 
+    if (updateServiceCenterDto.name || updateServiceCenterDto.address) {
+      const existingCenter = await this.prisma.serviceCenter.findFirst({
+        where: {
+          id: { not: id },
+          OR: [
+            {
+              name: updateServiceCenterDto.name || existingServiceCenter.name,
+              address: updateServiceCenterDto.address || existingServiceCenter.address,
+            }
+          ]
+        },
+      });
+
+      if (existingCenter) {
+        throw new ConflictException('A service center with the same name and address already exists');
+      }
+    }
+
     const updatedServiceCenter = await this.prisma.serviceCenter.update({
       where: { id },
       data: updateServiceCenterDto,
     });
-
     return plainToInstance(ServiceCenterDto, updatedServiceCenter);
   }
 
   async deleteServiceCenter(id: string): Promise<void> {
     const existingServiceCenter = await this.prisma.serviceCenter.findUnique({
       where: { id },
+      include: {
+        _count: {
+          select: {
+            workCenters: true,
+            shifts: true,
+            bookings: {
+              where: {
+                status: {
+                  in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROCESS'] // Active bookings
+                }
+              }
+            }
+          }
+        }
+      }
     });
 
     if (!existingServiceCenter) {
       throw new NotFoundException(`Service center with ID ${id} not found`);
+    }
+
+    if (existingServiceCenter._count.bookings > 0) {
+      throw new ConflictException('Cannot close service center with active bookings');
+    }
+
+    if (existingServiceCenter._count.workCenters > 0) {
+      throw new ConflictException('Cannot close service center with assigned employees. Please reassign them first.');
     }
 
     await this.prisma.serviceCenter.update({
@@ -116,15 +168,34 @@ async getServiceCenterById(id: string): Promise<ServiceCenterDto> {
     });
   }
 
-  async getAssignedCenters(employeeId: string): Promise<ServiceCenterDto[]> {
+  async getAssignedCenters(accountId: string): Promise<ServiceCenterDto[]> {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new NotFoundException(`Employee with ID ${accountId} not found`);
+    }
+
     const workCenters = await this.prisma.workCenter.findMany({
-      where: { employeeId },
+      where: { employeeId: accountId },
       include: {
-        serviceCenter: true,
+        serviceCenter: {
+          include: {
+            _count: {
+              select: {
+                workCenters: true,
+                shifts: true,
+                bookings: true
+              }
+            }
+          }
+        }
       },
     });
-    const centers = workCenters.map(wc => wc.serviceCenter);
-    return centers.map(center => plainToInstance(ServiceCenterDto, center));
-  }
 
+    return workCenters.map(wc =>
+      plainToInstance(ServiceCenterDto, wc.serviceCenter)
+    );
+  }
 }
