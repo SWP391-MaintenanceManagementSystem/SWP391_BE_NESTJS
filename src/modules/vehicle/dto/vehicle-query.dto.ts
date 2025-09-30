@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { VehicleStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import { Order } from 'src/common/sort/sort.config';
 
 export class VehicleQueryDTO {
   @IsOptional()
@@ -30,6 +31,16 @@ export class VehicleQueryDTO {
   @IsEnum(VehicleStatus)
   @ApiProperty({ required: false, description: 'Filter by vehicle status', enum: VehicleStatus })
   status?: VehicleStatus;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({ required: false, description: 'Field to sort by', example: 'createdAt' })
+  sortBy?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({ required: false, description: 'Sort order', example: 'asc' })
+  orderBy?: Order;
 
   @IsOptional()
   @IsNumber()

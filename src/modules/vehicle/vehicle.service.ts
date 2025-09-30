@@ -8,6 +8,7 @@ import { VehicleQueryDTO } from 'src/modules/vehicle/dto/vehicle-query.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { Prisma } from '@prisma/client';
 import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
+import { buildVehicleOrderBy } from 'src/common/sort/sort.util';
 
 @Injectable()
 export class VehicleService {
@@ -270,7 +271,7 @@ export class VehicleService {
   }
 
   async getVehicles(filter: VehicleQueryDTO): Promise<PaginationResponse<VehicleDTO>> {
-    let { page = 1, pageSize = 10 } = filter;
+    let { page = 1, pageSize = 10, sortBy = "createdAt", orderBy = "desc" } = filter;
     if (page < 1) page = 1;
     if (pageSize < 1) pageSize = 10;
 
@@ -292,6 +293,7 @@ export class VehicleService {
             include: { brand: true },
           },
         },
+        orderBy: buildVehicleOrderBy(sortBy, orderBy),
         skip: pageSize * (page - 1),
         take: pageSize,
       }),
