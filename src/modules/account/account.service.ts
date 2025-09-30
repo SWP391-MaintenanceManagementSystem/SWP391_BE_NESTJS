@@ -9,12 +9,13 @@ import { CustomerDTO } from '../customer/dto/customer.dto';
 import { EmployeeDTO } from '../employee/dto/employee.dto';
 import { plainToInstance } from 'class-transformer';
 import { CloudinaryService } from '../upload/cloudinary.service';
+import { buildAccountOrderBy } from 'src/common/sort/sort.util';
 @Injectable()
 export class AccountService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService
-  ) {}
+  ) { }
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -113,9 +114,7 @@ export class AccountService {
           },
           skip: (page - 1) * pageSize,
           take: pageSize,
-          orderBy: {
-            [sortBy]: orderBy,
-          },
+          orderBy: buildAccountOrderBy(sortBy, orderBy, filter.role as AccountRole),
         }),
       ]);
       const accountDTOs = accounts.map(account => this.mapAccountToDTO(account));
