@@ -11,6 +11,7 @@ import { hashPassword } from 'src/utils';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
+import  {buildAccountOrderBy } from 'src/common/sort/sort.util';
 
 @Injectable()
 export class TechnicianService {
@@ -54,26 +55,24 @@ export class TechnicianService {
     return plainToInstance(AccountWithProfileDTO, technician);
   }
 
-  async getTechnicians(
-    options: EmployeeQueryDTO
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = options;
-    page < 1 && (page = 1);
-    pageSize < 1 && (pageSize = 10);
+  async getTechnicians(filter: EmployeeQueryDTO): Promise<PaginationResponse<AccountWithProfileDTO>> {
+  let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = filter;
+  page < 1 && (page = 1);
+  pageSize < 1 && (pageSize = 10);
 
-    const where: Prisma.AccountWhereInput = {
-      employee: {
-        firstName: { contains: options?.firstName, mode: 'insensitive' },
-        lastName: { contains: options?.lastName, mode: 'insensitive' },
-      },
-      email: { contains: options?.email, mode: 'insensitive' },
-      phone: options?.phone,
-      status: options?.status,
-      role: AccountRole.TECHNICIAN,
-    };
+  const where: Prisma.AccountWhereInput = {
+    employee: {
+      firstName: filter?.firstName ? { contains: filter.firstName, mode: 'insensitive' } : undefined,
+      lastName: filter?.lastName ? { contains: filter.lastName, mode: 'insensitive' } : undefined,
+    },
+    email: filter?.email ? { contains: filter.email, mode: 'insensitive' } : undefined,
+    phone: filter?.phone,
+    status: filter?.status,
+    role: AccountRole.TECHNICIAN,
+  };
 
-    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
-  }
+  return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+}
 
   async updateTechnician(
     accountId: string,
