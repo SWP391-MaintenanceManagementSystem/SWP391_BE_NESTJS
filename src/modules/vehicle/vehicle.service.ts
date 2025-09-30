@@ -42,7 +42,6 @@ export class VehicleService {
   async getModelsByBrand(brandId: number) {
     const models = await this.prismaService.vehicleModel.findMany({
       where: { brandId },
-      include: { brand: true },
     });
     return models;
   }

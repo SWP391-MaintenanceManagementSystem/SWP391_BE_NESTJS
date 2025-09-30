@@ -30,17 +30,29 @@ export class VehicleController {
 
   @Get('brands')
   async getAllVehicleBrands() {
-    return this.vehicleService.getAllVehicleBrands();
+    const brands = await this.vehicleService.getAllVehicleBrands();
+    return {
+      message: 'Vehicle brands retrieved successfully',
+      data: brands,
+    };
   }
 
   @Get('models')
   async getAllVehicleModels() {
-    return this.vehicleService.getAllVehicleModels();
+    const models = await this.vehicleService.getAllVehicleModels();
+    return {
+      message: 'Vehicle models retrieved successfully',
+      data: models,
+    };
   }
 
   @Get('brands/:brandId/models')
   async getModelsByBrand(@Param('brandId') brandId: number) {
-    return this.vehicleService.getModelsByBrand(brandId);
+    const models = await this.vehicleService.getModelsByBrand(brandId);
+    return {
+      message: 'Vehicle models by brand retrieved successfully',
+      data: models,
+    };
   }
 
   // @Roles(AccountRole.CUSTOMER)
