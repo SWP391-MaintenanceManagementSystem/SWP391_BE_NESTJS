@@ -3,7 +3,7 @@ import { Expose, Transform } from "class-transformer";
 import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
 
 export class ServiceDto {
-   @IsNotEmpty()
+  @IsNotEmpty()
   @IsString()
   @Expose()
   id: string;

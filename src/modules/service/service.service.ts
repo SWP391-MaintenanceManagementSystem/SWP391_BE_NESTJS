@@ -6,6 +6,8 @@ import { Prisma, Service, ServiceStatus } from '@prisma/client';
 import { ServiceQueryDTO } from './dto/service-query.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { ServiceDto } from './dto/service.dto';
+import { plainToInstance } from 'class-transformer';
+import { ServiceQueryCustomerDTO } from './dto/service-query-customer.dto';
 
 @Injectable()
 export class ServiceService {
@@ -45,7 +47,7 @@ export class ServiceService {
   };
 }
 
-async findAllForCustomer(query: ServiceQueryDTO): Promise<PaginationResponse<ServiceDto>> {
+async findAllForCustomer(query: ServiceQueryCustomerDTO): Promise<PaginationResponse<ServiceDto>> {
   const { page = 1, pageSize = 10 } = query;
 
   const where: Prisma.ServiceWhereInput = {
@@ -79,13 +81,11 @@ async findAllForCustomer(query: ServiceQueryDTO): Promise<PaginationResponse<Ser
   };
 }
 
-  async create(createServiceDto: CreateServiceDto): Promise<Service> {
-    return this.prisma.service.create({
-      data: {
-        ...createServiceDto,
-        status: ServiceStatus.ACTIVE,
-      }
+  async create(createServiceDto: CreateServiceDto): Promise<ServiceDto> {
+    const newService = await this.prisma.service.create({
+      data: {...createServiceDto, status: ServiceStatus.ACTIVE},
     });
+    return plainToInstance(ServiceDto, newService);
   }
 
   async getServiceByNameForCustomer(name: string): Promise<Service[]> {
@@ -132,10 +132,11 @@ async findAllForCustomer(query: ServiceQueryDTO): Promise<PaginationResponse<Ser
     if (!existingService) {
       throw new NotFoundException(`Service with ID ${id} not found`);
     }
-    return this.prisma.service.update({
+    const updatedService = await this.prisma.service.update({
       where: { id },
       data: updateServiceDto,
     });
+    return plainToInstance(ServiceDto, updatedService);
   }
 
   async deleteService(id: string) {

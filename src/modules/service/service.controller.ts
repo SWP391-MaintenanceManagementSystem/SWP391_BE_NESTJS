@@ -6,6 +6,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ServiceQueryDTO } from './dto/service-query.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
+import { ServiceQueryCustomerDTO } from './dto/service-query-customer.dto';
 
 @ApiTags('Service')
 @Controller('api/service')
@@ -14,7 +15,7 @@ export class ServiceController {
 
   @Get('/customer')
   @ApiBearerAuth('jwt-auth')
-  async getServicesForCustomer(@Query() query: ServiceQueryDTO) {
+  async getServicesForCustomer(@Query() query: ServiceQueryCustomerDTO) {
     return this.serviceService.findAllForCustomer(query);
   }
 
