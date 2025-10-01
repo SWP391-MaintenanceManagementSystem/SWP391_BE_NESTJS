@@ -1,6 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
+import { ServicePart } from "@prisma/client";
 import { Expose, Transform } from "class-transformer";
 import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import ServicePartDto from "src/modules/service-part/dto/service-part.dto";
 
 export class ServiceDto {
   @IsNotEmpty()
@@ -52,5 +54,5 @@ export class ServiceDto {
 
   @IsOptional()
   @Expose()
-  serviceParts?: any[]; // TODO: define ServicePartDTO nếu cần
+  serviceParts?: ServicePartDto[]; // TODO: define ServicePartDTO nếu cần
 }

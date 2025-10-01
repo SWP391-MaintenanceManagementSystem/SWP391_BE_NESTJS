@@ -31,6 +31,7 @@ export class ServiceService {
   const [data, total] = await this.prisma.$transaction([
     this.prisma.service.findMany({
       where,
+      include: {ServicePart: { include: { part: true } }}, // include liên kết với bảng Part thông qua bảng trung gian ServicePart
       orderBy: { [query.sortBy ?? 'createdAt']: query.orderBy ?? 'asc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -39,7 +40,7 @@ export class ServiceService {
   ]);
 
   return {
-    data,
+    data: plainToInstance(ServiceDto, data, { excludeExtraneousValues: true }),
     page,
     pageSize,
     total,
@@ -59,12 +60,13 @@ async findAllForCustomer(query: ServiceQueryCustomerDTO): Promise<PaginationResp
             lte: query.maxPrice,
           }
         : undefined,
-    status: 'ACTIVE', // khách hàng chỉ được thấy service ACTIVE
+    status: 'ACTIVE',
   };
 
   const [data, total] = await this.prisma.$transaction([
     this.prisma.service.findMany({
       where,
+      include: {ServicePart: { include: { part: true } }},
       orderBy: { [query.sortBy ?? 'createdAt']: query.orderBy ?? 'asc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -73,7 +75,7 @@ async findAllForCustomer(query: ServiceQueryCustomerDTO): Promise<PaginationResp
   ]);
 
   return {
-    data,
+    data: plainToInstance(ServiceDto, data, { excludeExtraneousValues: true }),
     page,
     pageSize,
     total,
@@ -84,29 +86,31 @@ async findAllForCustomer(query: ServiceQueryCustomerDTO): Promise<PaginationResp
   async create(createServiceDto: CreateServiceDto): Promise<ServiceDto> {
     const newService = await this.prisma.service.create({
       data: {...createServiceDto, status: ServiceStatus.ACTIVE},
+      include: {ServicePart: { include: { part: true } }},
     });
     return plainToInstance(ServiceDto, newService);
   }
 
-  async getServiceByNameForCustomer(name: string): Promise<Service[]> {
+  async getServiceByNameForCustomer(name: string): Promise<ServiceDto[]> {
   const services = await this.prisma.service.findMany({
     where: {
       name: {
         contains: name,
         mode: 'insensitive',
       },
-      status: ServiceStatus.ACTIVE, // chỉ lấy ACTIVE
+      status: ServiceStatus.ACTIVE,
     },
+    include: {ServicePart: { include: { part: true } }},
   });
 
   if (!services.length) {
     throw new NotFoundException(`No active services found with name containing "${name}"`);
   }
 
-  return services;
+  return plainToInstance(ServiceDto, services, { excludeExtraneousValues: true });
 }
 
-  async getServiceByNameForAdmin(name: string): Promise<Service[]> {
+  async getServiceByNameForAdmin(name: string): Promise<ServiceDto[]> {
   const services = await this.prisma.service.findMany({
     where: {
       name: {
@@ -114,13 +118,14 @@ async findAllForCustomer(query: ServiceQueryCustomerDTO): Promise<PaginationResp
         mode: 'insensitive',
       },
     },
+    include: {ServicePart: { include: { part: true } }},
   });
 
   if (!services.length) {
     throw new NotFoundException(`No services found with name containing "${name}"`);
   }
 
-  return services;
+  return plainToInstance(ServiceDto, services, { excludeExtraneousValues: true });
 }
 
 
@@ -135,6 +140,7 @@ async findAllForCustomer(query: ServiceQueryCustomerDTO): Promise<PaginationResp
     const updatedService = await this.prisma.service.update({
       where: { id },
       data: updateServiceDto,
+      include: {ServicePart: { include: { part: true } }},
     });
     return plainToInstance(ServiceDto, updatedService);
   }
