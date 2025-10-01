@@ -1,17 +1,34 @@
-import { IsString, IsOptional, Matches, IsNotEmpty, IsEnum } from 'class-validator';
+import { IsString, IsOptional, Matches, IsNotEmpty, IsEnum, Length } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountStatus } from '@prisma/client';
 
 export class UpdateTechnicianDto {
-  @IsOptional()
-  @IsNotEmpty({ message: 'First name should not be empty' })
+  @IsOptional({ message: 'First name is required' })
   @IsString({ message: 'First name must be a string' })
-  @ApiPropertyOptional({ example: 'John' })
+  @Length(2, 30, { message: 'First name must be between 2 and 30 characters long' })
+  @Matches(/^[\p{L}\s]+$/u, {
+    message: 'First name can only contain letters and spaces',
+  })
+  @ApiPropertyOptional({
+    description: 'The first name of the user',
+    example: 'John',
+    minLength: 2,
+    maxLength: 30,
+  })
   firstName?: string;
 
-  @IsOptional()
+  @IsOptional({ message: 'Last name is required' })
   @IsString({ message: 'Last name must be a string' })
-  @ApiPropertyOptional({ example: 'Doe' })
+  @Length(1, 30, { message: 'Last name must be between 2 and 30 characters long' })
+  @Matches(/^[\p{L}\s]+$/u, {
+    message: 'Last name can only contain letters and spaces',
+  })
+  @ApiPropertyOptional({
+    description: 'The last name of the user',
+    example: 'Doe',
+    minLength: 1,
+    maxLength: 30,
+  })
   lastName?: string;
 
   @IsOptional()

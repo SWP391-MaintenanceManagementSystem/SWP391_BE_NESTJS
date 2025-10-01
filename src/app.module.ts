@@ -23,6 +23,7 @@ import { TechnicianModule } from './modules/employee/technician/technician.modul
 import { ServiceModule } from './modules/service/service.module';
 import { CategoryModule } from './modules/category/category.module';
 import { PartModule } from './modules/part/part.module';
+import { MembershipModule } from './modules/membership/membership.module';
 
 
 @Module({
@@ -67,9 +68,7 @@ import { PartModule } from './modules/part/part.module';
     CustomerModule,
     TechnicianModule,
     VehicleModule,
-    ServiceModule,
-    CategoryModule,
-    PartModule,
+    StaffModule,
   ],
   controllers: [AppController],
   providers: [
