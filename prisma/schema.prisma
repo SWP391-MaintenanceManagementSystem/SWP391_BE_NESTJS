@@ -72,6 +72,11 @@ enum ServiceStatus {
   INACTIVE
 }
 
+enum ShiftStatus {
+  ACTIVE
+  INACTIVE
+}
+
 /**
  * ================= MODELS =================
  */
@@ -338,6 +343,7 @@ model Shift {
   endDate     DateTime? @map("end_date")
   maximumSlot Int?      @map("maximum_slot")
   repeatDays  String?   @map("repeat_days")
+  status      ShiftStatus @default(ACTIVE)
   centerId    String    @map("center_id")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
