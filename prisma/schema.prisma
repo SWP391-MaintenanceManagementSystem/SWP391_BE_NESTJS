@@ -43,12 +43,12 @@ enum BookingStatus {
 
 enum ReferenceType {
   BOOKING
-  SUBSCRIPTION
+  MEMBERSHIP
 }
 
 enum Method {
   CASH
-  ONLINE
+  CARD
 }
 
 enum TransactionStatus {
@@ -430,7 +430,6 @@ model Subscription {
   id         String   @id @default(uuid())
   customerId String   @map("customer_id")
   membershipId String @map("membership_id")
-  type       String
   status     SubscriptionStatus @default(ACTIVE)
   startDate  DateTime @map("start_date")
   endDate    DateTime @map("end_date")

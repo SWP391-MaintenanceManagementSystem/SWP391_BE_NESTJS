@@ -8,7 +8,7 @@
 
 */
 -- CreateEnum
-CREATE TYPE "public"."ReferenceType" AS ENUM ('BOOKING', 'SUBSCRIPTION');
+CREATE TYPE "public"."ReferenceType" AS ENUM ('BOOKING', 'MEMBERSHIP');
 
 -- CreateEnum
 CREATE TYPE "public"."Method" AS ENUM ('CASH', 'ONLINE');

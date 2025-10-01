@@ -21,7 +21,9 @@ import { UploadModule } from './modules/upload/upload.module';
 import { StaffModule } from './modules/employee/staff/staff.module';
 import { TechnicianModule } from './modules/employee/technician/technician.module';
 import { MembershipModule } from './modules/membership/membership.module';
-
+import { StripeModule } from './modules/stripe/stripe.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { PaymentModule } from './modules/payment/payment.module';
 
 @Module({
   imports: [
@@ -67,6 +69,9 @@ import { MembershipModule } from './modules/membership/membership.module';
     VehicleModule,
     StaffModule,
     MembershipModule,
+    StripeModule.forRoot(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-09-30.clover' }),
+    SubscriptionModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [
@@ -89,4 +94,4 @@ import { MembershipModule } from './modules/membership/membership.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}
