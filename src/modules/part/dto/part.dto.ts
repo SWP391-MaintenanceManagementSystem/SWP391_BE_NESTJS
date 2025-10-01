@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 import { CategoryDto } from 'src/modules/category/dto/category.dto';
+import ServicePartDto from 'src/modules/service-part/dto/service-part.dto';
 
 @Exclude()
 export class PartDto {
@@ -46,9 +47,10 @@ export class PartDto {
   category: CategoryDto;
 
   @ApiProperty({
-    type: () => [Object],
+    type: () => [ServicePartDto],
     description: 'List of service-part relations (temporary: any)',
   })
   @Expose()
-  serviceParts: any[];
+  @Type(() => ServicePartDto)
+  serviceParts: ServicePartDto[];
 }
