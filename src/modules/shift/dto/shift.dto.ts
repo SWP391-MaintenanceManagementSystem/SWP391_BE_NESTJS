@@ -1,6 +1,7 @@
+import { ShiftStatus } from '@prisma/client';
 import { Expose, Transform } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-
+import { IsNotEmpty, IsString } from 'class-validator';
+import { ServiceCenterDto } from 'src/modules/service-center/dto/service-center.dto';
 export default class ShiftDTO {
   @Expose()
   id: string;
@@ -27,8 +28,21 @@ export default class ShiftDTO {
   @Expose()
   maximumSlot?: number;
 
+  @IsString()
+  @IsNotEmpty()
   @Expose()
-  repeatDays?: string;
+  status: ShiftStatus;
+
+  @Expose()
+  @Transform(({ value }) => {
+    // Transform database string to array for frontend
+    if (typeof value === 'string' && value) {
+      return value.split(',').map(day => day.trim());
+    }
+    return value || [];
+  })
+  repeatDays?: string[]; // Array for frontend (e.g., ['1', '3', '5'])
+
 
   @Expose()
   centerId: string;
@@ -42,12 +56,7 @@ export default class ShiftDTO {
   updatedAt: Date;
 
   @Expose()
-  serviceCenter?: {
-    id: string;
-    name: string;
-    address: string;
-    status: string;
-  };
+  serviceCenter?: ServiceCenterDto;
 
   @Expose()
   _count?: {

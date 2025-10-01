@@ -1,4 +1,3 @@
-// src/modules/shift/dto/create-shift.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
@@ -67,8 +66,8 @@ export class CreateShiftDto {
     message: 'Repeat days must be comma-separated numbers (0-6, where 0=Sunday)'
   })
   @ApiPropertyOptional({
-    example: '1,2,3,4,5',
-    description: 'Repeat days (0=Sunday, 1=Monday, ..., 6=Saturday)'
+    example: '1,3,5',
+    description: 'Days of the week the shift repeats (0=Sunday, 1=Monday, ..., 6=Saturday)'
   })
   repeatDays?: string;
 
