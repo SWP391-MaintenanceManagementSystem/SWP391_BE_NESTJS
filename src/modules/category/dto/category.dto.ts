@@ -1,5 +1,6 @@
 import { Expose, Transform } from "class-transformer";
 import { IsNotEmpty, IsOptional, IsString } from "class-validator";
+import { PartDto } from "src/modules/part/dto/part.dto";
 
 export class CategoryDto {
     @IsNotEmpty()
@@ -24,5 +25,5 @@ export class CategoryDto {
 
     @IsOptional()
     @Expose()
-    parts?: any[]; // TODO: define PartDTO if needed
+    parts?: PartDto[]; // TODO: define PartDTO if needed
 }

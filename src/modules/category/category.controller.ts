@@ -32,7 +32,7 @@ export class CategoryController {
     return this.categoryService.getCategoryById(id);
   }
 
-  @Get('/:name')
+  @Get('search/:name')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   findByName(@Param('name') name: string) {
@@ -52,4 +52,5 @@ export class CategoryController {
   remove(@Param('id') id: string) {
     return this.categoryService.removeCategory(id);
   }
+
 }

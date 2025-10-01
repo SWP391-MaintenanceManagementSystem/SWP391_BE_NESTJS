@@ -18,24 +18,25 @@ export class CategoryService {
   }
 
   async getAllCategory(): Promise<CategoryDto[]> {
-    return this.prisma.category.findMany({
+    const categories =  await this.prisma.category.findMany({
       include: { parts: true },
       orderBy: { createdAt: 'asc' },
     });
+    return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });
   }
 
-  async getCategoryByName(name: string): Promise<CategoryDto[]> {
-    const categories = await this.prisma.category.findMany({
-      where: {
-        name: { contains: name, mode: 'insensitive'}
-      },
-      include: { parts: true },
-    });
-    if (!categories || categories.length === 0) {
-      throw new NotFoundException(`Category with Name ${name} not found`);
+    async getCategoryByName(name: string): Promise<CategoryDto[]> {
+      const categories = await this.prisma.category.findMany({
+        where: {
+          name: { contains: name, mode: 'insensitive'}
+        },
+        include: { parts: true },
+      });
+      if (!categories || categories.length === 0) {
+        throw new NotFoundException(`Category with Name ${name} not found`);
+      }
+      return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });
     }
-    return categories;
-  }
 
   async getCategoryById(id: string): Promise<CategoryDto> {
     const category = await this.prisma.category.findUnique({
@@ -45,7 +46,7 @@ export class CategoryService {
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
-    return category;
+    return plainToInstance(CategoryDto, category, { excludeExtraneousValues: true });
   }
 
   async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto): Promise<CategoryDto> {

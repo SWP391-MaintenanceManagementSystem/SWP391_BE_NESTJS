@@ -68,7 +68,11 @@ import { MembershipModule } from './modules/membership/membership.module';
     CustomerModule,
     TechnicianModule,
     VehicleModule,
+    ServiceModule,
+    CategoryModule,
+    PartModule,
     StaffModule,
+    MembershipModule,
   ],
   controllers: [AppController],
   providers: [
