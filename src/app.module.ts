@@ -20,6 +20,7 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { StaffModule } from './modules/employee/staff/staff.module';
 import { TechnicianModule } from './modules/employee/technician/technician.module';
+import { MembershipModule } from './modules/membership/membership.module';
 
 
 @Module({
@@ -65,6 +66,7 @@ import { TechnicianModule } from './modules/employee/technician/technician.modul
     TechnicianModule,
     VehicleModule,
     StaffModule,
+    MembershipModule,
   ],
   controllers: [AppController],
   providers: [

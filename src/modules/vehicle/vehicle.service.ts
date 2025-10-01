@@ -12,7 +12,7 @@ import { buildVehicleOrderBy } from 'src/common/sort/sort.util';
 
 @Injectable()
 export class VehicleService {
-  constructor(private readonly prismaService: PrismaService) { }
+  constructor(private readonly prismaService: PrismaService) {}
 
   async createVehicleModel(newModel: CreateVehicleModelDTO) {
     const vehicleModel = await this.prismaService.vehicleModel.create({
@@ -53,7 +53,7 @@ export class VehicleService {
       where: {
         vin: newVehicle.vin,
         status: 'ACTIVE',
-        deletedAt: null
+        deletedAt: null,
       },
     });
     if (vinExists) {
@@ -109,41 +109,35 @@ export class VehicleService {
       throw new NotFoundException('Vehicle not found');
     }
 
-    const vinExists = await this.prismaService.vehicle.findFirst({
-      where: {
-        AND: [
-          { vin: updatedVehicle.vin },
-          { status: 'ACTIVE' },
-          { deletedAt: null }
-        ],
-
-        NOT: { id: vehicleId },
-      },
-    })
-    if (vinExists) {
-      errors['vin'] = 'VIN already exists';
+    if (updatedVehicle.vin) {
+      const vinExists = await this.prismaService.vehicle.findFirst({
+        where: {
+          AND: [{ vin: updatedVehicle.vin }, { status: 'ACTIVE' }, { deletedAt: null }],
+          NOT: { id: vehicleId },
+        },
+      });
+      if (vinExists) errors['vin'] = 'VIN already exists';
     }
 
-    const plateExists = await this.prismaService.vehicle.findFirst({
-      where: {
-        AND: [
-          { licensePlate: updatedVehicle.licensePlate },
-          { status: 'ACTIVE' },
-          { deletedAt: null }
-        ],
-        NOT: { id: vehicleId },
-      },
-    });
-    if (plateExists) {
-      errors['licensePlate'] = 'License plate already exists';
+    if (updatedVehicle.licensePlate) {
+      const plateExists = await this.prismaService.vehicle.findFirst({
+        where: {
+          AND: [
+            { licensePlate: updatedVehicle.licensePlate },
+            { status: 'ACTIVE' },
+            { deletedAt: null },
+          ],
+          NOT: { id: vehicleId },
+        },
+      });
+      if (plateExists) errors['licensePlate'] = 'License plate already exists';
     }
 
-
-    const modelExists = await this.prismaService.vehicleModel.findUnique({
-      where: { id: updatedVehicle.modelId },
-    });
-    if (updatedVehicle.modelId && !modelExists) {
-      errors['modelId'] = 'Vehicle model does not exist';
+    if (updatedVehicle.modelId) {
+      const modelExists = await this.prismaService.vehicleModel.findUnique({
+        where: { id: updatedVehicle.modelId },
+      });
+      if (!modelExists) errors['modelId'] = 'Vehicle model does not exist';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -252,9 +246,7 @@ export class VehicleService {
 
   async getVehiclesByCustomer(customerId: string, isAdmin: boolean = false): Promise<VehicleDTO[]> {
     const vehicles = await this.prismaService.vehicle.findMany({
-      where: { customerId,
-        ...(isAdmin ? {} : { status: VehicleStatus.ACTIVE, deletedAt: null })
-       },
+      where: { customerId, ...(isAdmin ? {} : { status: VehicleStatus.ACTIVE, deletedAt: null }) },
       include: { vehicleModel: { include: { brand: true } } },
     });
     return vehicles.map(vehicle => ({
@@ -273,7 +265,7 @@ export class VehicleService {
   }
 
   async getVehicles(filter: VehicleQueryDTO): Promise<PaginationResponse<VehicleDTO>> {
-    let { page = 1, pageSize = 10, sortBy = "createdAt", orderBy = "desc" } = filter;
+    let { page = 1, pageSize = 10, sortBy = 'createdAt', orderBy = 'desc' } = filter;
     if (page < 1) page = 1;
     if (pageSize < 1) pageSize = 10;
 

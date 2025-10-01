@@ -77,6 +77,25 @@ enum ShiftStatus {
   INACTIVE
 }
 
+
+enum PeriodType {
+  DAY
+  MONTH
+  YEAR
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
+}
+
+
 /**
  * ================= MODELS =================
  */
@@ -395,8 +414,8 @@ model EmployeeCertificate {
 model Transaction {
   id            String            @id @default(uuid())
   customerId    String            @map("customer_id")
-  referenceId   String?           @map("reference_id")   // id của Booking / Subscription / v.v.
-  referenceType ReferenceType?    @map("reference_type") // loại entity
+  referenceId   String?           @map("reference_id")
+  referenceType ReferenceType?    @map("reference_type")
   amount        Float
   status        TransactionStatus @default(PENDING)
   method        Method
@@ -412,6 +431,7 @@ model Subscription {
   customerId String   @map("customer_id")
   membershipId String @map("membership_id")
   type       String
+  status     SubscriptionStatus @default(ACTIVE)
   startDate  DateTime @map("start_date")
   endDate    DateTime @map("end_date")
 
@@ -425,7 +445,9 @@ model Membership {
   id        String   @id @default(uuid())
   name      String
   price     Float
-  duration_days  Int
+  duration    Int
+  periodType  PeriodType
+  status    MembershipStatus @default(ACTIVE)
   description String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
