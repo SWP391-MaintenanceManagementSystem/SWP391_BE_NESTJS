@@ -6,7 +6,7 @@ import { VehicleDTO } from './dto/vehicle.dto';
 import { SuggestVehicleDTO } from './dto/suggest-vehicle.dto';
 import { VehicleQueryDTO } from 'src/modules/vehicle/dto/vehicle-query.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { Prisma } from '@prisma/client';
+import { Prisma, VehicleStatus } from '@prisma/client';
 import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 import { buildVehicleOrderBy } from 'src/common/sort/sort.util';
 
@@ -250,9 +250,11 @@ export class VehicleService {
     };
   }
 
-  async getVehiclesByCustomer(customerId: string): Promise<VehicleDTO[]> {
+  async getVehiclesByCustomer(customerId: string, isAdmin: boolean = false): Promise<VehicleDTO[]> {
     const vehicles = await this.prismaService.vehicle.findMany({
-      where: { customerId, status: 'ACTIVE' },
+      where: { customerId,
+        ...(isAdmin ? {} : { status: VehicleStatus.ACTIVE, deletedAt: null })
+       },
       include: { vehicleModel: { include: { brand: true } } },
     });
     return vehicles.map(vehicle => ({
