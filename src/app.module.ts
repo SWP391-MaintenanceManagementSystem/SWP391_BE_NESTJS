@@ -21,6 +21,7 @@ import { UploadModule } from './modules/upload/upload.module';
 import { StaffModule } from './modules/employee/staff/staff.module';
 import { TechnicianModule } from './modules/employee/technician/technician.module';
 import { ServiceCenterModule } from './modules/service-center/service-center.module';
+import { ShiftModule } from './modules/shift/shift.module';
 
 
 @Module({
@@ -67,6 +68,7 @@ import { ServiceCenterModule } from './modules/service-center/service-center.mod
     VehicleModule,
     StaffModule,
     ServiceCenterModule,
+    ShiftModule,
   ],
   controllers: [AppController],
   providers: [
