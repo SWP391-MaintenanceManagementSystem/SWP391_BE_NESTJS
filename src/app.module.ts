@@ -20,8 +20,7 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { StaffModule } from './modules/employee/staff/staff.module';
 import { TechnicianModule } from './modules/employee/technician/technician.module';
-import { ServiceCenterModule } from './modules/service-center/service-center.module';
-import { ShiftModule } from './modules/shift/shift.module';
+import { MembershipModule } from './modules/membership/membership.module';
 
 
 @Module({
@@ -67,8 +66,7 @@ import { ShiftModule } from './modules/shift/shift.module';
     TechnicianModule,
     VehicleModule,
     StaffModule,
-    ServiceCenterModule,
-    ShiftModule,
+    MembershipModule,
   ],
   controllers: [AppController],
   providers: [

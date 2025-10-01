@@ -1,9 +1,9 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsOptional, IsNumber, Matches, IsString } from "class-validator";
 
 
 export class UpdateVehicleDTO {
-    @ApiProperty({
+    @ApiPropertyOptional({
         description: 'Vehicle Identification Number (VIN)',
         example: '1HGCM82633A004352',
     })
@@ -14,7 +14,7 @@ export class UpdateVehicleDTO {
     })
     vin: string;
 
-    @ApiProperty({
+    @ApiPropertyOptional({
         description: 'License plate number of the vehicle',
         example: '51H-12345',
     })
@@ -25,7 +25,7 @@ export class UpdateVehicleDTO {
     })
     licensePlate: string;
 
-    @ApiProperty({
+    @ApiPropertyOptional({
         description: 'ID of the vehicle model',
         example: 1,
     })

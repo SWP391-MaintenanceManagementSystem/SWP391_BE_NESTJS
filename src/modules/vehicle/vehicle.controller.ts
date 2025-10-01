@@ -84,7 +84,7 @@ export class VehicleController {
   @Roles(AccountRole.ADMIN)
   @Get('/accounts/:accountId')
   async getVehiclesByAccount(@Param('accountId') accountId: string) {
-    const vehicles = await this.vehicleService.getVehiclesByCustomer(accountId);
+    const vehicles = await this.vehicleService.getVehiclesByCustomer(accountId, true);
     return {
       message: 'Vehicles retrieved successfully',
       data: vehicles,
