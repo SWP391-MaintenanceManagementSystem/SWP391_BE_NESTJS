@@ -39,8 +39,8 @@ export class SignUpDTO {
   @IsNotEmpty({ message: 'First name is required' })
   @IsString({ message: 'First name must be a string' })
   @Length(2, 30, { message: 'First name must be between 2 and 30 characters long' })
-  @Matches(/^[a-zA-Z\s'-]+$/, {
-    message: 'First name can only contain letters, spaces, hyphens and apostrophes',
+  @Matches(/^[\p{L}\s]+$/u, {
+    message: 'First name can only contain letters and spaces',
   })
   @ApiProperty({
     description: 'The first name of the user',
@@ -53,8 +53,8 @@ export class SignUpDTO {
   @IsNotEmpty({ message: 'Last name is required' })
   @IsString({ message: 'Last name must be a string' })
   @Length(2, 30, { message: 'Last name must be between 2 and 30 characters long' })
-  @Matches(/^[a-zA-Z\s'-]+$/, {
-    message: 'Last name can only contain letters, spaces, hyphens and apostrophes',
+  @Matches(/^[\p{L}\s]+$/u, {
+    message: 'Last name can only contain letters and spaces',
   })
   @ApiProperty({
     description: 'The last name of the user',
