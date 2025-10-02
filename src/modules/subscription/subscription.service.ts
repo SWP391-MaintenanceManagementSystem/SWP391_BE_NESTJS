@@ -5,11 +5,13 @@ import * as dateFns from 'date-fns';
 import { Prisma, SubscriptionStatus } from '@prisma/client';
 import { MembershipService } from '../membership/membership.service';
 import { convertToPeriod } from '../../utils';
+import { CustomerService } from '../customer/customer.service';
 @Injectable()
 export class SubscriptionService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly membershipService: MembershipService
+    private readonly membershipService: MembershipService,
+    private readonly customerService: CustomerService
   ) {}
 
   async createSubscription(membershipId: string, customerId: string) {
@@ -28,13 +30,14 @@ export class SubscriptionService {
         status: SubscriptionStatus.ACTIVE,
       },
     });
+    await this.prismaService.customer.update({
+      where: { accountId: customerId },
+      data: { isPremium: true },
+    });
     return subscription;
   }
 
-  async updateSubscriptionStatus(
-    subscriptionId: string,
-    updateField: Prisma.SubscriptionUpdateInput
-  ) {
+  async updateSubscription(subscriptionId: string, updateField: Prisma.SubscriptionUpdateInput) {
     const subscription = await this.prismaService.subscription.update({
       where: { id: subscriptionId },
       data: updateField,
@@ -49,6 +52,10 @@ export class SubscriptionService {
         customerId,
         status: SubscriptionStatus.ACTIVE,
       },
+      include: {
+        customer: true,
+        membership: true,
+      },
     });
 
     if (existingSubscription) {
@@ -61,9 +68,14 @@ export class SubscriptionService {
         membership.duration,
         existingSubscription.endDate
       );
-      return this.updateSubscriptionStatus(existingSubscription.id, {
+      const updated = await this.updateSubscription(existingSubscription.id, {
         endDate: newEndDate,
       });
+      await this.prismaService.customer.update({
+        where: { accountId: customerId },
+        data: { isPremium: true },
+      });
+      return updated;
     } else {
       return this.createSubscription(membershipId, customerId);
     }
