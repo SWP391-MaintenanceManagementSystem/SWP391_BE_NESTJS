@@ -1,5 +1,11 @@
-import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { Membership, Method, ReferenceType, TransactionStatus } from '@prisma/client';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Method, ReferenceType, TransactionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import Stripe from 'stripe';
 import { SubscriptionService } from '../subscription/subscription.service';
@@ -29,7 +35,7 @@ export class PaymentService {
           where: { id: referenceId },
         })) as MembershipDTO;
         if (!reference) {
-          throw new Error('Membership not found');
+          throw new NotFoundException('Membership not found');
         }
         break;
       case ReferenceType.BOOKING:
@@ -37,11 +43,11 @@ export class PaymentService {
           where: { id: referenceId },
         });
         if (!booking) {
-          throw new Error('Booking not found');
+          throw new NotFoundException('Booking not found');
         }
         break;
       default:
-        throw new Error('Invalid reference type');
+        throw new BadRequestException('Invalid reference type');
     }
 
     const transaction = await this.prismaService.transaction.create({
@@ -89,33 +95,33 @@ export class PaymentService {
       case 'checkout.session.completed':
         await this.handleCheckoutSuccess(event);
         break;
-      case 'payment_intent.payment_failed':
+      case 'checkout.session.async_payment_failed':
         await this.handlePaymentFailed(event);
         break;
+      default:
+        console.warn(`Unhandled event type: ${type}`);
     }
   }
 
   private async handleCheckoutSuccess(event: Stripe.Event) {
     const session = event.data.object as Stripe.Checkout.Session;
-    const transactionId = session.metadata?.transactionId;
+    const metadata = session?.metadata;
+    if (!metadata) {
+      throw new InternalServerErrorException('No metadata found in session');
+    }
+    const { transactionId, referenceId, referenceType, customerId } = metadata;
     await this.prismaService.transaction.update({
       where: { id: transactionId },
       data: { status: TransactionStatus.SUCCESS },
     });
-    const metadata = session.metadata;
-    if (!metadata) {
-      throw new Error('No metadata found in session');
-    }
-    switch (metadata.referenceType) {
+
+    switch (referenceType) {
       case ReferenceType.MEMBERSHIP:
-        await this.subscriptionService.createSubscription(
-          metadata.referenceId,
-          metadata.customerId
-        );
+        await this.subscriptionService.updateOrCreateSubscription(referenceId, customerId);
       case ReferenceType.BOOKING:
         break;
       default:
-        throw new Error('Invalid reference type');
+        throw new BadRequestException('Invalid reference type');
     }
     //TODO: Email notification
   }

@@ -25,15 +25,15 @@ function isEmpty(obj: object) {
 export function convertToPeriod(
   type: PeriodType,
   duration: number,
-  startDate: Date = new Date()
+  currentDate: Date = new Date()
 ): Date {
   switch (type) {
     case PeriodType.DAY:
-      return dateFns.addDays(startDate, duration);
+      return dateFns.addDays(currentDate, duration);
     case PeriodType.MONTH:
-      return dateFns.addMonths(startDate, duration);
+      return dateFns.addMonths(currentDate, duration);
     case PeriodType.YEAR:
-      return dateFns.addYears(startDate, duration);
+      return dateFns.addYears(currentDate, duration);
     default:
       throw new Error('Invalid period type');
   }

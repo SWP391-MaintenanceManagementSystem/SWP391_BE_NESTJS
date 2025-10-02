@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { AccountRole } from '@prisma/client';
@@ -30,7 +29,6 @@ export class PaymentController {
     @Inject('STRIPE_CLIENT') private readonly stripeClient: Stripe
   ) {}
 
-  /** Tạo Checkout Session */
   @Post()
   @Roles(AccountRole.CUSTOMER)
   async createCheckoutSession(
@@ -39,7 +37,7 @@ export class PaymentController {
   ) {
     const { referenceId, referenceType, amount } = body;
 
-    const session = await this.paymentService.createCheckoutSession(
+    const { url } = await this.paymentService.createCheckoutSession(
       user.sub,
       referenceId,
       referenceType,
@@ -48,7 +46,7 @@ export class PaymentController {
 
     return {
       message: 'Checkout session created successfully',
-      data: session,
+      data: url,
     };
   }
 
@@ -73,10 +71,8 @@ export class PaymentController {
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    // trả response trước
     res.json({ received: true });
 
-    // xử lý async không block response
     await this.paymentService.handleWebhook(event).catch(err => {
       console.error('Webhook handler error:', err);
     });
