@@ -1,3 +1,4 @@
+import { $Enums } from "@prisma/client";
 import { Expose, Transform } from "class-transformer";
 
 export class WorkScheduleDto {
@@ -39,9 +40,13 @@ export class WorkScheduleDto {
         name: string;
         startTime: string;
         endTime: string;
+        startDate: string;
+        endDate: string;
+        maximumSlot: number;
         serviceCenter?: {
             id: string;
             name: string;
+            status: $Enums.CenterStatus
         };
     }
 }

@@ -155,6 +155,12 @@ export class WorkScheduleController {
     return {
       message: 'Employees in shift retrieved successfully',
       data,
+      meta: {
+        shiftId,
+        date,
+        totalEmployees: data.length,
+        maxCapacity: data[0]?.shift?.maximumSlot || null
+      }
     };
   }
 
