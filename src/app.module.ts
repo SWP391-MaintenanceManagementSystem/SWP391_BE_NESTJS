@@ -23,6 +23,7 @@ import { TechnicianModule } from './modules/employee/technician/technician.modul
 import { MembershipModule } from './modules/membership/membership.module';
 import { ServiceCenterModule } from './modules/service-center/service-center.module';
 import { ShiftModule } from './modules/shift/shift.module';
+import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module';
 
 
 @Module({
@@ -71,6 +72,7 @@ import { ShiftModule } from './modules/shift/shift.module';
     MembershipModule,
     ServiceCenterModule,
     ShiftModule,
+    WorkScheduleModule,
   ],
   controllers: [AppController],
   providers: [
