@@ -1,17 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ShiftService } from './shift.service';
 import { CreateShiftDto } from './dto/create-shift.dto';
 import { UpdateShiftDto } from './dto/update-shift.dto';
 import { ShiftQueryDTO } from './dto/shift-query.dto';
-import { RoleGuard } from 'src/common/guard/role.guard';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Shift')
 @Controller('api/shift')
-@UseGuards(RoleGuard)
 @ApiBearerAuth('jwt-auth')
 export class ShiftController {
   constructor(private readonly shiftService: ShiftService) {}
@@ -74,12 +72,8 @@ export class ShiftController {
 
   @Patch(':id')
   @Roles(AccountRole.ADMIN)
-  @ApiOperation({ summary: 'Update shift (ADMIN only)' })
   @ApiParam({ name: 'id', type: String, description: 'Shift UUID' })
   @ApiBody({ type: UpdateShiftDto })
-  @ApiResponse({ status: 200, description: 'Shift updated successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden - ADMIN only' })
-  @ApiResponse({ status: 404, description: 'Shift not found' })
   async updateShift(
     @Param('id') id: string,
     @Body() updateShiftDto: UpdateShiftDto
