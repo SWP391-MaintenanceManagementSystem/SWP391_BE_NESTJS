@@ -17,17 +17,10 @@ export class ShiftController {
   constructor(private readonly shiftService: ShiftService) {}
 
   @Post()
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
+  @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateShiftDto })
-  async createShift(
-    @Body() createShiftDto: CreateShiftDto,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.shiftService.createShift(
-      createShiftDto,
-      user.role,
-      user.sub
-    );
+  async createShift(@Body() createShiftDto: CreateShiftDto) {
+    const data = await this.shiftService.createShift(createShiftDto);
     return {
       message: 'Shift created successfully',
       data,
@@ -62,7 +55,6 @@ export class ShiftController {
 
   @Get(':id')
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Get shift by ID' })
   @ApiParam({
     name: 'id',
     type: String,
@@ -70,7 +62,7 @@ export class ShiftController {
     example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
   })
   async getShiftById(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @CurrentUser() user: any
   ) {
     const data = await this.shiftService.getShiftById(id, user.role, user.sub);
@@ -81,33 +73,26 @@ export class ShiftController {
   }
 
   @Patch(':id')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
-  @ApiParam({
-    name: 'id',
-    type: String,
-    description: 'Shift UUID',
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
-  })
+  @Roles(AccountRole.ADMIN)
+  @ApiOperation({ summary: 'Update shift (ADMIN only)' })
+  @ApiParam({ name: 'id', type: String, description: 'Shift UUID' })
   @ApiBody({ type: UpdateShiftDto })
+  @ApiResponse({ status: 200, description: 'Shift updated successfully' })
+  @ApiResponse({ status: 403, description: 'Forbidden - ADMIN only' })
+  @ApiResponse({ status: 404, description: 'Shift not found' })
   async updateShift(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateShiftDto: UpdateShiftDto,
-    @CurrentUser() user: any
+    @Param('id') id: string,
+    @Body() updateShiftDto: UpdateShiftDto
   ) {
-    const data = await this.shiftService.updateShift(
-      id,
-      user.role,
-      user.sub,
-      updateShiftDto
-    );
+    const data = await this.shiftService.updateShift(id, updateShiftDto);
     return {
-      message: `Shift with ID ${id} updated successfully`,
+      message: 'Shift updated successfully',
       data,
     };
   }
 
   @Delete(':id')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
+  @Roles(AccountRole.ADMIN)
   @ApiParam({
     name: 'id',
     type: String,
@@ -115,11 +100,13 @@ export class ShiftController {
     example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
   })
   async deleteShift(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: any
+    @Param('id') id: string,
   ) {
-    const result = await this.shiftService.deleteShift(id, user.role, user.sub);
-    return result;
+    const data = await this.shiftService.deleteShift(id);
+    return {
+      message: 'Shift deleted successfully',
+      data,
+    }
   }
 
   // Get available shifts (có slot trống)

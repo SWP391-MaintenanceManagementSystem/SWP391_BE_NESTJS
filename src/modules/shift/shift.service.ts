@@ -18,7 +18,7 @@ import { Prisma } from '@prisma/client';
 @Injectable()
 export class ShiftService {
   constructor(private readonly prismaService: PrismaService) {}
-  async createShift(shift: CreateShiftDto, userRole: AccountRole, employeeId?: string): Promise<ShiftDTO> {
+  async createShift(shift: CreateShiftDto): Promise<ShiftDTO> {
     const startTime = new Date(shift.startTime);
     const endTime = new Date(shift.endTime);
     if (startTime >= endTime) {
@@ -37,17 +37,7 @@ export class ShiftService {
     if (!existCenter) {
       throw new NotFoundException(`Service center with ID ${shift.centerId} not found`);
     }
-    if (userRole === AccountRole.STAFF && employeeId) {
-      const isAssigned = await this.prismaService.workCenter.findFirst({
-        where: {
-          employeeId,
-          centerId: shift.centerId,
-        }
-      });
-      if (!isAssigned) {
-        throw new BadRequestException('You are not assigned to this service center');
-      }
-    }
+
     const conflictShift = await this.prismaService.shift.findFirst({
       where: {
         centerId: shift.centerId,
@@ -204,7 +194,7 @@ export class ShiftService {
     };
   }
 
-  async updateShift(id: string, userRole: AccountRole, employeeId: string, updateShiftDto: UpdateShiftDto): Promise<ShiftDTO> {
+  async updateShift(id: string, updateShiftDto: UpdateShiftDto): Promise<ShiftDTO> {
     const existingShift = await this.prismaService.shift.findUnique({
       where: { id },
     });
@@ -239,17 +229,6 @@ export class ShiftService {
         throw new ConflictException(`Shift with name ${updateShiftDto.name} already exists in this center`);
       }
     }
-    if (userRole === AccountRole.STAFF && employeeId) {
-      const isAssigned = await this.prismaService.workCenter.findFirst({
-        where: {
-          employeeId,
-          centerId: existingShift.centerId,
-        }
-      });
-      if (!isAssigned) {
-        throw new ForbiddenException('You can only update shifts in your assigned service centers');
-      }
-    }
     const updatedData: any = {};
     if (updateShiftDto.name !== undefined) updatedData.name = updateShiftDto.name;
     if (updateShiftDto.startTime !== undefined) updatedData.startTime = new Date(updateShiftDto.startTime);
@@ -271,7 +250,7 @@ export class ShiftService {
     return plainToInstance(ShiftDTO, updatedShift);
   }
 
-  async deleteShift(id: string, userRole: AccountRole, employeeId?: string): Promise<void> {
+  async deleteShift(id: string): Promise<void> {
     const existingShift = await this.prismaService.shift.findUnique({
       where: { id },
       include: {
@@ -284,18 +263,6 @@ export class ShiftService {
     if (existingShift._count.workSchedules > 0) {
       throw new BadRequestException('Cannot delete shift with assigned work schedules');
     }
-    if (userRole === AccountRole.STAFF && employeeId) {
-      const isAssigned = await this.prismaService.workCenter.findFirst({
-        where: {
-          employeeId,
-          centerId: existingShift.centerId,
-        }
-      });
-      if (!isAssigned) {
-        throw new ForbiddenException('You can only invalidate shifts in your assigned service centers');
-      }
-    }
-
     if (existingShift._count.workSchedules === 0) {
       await this.prismaService.shift.update({
         where: { id },
