@@ -25,6 +25,7 @@ import { CategoryModule } from './modules/category/category.module';
 import { PartModule } from './modules/part/part.module';
 import { MembershipModule } from './modules/membership/membership.module';
 import { ServicePartModule } from './modules/service-part/service-part.module';
+import { PackageModule } from './modules/package/package.module';
 
 
 @Module({
@@ -75,6 +76,7 @@ import { ServicePartModule } from './modules/service-part/service-part.module';
     StaffModule,
     MembershipModule,
     ServicePartModule,
+    PackageModule,
   ],
   controllers: [AppController],
   providers: [
