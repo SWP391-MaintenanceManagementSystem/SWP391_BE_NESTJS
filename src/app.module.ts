@@ -20,7 +20,11 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { StaffModule } from './modules/employee/staff/staff.module';
 import { TechnicianModule } from './modules/employee/technician/technician.module';
+import { ServiceModule } from './modules/service/service.module';
+import { CategoryModule } from './modules/category/category.module';
+import { PartModule } from './modules/part/part.module';
 import { MembershipModule } from './modules/membership/membership.module';
+import { ServicePartModule } from './modules/service-part/service-part.module';
 import { StripeModule } from './modules/stripe/stripe.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { PaymentModule } from './modules/payment/payment.module';
@@ -67,8 +71,12 @@ import { PaymentModule } from './modules/payment/payment.module';
     CustomerModule,
     TechnicianModule,
     VehicleModule,
+    ServiceModule,
+    CategoryModule,
+    PartModule,
     StaffModule,
     MembershipModule,
+    ServicePartModule,
     StripeModule.forRoot(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-09-30.clover' }),
     SubscriptionModule,
     PaymentModule,
