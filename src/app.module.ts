@@ -21,10 +21,9 @@ import { UploadModule } from './modules/upload/upload.module';
 import { StaffModule } from './modules/employee/staff/staff.module';
 import { TechnicianModule } from './modules/employee/technician/technician.module';
 import { MembershipModule } from './modules/membership/membership.module';
-import { ServiceCenterModule } from './modules/service-center/service-center.module';
-import { ShiftModule } from './modules/shift/shift.module';
-import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module';
-
+import { StripeModule } from './modules/stripe/stripe.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { PaymentModule } from './modules/payment/payment.module';
 
 @Module({
   imports: [
@@ -70,9 +69,9 @@ import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module
     VehicleModule,
     StaffModule,
     MembershipModule,
-    ServiceCenterModule,
-    ShiftModule,
-    WorkScheduleModule,
+    StripeModule.forRoot(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-09-30.clover' }),
+    SubscriptionModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [
@@ -95,4 +94,4 @@ import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -108,36 +108,29 @@ export class VehicleService {
     if (!existingVehicle) {
       throw new NotFoundException('Vehicle not found');
     }
+    const { vin, licensePlate, modelId } = updatedVehicle;
 
-    if (updatedVehicle.vin) {
-      const vinExists = await this.prismaService.vehicle.findFirst({
-        where: {
-          AND: [{ vin: updatedVehicle.vin }, { status: 'ACTIVE' }, { deletedAt: null }],
-          NOT: { id: vehicleId },
-        },
+    if (vin && vin !== existingVehicle.vin) {
+      const vinExists = await this.prismaService.vehicle.findUnique({
+        where: { vin },
       });
       if (vinExists) errors['vin'] = 'VIN already exists';
     }
 
-    if (updatedVehicle.licensePlate) {
-      const plateExists = await this.prismaService.vehicle.findFirst({
-        where: {
-          AND: [
-            { licensePlate: updatedVehicle.licensePlate },
-            { status: 'ACTIVE' },
-            { deletedAt: null },
-          ],
-          NOT: { id: vehicleId },
-        },
+    if (licensePlate && licensePlate !== existingVehicle.licensePlate) {
+      const plateExists = await this.prismaService.vehicle.findUnique({
+        where: { licensePlate },
       });
       if (plateExists) errors['licensePlate'] = 'License plate already exists';
     }
 
-    if (updatedVehicle.modelId) {
+    if (modelId && modelId !== existingVehicle.modelId) {
       const modelExists = await this.prismaService.vehicleModel.findUnique({
-        where: { id: updatedVehicle.modelId },
+        where: { id: modelId },
       });
-      if (!modelExists) errors['modelId'] = 'Vehicle model does not exist';
+      if (!modelExists) {
+        errors['modelId'] = 'Vehicle model does not exist';
+      }
     }
 
     if (Object.keys(errors).length > 0) {
