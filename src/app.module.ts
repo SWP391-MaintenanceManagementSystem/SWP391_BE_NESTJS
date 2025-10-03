@@ -24,7 +24,9 @@ import { ServiceModule } from './modules/service/service.module';
 import { CategoryModule } from './modules/category/category.module';
 import { PartModule } from './modules/part/part.module';
 import { MembershipModule } from './modules/membership/membership.module';
-import { ServicePartModule } from './modules/service-part/service-part.module';
+import { StripeModule } from './modules/stripe/stripe.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { PaymentModule } from './modules/payment/payment.module';import { ServicePartModule } from './modules/service-part/service-part.module';
 import { PackageModule } from './modules/package/package.module';
 
 
@@ -75,6 +77,9 @@ import { PackageModule } from './modules/package/package.module';
     PartModule,
     StaffModule,
     MembershipModule,
+    StripeModule.forRoot(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-09-30.clover' }),
+    SubscriptionModule,
+    PaymentModule,
     ServicePartModule,
     PackageModule,
   ],
@@ -99,4 +104,4 @@ import { PackageModule } from './modules/package/package.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

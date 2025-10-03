@@ -1,9 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
 import { IsEmail, IsEnum, IsOptional, IsString, Length, Matches } from 'class-validator';
 
 export class UpdateCustomerDTO {
-
   @IsOptional({ message: 'First name is required' })
   @IsString({ message: 'First name must be a string' })
   @Length(1, 30, { message: 'First name must be between 2 and 30 characters long' })

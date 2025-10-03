@@ -12,6 +12,8 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Authorization',
   });
+  app.use('/api/payment/webhook', require('body-parser').raw({ type: 'application/json' }));
+
   const config = new DocumentBuilder()
     .setTitle('SWP391 API')
     .setDescription('The SWP391 API description')

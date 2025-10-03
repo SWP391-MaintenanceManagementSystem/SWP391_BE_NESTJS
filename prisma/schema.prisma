@@ -43,12 +43,12 @@ enum BookingStatus {
 
 enum ReferenceType {
   BOOKING
-  SUBSCRIPTION
+  MEMBERSHIP
 }
 
 enum Method {
   CASH
-  ONLINE
+  CARD
 }
 
 enum TransactionStatus {
@@ -68,6 +68,11 @@ enum CenterStatus {
 }
 
 enum ServiceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PackageStatus {
   ACTIVE
   INACTIVE
 }
@@ -279,6 +284,8 @@ model Package {
   id        String   @id @default(uuid())
   name      String
   price     Float
+  discountRate Float    @map("discount_rate")
+  status    PackageStatus @default(ACTIVE)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -430,7 +437,6 @@ model Subscription {
   id         String   @id @default(uuid())
   customerId String   @map("customer_id")
   membershipId String @map("membership_id")
-  type       String
   status     SubscriptionStatus @default(ACTIVE)
   startDate  DateTime @map("start_date")
   endDate    DateTime @map("end_date")
