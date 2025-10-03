@@ -284,7 +284,7 @@ model Package {
   id        String   @id @default(uuid())
   name      String
   price     Float
-  discountRate Float    @map("discount_rate")
+  discountRate Float    @map("discount_rate") @default(0)
   status    PackageStatus @default(ACTIVE)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
