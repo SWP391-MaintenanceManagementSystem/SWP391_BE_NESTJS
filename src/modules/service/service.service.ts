@@ -113,11 +113,30 @@ async findAllForCustomer(query: ServiceQueryCustomerDTO): Promise<PaginationResp
 }
 
   async create(createServiceDto: CreateServiceDto): Promise<ServiceDto> {
-    const newService = await this.prisma.service.create({
-      data: {...createServiceDto, status: ServiceStatus.ACTIVE},
-      include: {ServicePart: { include: { part: true } }},
-    });
-    return plainToInstance(ServiceDto, newService, { excludeExtraneousValues: true });
+    const { name, description, price, partIds } = createServiceDto;
+
+  // Tạo service trước, rồi tạo ServicePart
+  const newService = await this.prisma.service.create({
+    data: {
+      name,
+      description,
+      price,
+      status: "ACTIVE",
+      ServicePart: {
+        create: partIds?.map(partId => ({
+          partId,
+          quantity: 1, // default quantity, bạn có thể cho nhập từ DTO
+        })) || [],
+      },
+    },
+    include: {
+      ServicePart: {
+        include: { part: true },
+      },
+    },
+  });
+
+  return plainToInstance(ServiceDto, newService, { excludeExtraneousValues: true });
   }
 
   async getServiceByNameForCustomer(name: string): Promise<ServiceDto[]> {
