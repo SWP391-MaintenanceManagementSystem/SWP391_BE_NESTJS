@@ -8,10 +8,40 @@ CREATE TYPE "public"."AccountStatus" AS ENUM ('VERIFIED', 'NOT_VERIFY', 'BANNED'
 CREATE TYPE "public"."AuthProvider" AS ENUM ('EMAIL', 'GOOGLE');
 
 -- CreateEnum
-CREATE TYPE "public"."BookingStatus" AS ENUM ('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED');
+CREATE TYPE "public"."BookingStatus" AS ENUM ('PENDING', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'IN_PROCESS');
+
+-- CreateEnum
+CREATE TYPE "public"."ReferenceType" AS ENUM ('BOOKING', 'MEMBERSHIP');
+
+-- CreateEnum
+CREATE TYPE "public"."Method" AS ENUM ('CASH', 'CARD');
 
 -- CreateEnum
 CREATE TYPE "public"."TransactionStatus" AS ENUM ('PENDING', 'SUCCESS', 'FAILED');
+
+-- CreateEnum
+CREATE TYPE "public"."VehicleStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+
+-- CreateEnum
+CREATE TYPE "public"."CenterStatus" AS ENUM ('OPEN', 'CLOSED');
+
+-- CreateEnum
+CREATE TYPE "public"."ServiceStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+
+-- CreateEnum
+CREATE TYPE "public"."PackageStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+
+-- CreateEnum
+CREATE TYPE "public"."ShiftStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+
+-- CreateEnum
+CREATE TYPE "public"."PeriodType" AS ENUM ('DAY', 'MONTH', 'YEAR');
+
+-- CreateEnum
+CREATE TYPE "public"."MembershipStatus" AS ENUM ('ACTIVE', 'INACTIVE');
+
+-- CreateEnum
+CREATE TYPE "public"."SubscriptionStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'EXPIRED');
 
 -- CreateTable
 CREATE TABLE "public"."accounts" (
@@ -22,6 +52,7 @@ CREATE TABLE "public"."accounts" (
     "role" "public"."AccountRole" NOT NULL DEFAULT 'CUSTOMER',
     "status" "public"."AccountStatus" NOT NULL DEFAULT 'NOT_VERIFY',
     "avatar" TEXT,
+    "avatar_public_id" TEXT,
     "provider" "public"."AuthProvider"[] DEFAULT ARRAY['EMAIL']::"public"."AuthProvider"[],
     "provider_id" JSONB,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -48,7 +79,6 @@ CREATE TABLE "public"."employees" (
     "account_id" TEXT NOT NULL,
     "first_name" TEXT NOT NULL,
     "last_name" TEXT NOT NULL,
-    "employee_id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -68,17 +98,21 @@ CREATE TABLE "public"."admins" (
 -- CreateTable
 CREATE TABLE "public"."vehicles" (
     "id" TEXT NOT NULL,
+    "vin" TEXT NOT NULL,
     "customer_id" TEXT NOT NULL,
-    "plate" TEXT NOT NULL,
+    "license_plate" TEXT NOT NULL,
+    "deleted_at" TIMESTAMP(3),
+    "last_service" TIMESTAMP(3),
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
+    "status" "public"."VehicleStatus" NOT NULL DEFAULT 'ACTIVE',
     "model_id" INTEGER NOT NULL,
 
     CONSTRAINT "vehicles_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "public"."VehicleModel" (
+CREATE TABLE "public"."vehicle_models" (
     "id" SERIAL NOT NULL,
     "brand_id" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
@@ -86,7 +120,7 @@ CREATE TABLE "public"."VehicleModel" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "VehicleModel_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "vehicle_models_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -143,7 +177,9 @@ CREATE TABLE "public"."booking_assignments" (
 CREATE TABLE "public"."services" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "description" TEXT,
     "price" DOUBLE PRECISION NOT NULL,
+    "status" "public"."ServiceStatus" NOT NULL DEFAULT 'ACTIVE',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -155,6 +191,8 @@ CREATE TABLE "public"."packages" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "price" DOUBLE PRECISION NOT NULL,
+    "discount_rate" DOUBLE PRECISION NOT NULL,
+    "status" "public"."PackageStatus" NOT NULL DEFAULT 'ACTIVE',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -163,12 +201,48 @@ CREATE TABLE "public"."packages" (
 
 -- CreateTable
 CREATE TABLE "public"."package_details" (
-    "id" TEXT NOT NULL,
     "packageId" TEXT NOT NULL,
     "serviceId" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL DEFAULT 1,
 
-    CONSTRAINT "package_details_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "package_details_pkey" PRIMARY KEY ("packageId","serviceId")
+);
+
+-- CreateTable
+CREATE TABLE "public"."parts" (
+    "id" TEXT NOT NULL,
+    "category_id" TEXT NOT NULL,
+    "description" TEXT,
+    "price" DOUBLE PRECISION NOT NULL,
+    "name" TEXT NOT NULL,
+    "stock" INTEGER NOT NULL,
+    "min_stock" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "parts_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."categories" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "categories_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."service_parts" (
+    "id" TEXT NOT NULL,
+    "service_id" TEXT NOT NULL,
+    "part_id" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "service_parts_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -176,6 +250,7 @@ CREATE TABLE "public"."service_centers" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "address" TEXT NOT NULL,
+    "status" "public"."CenterStatus" NOT NULL DEFAULT 'OPEN',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -192,6 +267,7 @@ CREATE TABLE "public"."shifts" (
     "end_date" TIMESTAMP(3),
     "maximum_slot" INTEGER,
     "repeat_days" TEXT,
+    "status" "public"."ShiftStatus" NOT NULL DEFAULT 'ACTIVE',
     "center_id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -236,10 +312,13 @@ CREATE TABLE "public"."employee_certificates" (
 CREATE TABLE "public"."transactions" (
     "id" TEXT NOT NULL,
     "customer_id" TEXT NOT NULL,
-    "booking_id" TEXT NOT NULL,
+    "reference_id" TEXT,
+    "reference_type" "public"."ReferenceType",
     "amount" DOUBLE PRECISION NOT NULL,
     "status" "public"."TransactionStatus" NOT NULL DEFAULT 'PENDING',
+    "method" "public"."Method" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "transactions_pkey" PRIMARY KEY ("id")
 );
@@ -248,11 +327,27 @@ CREATE TABLE "public"."transactions" (
 CREATE TABLE "public"."subscriptions" (
     "id" TEXT NOT NULL,
     "customer_id" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
+    "membership_id" TEXT NOT NULL,
+    "status" "public"."SubscriptionStatus" NOT NULL DEFAULT 'ACTIVE',
     "start_date" TIMESTAMP(3) NOT NULL,
     "end_date" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "public"."memberships" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "price" DOUBLE PRECISION NOT NULL,
+    "duration" INTEGER NOT NULL,
+    "periodType" "public"."PeriodType" NOT NULL,
+    "status" "public"."MembershipStatus" NOT NULL DEFAULT 'ACTIVE',
+    "description" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "memberships_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -269,10 +364,10 @@ CREATE TABLE "public"."tokens" (
 CREATE UNIQUE INDEX "accounts_email_key" ON "public"."accounts"("email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "employees_employee_id_key" ON "public"."employees"("employee_id");
+CREATE UNIQUE INDEX "vehicles_vin_key" ON "public"."vehicles"("vin");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "vehicles_plate_key" ON "public"."vehicles"("plate");
+CREATE UNIQUE INDEX "vehicles_license_plate_key" ON "public"."vehicles"("license_plate");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "brands_name_key" ON "public"."brands"("name");
@@ -299,10 +394,10 @@ ALTER TABLE "public"."admins" ADD CONSTRAINT "admins_account_id_fkey" FOREIGN KE
 ALTER TABLE "public"."vehicles" ADD CONSTRAINT "vehicles_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("account_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."vehicles" ADD CONSTRAINT "vehicles_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."VehicleModel"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."vehicles" ADD CONSTRAINT "vehicles_model_id_fkey" FOREIGN KEY ("model_id") REFERENCES "public"."vehicle_models"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."VehicleModel" ADD CONSTRAINT "VehicleModel_brand_id_fkey" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "public"."vehicle_models" ADD CONSTRAINT "vehicle_models_brand_id_fkey" FOREIGN KEY ("brand_id") REFERENCES "public"."brands"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."bookings" ADD CONSTRAINT "bookings_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("account_id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -335,6 +430,18 @@ ALTER TABLE "public"."package_details" ADD CONSTRAINT "package_details_packageId
 ALTER TABLE "public"."package_details" ADD CONSTRAINT "package_details_serviceId_fkey" FOREIGN KEY ("serviceId") REFERENCES "public"."services"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "public"."parts" ADD CONSTRAINT "parts_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."service_parts" ADD CONSTRAINT "service_parts_service_id_fkey" FOREIGN KEY ("service_id") REFERENCES "public"."services"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."service_parts" ADD CONSTRAINT "service_parts_part_id_fkey" FOREIGN KEY ("part_id") REFERENCES "public"."parts"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "public"."shifts" ADD CONSTRAINT "shifts_center_id_fkey" FOREIGN KEY ("center_id") REFERENCES "public"."service_centers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "public"."work_schedules" ADD CONSTRAINT "work_schedules_employee_id_fkey" FOREIGN KEY ("employee_id") REFERENCES "public"."employees"("account_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -353,10 +460,10 @@ ALTER TABLE "public"."employee_certificates" ADD CONSTRAINT "employee_certificat
 ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("account_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."transactions" ADD CONSTRAINT "transactions_booking_id_fkey" FOREIGN KEY ("booking_id") REFERENCES "public"."bookings"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("account_id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "public"."customers"("account_id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."subscriptions" ADD CONSTRAINT "subscriptions_membership_id_fkey" FOREIGN KEY ("membership_id") REFERENCES "public"."memberships"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."tokens" ADD CONSTRAINT "tokens_account_id_fkey" FOREIGN KEY ("account_id") REFERENCES "public"."accounts"("id") ON DELETE CASCADE ON UPDATE CASCADE;

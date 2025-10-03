@@ -1,9 +1,21 @@
-import { PrismaClient } from '@prisma/client';
+import { AccountStatus, PrismaClient } from '@prisma/client';
+import { hashPassword } from 'src/utils';
 
 const prisma = new PrismaClient();
 
 async function main() {
   // Tạo admin account
+  // await prisma.account.upsert({
+  //   where: { email: 'admin@gmail.com' },
+  //   update: {},
+  //   create: {
+  //     email: 'admin@gmail.com',
+  //     password: await hashPassword('Password123!'),
+  //     role: 'ADMIN',
+  //     status: AccountStatus.VERIFIED,
+  //     phone: '1234567890',
+  //   },
+  // });
 
   const electricCarBrands = await prisma.brand.createMany({
     data: [
@@ -54,37 +66,26 @@ async function main() {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
+      {
+        id: 4,
+        brandId: 2,
+        name: 'VF 8',
+        productionYear: 2022,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      {
+        id: 5,
+        brandId: 3,
+        name: 'iX',
+        productionYear: 2023,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
     ],
   });
 
   console.log({ electricCarBrands, vehicleModels });
-
-
-  const createTechnician = await prisma.account.createMany({
-    data: [
-      {
-        email: 'tech1@gmail.com',
-        password: 'Password123!',
-        role: 'TECHNICIAN',
-        phone: '0912345678',
-        status: 'VERIFIED',
-      },
-      {
-        email: 'tech2@gmail.com',
-        password: 'Password123!',
-        role: 'TECHNICIAN',
-        phone: '0912345678',
-        status: 'VERIFIED',
-      },
-      {
-        email: 'tech3@gmail.com',
-        password: 'Password123!',
-        role: 'TECHNICIAN',
-        phone: '0912345678',
-        status: 'VERIFIED',
-      },
-    ]
-  })
 }
 
 main()
