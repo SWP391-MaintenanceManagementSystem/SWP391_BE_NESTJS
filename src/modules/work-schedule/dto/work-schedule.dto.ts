@@ -46,7 +46,7 @@ export class WorkScheduleDto {
         serviceCenter?: {
             id: string;
             name: string;
-            status: $Enums.CenterStatus
+            status: $Enums.CenterStatus;
         };
     }
 }

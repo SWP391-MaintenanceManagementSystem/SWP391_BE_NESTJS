@@ -21,7 +21,7 @@ export class WorkScheduleService {
   async createWorkSchedule(
     createWorkScheduleDto: CreateWorkScheduleDto,
     userRole: AccountRole,
-    employeeId?: string
+    employeeId: string[]
   ): Promise<WorkScheduleDto[]> {
     if (userRole !== AccountRole.ADMIN) {
       throw new ForbiddenException('Only ADMIN can create work schedules');
