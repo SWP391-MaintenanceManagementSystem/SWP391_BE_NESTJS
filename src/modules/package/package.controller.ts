@@ -21,8 +21,12 @@ export class PackageController {
   @Get()
   @Roles(AccountRole.ADMIN, AccountRole.CUSTOMER)
   @ApiBearerAuth('jwt-auth')
-  findAll() {
-    return this.packageService.getAllPackages();
+  async findAll() {
+    const data = await this.packageService.getAllPackages();
+    return {
+      data: data,
+      message: 'Get all packages successfully'
+    };
   }
 
   @Get(':id')

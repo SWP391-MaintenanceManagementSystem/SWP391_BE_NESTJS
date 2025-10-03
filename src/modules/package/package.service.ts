@@ -10,17 +10,42 @@ export class PackageService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createPackage(createPackageDto: CreatePackageDto): Promise<PackageDto> {
+    const { name, price, discountRate } = createPackageDto;
+
+    // Chỉ lưu những field tồn tại trong DB
     const packageData = await this.prisma.package.create({
-      data: createPackageDto,
-      include: { packageDetails: { include: { service: true } } },
+      data: {
+        name,
+        price,
+        discountRate: discountRate || 0,
+      },
+      include: {
+        packageDetails: {
+          include: { service: true },
+        },
+      },
     });
-    return plainToInstance(PackageDto, packageData, { excludeExtraneousValues: true });
+
+    // Gán totalPrice từ input admin nếu có
+    const result = { ...packageData, totalPrice: createPackageDto.totalPrice };
+
+    return plainToInstance(PackageDto, result, { excludeExtraneousValues: true });
   }
 
   async getAllPackages(): Promise<PackageDto[]> {
     const packages = await this.prisma.package.findMany({
       orderBy: { createdAt: 'asc' },
-      include: { packageDetails: { include: { service: true } } },
+    include: {
+      packageDetails: {
+        include: {
+          service: {
+            include: {
+              ServicePart: { include: { part: true } }
+            }
+          }
+        }
+      }
+    }
     });
     return plainToInstance(PackageDto, packages, { excludeExtraneousValues: true });
   }
@@ -28,7 +53,17 @@ export class PackageService {
   async getPackageById(id: string): Promise<PackageDto> {
     const packageData = await this.prisma.package.findUnique({
       where: { id },
-      include: { packageDetails: { include: { service: true } } },
+    include: {
+      packageDetails: {
+        include: {
+          service: {
+            include: {
+              ServicePart: { include: { part: true } }
+            }
+          }
+        }
+      }
+    }
     });
     if(!packageData) {
       throw new NotFoundException(`Package with ID ${id} not found`);
@@ -37,16 +72,27 @@ export class PackageService {
   }
 
   async updatePackage(id: string, updatePackageDto: UpdatePackageDto): Promise<PackageDto> {
-    const existingPackage = await this.prisma.package.findUnique({ where: { id } });
+   const existingPackage = await this.prisma.package.findUnique({ where: { id } });
     if (!existingPackage) {
       throw new NotFoundException(`Package with ID ${id} not found`);
     }
+
+    const { name, price, discountRate } = updatePackageDto;
+
     const updatedPackage = await this.prisma.package.update({
       where: { id },
-      data: updatePackageDto,
+      data: {
+        name: name ?? existingPackage.name,
+        price: price ?? existingPackage.price,
+        discountRate: discountRate ?? existingPackage.discountRate,
+      },
       include: { packageDetails: { include: { service: true } } },
     });
-    return plainToInstance(PackageDto, updatedPackage, { excludeExtraneousValues: true });
+
+    // Gán totalPrice từ input admin nếu có
+    const result = { ...updatedPackage, totalPrice: updatePackageDto.totalPrice };
+
+    return plainToInstance(PackageDto, result, { excludeExtraneousValues: true });
   }
 
   async deletePackage(id: string): Promise<string> {
