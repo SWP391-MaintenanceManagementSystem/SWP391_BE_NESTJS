@@ -26,4 +26,12 @@ export class CreateServiceDto {
   @IsNumber()
   @Min(0)
   price: number;
+
+  @ApiPropertyOptional({
+    example: ['partId1', 'partId2'],
+    description: 'List of associated part IDs',
+  })
+  @IsString({ each: true })
+  partIds: string[];
+
 }
