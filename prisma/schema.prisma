@@ -395,8 +395,8 @@ model WorkCenter {
   id         String   @id @default(uuid())
   employeeId String   @map("employee_id")
   centerId   String   @map("center_id")
-  assignedAt DateTime @default(now()) @map("assigned_at")
-
+  startDate  DateTime @map("start_date")
+  endDate    DateTime @map("end_date")
   employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
   serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
 
