@@ -29,10 +29,10 @@ export class PackageDto {
 
    @Expose()
    @Transform(({ obj }) => {
-    // 1️⃣ Nếu admin đã nhập totalPrice, dùng luôn
+
     if (obj.totalPrice) return obj.totalPrice;
 
-    // 2️⃣ Nếu không nhập, tính dựa trên services + discountRate
+
     const details: PackageDetailDto[] = obj.packageDetails || [];
     const servicesTotal = details.reduce((sum, pd) => {
       const servicePrice = pd.service?.price || 0;

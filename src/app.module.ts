@@ -28,6 +28,7 @@ import { StripeModule } from './modules/stripe/stripe.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { PaymentModule } from './modules/payment/payment.module';import { ServicePartModule } from './modules/service-part/service-part.module';
 import { PackageModule } from './modules/package/package.module';
+import { PackageDetailModule } from './modules/package-detail/package-detail.module';
 
 
 @Module({
@@ -82,6 +83,7 @@ import { PackageModule } from './modules/package/package.module';
     PaymentModule,
     ServicePartModule,
     PackageModule,
+    PackageDetailModule,
   ],
   controllers: [AppController],
   providers: [
