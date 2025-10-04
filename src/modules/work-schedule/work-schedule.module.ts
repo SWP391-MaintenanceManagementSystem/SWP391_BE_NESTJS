@@ -5,5 +5,6 @@ import { WorkScheduleController } from './work-schedule.controller';
 @Module({
   controllers: [WorkScheduleController],
   providers: [WorkScheduleService],
+  exports: [WorkScheduleService],
 })
 export class WorkScheduleModule {}

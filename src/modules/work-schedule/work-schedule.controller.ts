@@ -101,11 +101,11 @@ export class WorkScheduleController {
       date,
       updateDto,
       user.role,
-      user.sub
     );
     return {
       message: 'Work schedules updated successfully',
       data,
+      count: data.length,
     };
   }
 
@@ -119,70 +119,10 @@ export class WorkScheduleController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: any
   ) {
-    const result = await this.workScheduleService.deleteWorkSchedule(id, user.role, user.sub);
-    return result;
-  }
-
-  @Get('shift/:shiftId/date/:date/employees')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
-  @ApiOperation({
-    summary: 'Get all employees assigned to a shift on specific date',
-    description: 'ADMIN: Any shift. STAFF: Only shifts in assigned centers.'
-  })
-  async getEmployeesInShift(
-    @Param('shiftId', ParseUUIDPipe) shiftId: string,
-    @Param('date') date: string,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.workScheduleService.getEmployeesInShift(
-      shiftId,
-      date,
-      user.role,
-      user.sub
-    );
-
+    const data = await this.workScheduleService.deleteWorkSchedule(id, user.role, user.sub);
     return {
-      message: 'Employees in shift retrieved successfully',
+      message: 'Work schedule deleted successfully',
       data,
-      meta: {
-        shiftId,
-        date,
-        totalEmployees: data.length,
-        maxCapacity: data[0]?.shift?.maximumSlot || null
-      }
-    };
+    }
   }
-
-  //EXTRA: Get my work schedule (for TECHNICIAN)
-  // @Get('me/schedule')
-  // @Roles(AccountRole.TECHNICIAN, AccountRole.STAFF)
-  // @ApiOperation({
-  //   summary: 'Get my work schedule (TECHNICIAN/STAFF only)',
-  //   description: 'Get current user\'s own work schedule assignments.'
-  // })
-  // async getMySchedule(
-  //   @Query() query: WorkScheduleQueryDto,
-  //   @CurrentUser() user: any
-  // ) {
-  //   // Force filter by current user's employeeId
-  //   const myQuery = { ...query, employeeId: user.sub };
-
-  //   const { data, page, pageSize, total, totalPages } = await this.workScheduleService.getWorkSchedules(
-  //     myQuery,
-  //     user.role,
-  //     user.sub
-  //   );
-
-  //   return {
-  //     message: 'Your work schedule retrieved successfully',
-  //     data,
-  //     pagination: {
-  //       page,
-  //       pageSize,
-  //       total,
-  //       totalPages,
-  //     },
-  //   };
-  // }
-
 }
