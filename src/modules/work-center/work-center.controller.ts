@@ -1,34 +1,97 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { WorkCenterService } from './work-center.service';
 import { CreateWorkCenterDto } from './dto/create-work-center.dto';
 import { UpdateWorkCenterDto } from './dto/update-work-center.dto';
+import { WorkCenterQueryDto } from './dto/work-center-query.dto';
+import { RoleGuard } from 'src/common/guard/role.guard';
+import { Roles } from 'src/common/decorator/role.decorator';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { AccountRole } from '@prisma/client';
 
-@Controller('work-center')
+@ApiTags('Work Center')
+@Controller('api/work-center')
+@UseGuards(RoleGuard)
+@ApiBearerAuth('jwt-auth')
 export class WorkCenterController {
   constructor(private readonly workCenterService: WorkCenterService) {}
 
   @Post()
-  create(@Body() createWorkCenterDto: CreateWorkCenterDto) {
-    return this.workCenterService.create(createWorkCenterDto);
+  @Roles(AccountRole.ADMIN)
+  @ApiOperation({ summary: 'Assign employees to service center (ADMIN only)' })
+  @ApiBody({ type: CreateWorkCenterDto })
+  async createWorkCenter(
+    @Body() createWorkCenterDto: CreateWorkCenterDto,
+    @CurrentUser() user: any
+  ) {
+    const data = await this.workCenterService.createWorkCenter(createWorkCenterDto, user.role);
+    return {
+      message: 'Work center assignments created successfully',
+      data,
+    };
   }
 
   @Get()
-  findAll() {
-    return this.workCenterService.findAll();
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Get work center assignments (role-based access)' })
+  async getWorkCenters(
+    @Query() query: WorkCenterQueryDto,
+    @CurrentUser() user: any
+  ) {
+    const { data, page, pageSize, total, totalPages } = await this.workCenterService.getWorkCenters(
+      query,
+      user.role,
+      user.sub
+    );
+    return {
+      message: 'Work center assignments retrieved successfully',
+      data,
+      pagination: { page, pageSize, total, totalPages },
+    };
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.workCenterService.findOne(+id);
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
+  @ApiOperation({ summary: 'Get work center assignment by ID' })
+  async getWorkCenterById(
+    @Param('id') id: string,
+    @CurrentUser() user: any
+  ) {
+    const data = await this.workCenterService.getWorkCenterById(id, user.role, user.sub);
+    return {
+      message: 'Work center assignment retrieved successfully',
+      data,
+    };
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateWorkCenterDto: UpdateWorkCenterDto) {
-    return this.workCenterService.update(+id, updateWorkCenterDto);
+  @Roles(AccountRole.ADMIN)
+  @ApiOperation({ summary: 'Update work center assignments (ADMIN only)' })
+  @ApiBody({ type: UpdateWorkCenterDto })
+  async updateWorkCenter(
+    @Param('id') id: string,
+    @Body() updateWorkCenterDto: UpdateWorkCenterDto,
+    @CurrentUser() user: any
+  ) {
+    const data = await this.workCenterService.updateWorkCenter(id, updateWorkCenterDto, user.role, user.sub);
+    return {
+      message: 'Work center assignments updated successfully',
+      data,
+      count: data.length,
+    };
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.workCenterService.remove(+id);
+  @Roles(AccountRole.ADMIN)
+  @ApiOperation({ summary: 'End work center assignment (ADMIN only)' })
+  async deleteWorkCenter(
+    @Param('id') id: string,
+    @CurrentUser() user: any
+  ) {
+    const data = await this.workCenterService.deleteWorkCenter(id, user.role, user.sub);
+    return {
+      message: 'Work center assignment deleted successfully',
+      data,
+    };
   }
 }
