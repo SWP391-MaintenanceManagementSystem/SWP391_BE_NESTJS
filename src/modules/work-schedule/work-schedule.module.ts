@@ -6,5 +6,6 @@ import { WorkScheduleController } from './work-schedule.controller';
   controllers: [WorkScheduleController],
   providers: [WorkScheduleService],
   exports: [WorkScheduleService],
+  imports: [ShiftModule, EmployeeModule, PrismaModule],
 })
 export class WorkScheduleModule {}
