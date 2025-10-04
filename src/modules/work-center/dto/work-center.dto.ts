@@ -17,10 +17,6 @@ export class WorkCenterDto {
 
     @Expose()
     @Transform(({ value }) => value ? value.toISOString() : null, { toPlainOnly: true })
-    assignedAt: Date;
-
-    @Expose()
-    @Transform(({ value }) => value ? value.toISOString() : null, { toPlainOnly: true })
     createdAt: Date;
 
     @Expose()
@@ -34,6 +30,7 @@ export class WorkCenterDto {
     @Expose()
     @Transform(({ value }) => value ? value.toISOString() : null, { toPlainOnly: true })
     endDate: Date;
+
     @Expose()
     @Type(() => Object)
     @ApiProperty({

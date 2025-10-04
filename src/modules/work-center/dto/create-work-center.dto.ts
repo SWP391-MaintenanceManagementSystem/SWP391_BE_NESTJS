@@ -10,7 +10,7 @@ export class CreateWorkCenterDto {
         example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         description: 'Employee account UUID'
     })
-    employeeId: string;
+    employeeId: string[];
 
     @IsString({ message: 'Center ID must be a string' })
     @IsUUID(4, { message: 'Center ID must be a valid UUID' })
@@ -20,15 +20,6 @@ export class CreateWorkCenterDto {
         description: 'Service Center UUID'
     })
     centerId: string;
-
-    @IsOptional()
-    @Transform(({ value }) => value ? value.toISOString() : null, { toPlainOnly: true })
-    @IsDateString({}, { message: 'Assigned At must be a valid date string' })
-    @ApiPropertyOptional({
-        example: '2024-01-15T08:00:00.000Z',
-        description: 'Assignment date (optional - defaults to now)'
-    })
-    assignedAt?: string;
 
     @IsOptional()
     @Transform(({ value }) => value ? value.toISOString() : null, { toPlainOnly: true })

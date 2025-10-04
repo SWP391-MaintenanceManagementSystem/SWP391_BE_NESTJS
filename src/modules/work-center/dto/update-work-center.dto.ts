@@ -9,7 +9,7 @@ export class UpdateWorkCenterDto {
         example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
         description: 'Employee account UUID'
     })
-    employeeId?: string;
+    employeeId?: string[];
 
     @IsOptional()
     @IsString({ message: 'Center ID must be a string' })
@@ -21,18 +21,18 @@ export class UpdateWorkCenterDto {
     centerId?: string;
 
     @IsOptional()
-    @IsDateString({}, { message: 'Assigned At must be a valid date string' })
+    @IsDateString({}, { message: 'Start Date must be a valid date string' })
     @ApiPropertyOptional({
-        example: '2024-01-15T08:00:00.000Z',
-        description: 'Assignment date'
+        example: '2024-01-20T08:00:00.000Z',
+        description: 'Start date of the work center assignment (optional)'
     })
-    assignedAt?: string;
+    startDate?: string;
 
     @IsOptional()
     @IsDateString({}, { message: 'End Date must be a valid date string' })
     @ApiPropertyOptional({
         example: '2024-01-25T08:00:00.000Z',
-        description: 'End date of the work center assignment'
+        description: 'End date of the work center assignment (optional)'
     })
     endDate?: string;
 }
