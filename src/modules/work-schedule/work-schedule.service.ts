@@ -20,7 +20,7 @@ export class WorkScheduleService {
 
   async generateWorkSchedulesFromShiftPattern(
     shiftId: string,
-    employeeIds: string[],
+    employeeId: string[],
     userRole: AccountRole
   ): Promise<WorkScheduleDto[]> {
     if (userRole !== AccountRole.ADMIN) {
@@ -46,14 +46,14 @@ export class WorkScheduleService {
 
     const employees = await this.prismaService.employee.findMany({
       where: {
-        accountId: { in: employeeIds },
+        accountId: { in: employeeId },
         account: {
           role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] }
         }
       }
     });
 
-    if (employees.length !== employeeIds.length) {
+    if (employees.length !== employeeId.length) {
       throw new BadRequestException('Some employee IDs are invalid or not STAFF/TECHNICIAN');
     }
 
@@ -73,17 +73,17 @@ export class WorkScheduleService {
           }
         });
 
-        if (shift.maximumSlot && (existingCount + employeeIds.length) > shift.maximumSlot) {
+        if (shift.maximumSlot && (existingCount + employeeId.length) > shift.maximumSlot) {
           throw new ConflictException(
             `Shift capacity exceeded on ${currentDate.toDateString()}. ` +
-            `Max: ${shift.maximumSlot}, Current: ${existingCount}, Trying to add: ${employeeIds.length}`
+            `Max: ${shift.maximumSlot}, Current: ${existingCount}, Trying to add: ${employeeId.length}`
           );
         }
 
         // Add schedule data for each employee on this date
-        for (const employeeId of employeeIds) {
+        for (const employeeIds of employeeId) {
           scheduleData.push({
-            employeeId,
+            employeeId: employeeIds,
             shiftId,
             date: new Date(currentDate)
           });
@@ -122,7 +122,7 @@ export class WorkScheduleService {
     const createdSchedules = await this.prismaService.workSchedule.findMany({
       where: {
         shiftId,
-        employeeId: { in: employeeIds },
+        employeeId: { in: employeeId },
         date: {
           gte: shift.startDate,
           lte: shift.endDate
