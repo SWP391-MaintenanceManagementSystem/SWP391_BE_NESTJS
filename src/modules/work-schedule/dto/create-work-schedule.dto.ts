@@ -1,5 +1,5 @@
-import { IsNotEmpty, IsUUID, IsArray, ArrayMinSize, IsDateString } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsUUID, IsArray, ArrayMinSize, IsDateString, IsOptional, IsBoolean } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 
 export class CreateWorkScheduleDto {
@@ -26,4 +26,12 @@ export class CreateWorkScheduleDto {
     description: 'Date for the work schedule (YYYY-MM-DD or ISO format)'
   })
   date: string;
+
+  @IsOptional()
+  @IsBoolean({ message: 'generateFromPattern must be a boolean value' })
+  @ApiPropertyOptional({
+    example: true,
+    description: 'Generate work schedules based on a shift repeat pattern instead of a single date'
+  })
+  generateFromPattern?: boolean;
 }
