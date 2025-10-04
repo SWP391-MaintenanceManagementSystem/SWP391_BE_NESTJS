@@ -28,10 +28,10 @@ export class StaffService {
 
     const where: Prisma.AccountWhereInput = {
       employee: {
-        firstName: options?.firstName,
-        lastName: options?.lastName,
+        firstName: { contains: options?.firstName , mode: 'insensitive' },
+        lastName: { contains: options?.lastName , mode: 'insensitive' },
       },
-      email: options?.email,
+      email: { contains: options?.email , mode: 'insensitive' },
       phone: options?.phone,
       status: options?.status,
       role: AccountRole.STAFF,
