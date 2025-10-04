@@ -28,10 +28,10 @@ export class StaffService {
 
     const where: Prisma.AccountWhereInput = {
       employee: {
-        firstName: { contains: options?.firstName , mode: 'insensitive' },
-        lastName: { contains: options?.lastName , mode: 'insensitive' },
+        firstName: options?.firstName ? { contains: options?.firstName , mode: 'insensitive' } : undefined,
+        lastName: options?.lastName ? { contains: options?.lastName , mode: 'insensitive' } : undefined,
       },
-      email: { contains: options?.email , mode: 'insensitive' },
+      email: options?.email ? { contains: options?.email , mode: 'insensitive' } : undefined,
       phone: options?.phone,
       status: options?.status,
       role: AccountRole.STAFF,
@@ -74,61 +74,12 @@ export class StaffService {
     return employee;
   }
 
-  async updateStaff(
-    accountId: string,
-    updateStaffDto: UpdateStaffDto,
-  ): Promise<StaffDTO> {
-    const existingStaff = await this.prisma.account.findUnique({
-      where: { id: accountId },
-      include: { employee: true },
-    });
-    if (!existingStaff || existingStaff.role !== AccountRole.STAFF) {
-      throw new NotFoundException(`Staff with ID ${accountId} not found`);
-    }
+  async updateStaff(accountId: string,updateStaffDto: UpdateStaffDto,): Promise<AccountWithProfileDTO> {
 
+    const updatedStaff = await this.accountService.updateAccount(accountId,  updateStaffDto);
 
-    if (updateStaffDto.email || updateStaffDto.password) {
-      throw new ConflictException(
-        'Updating email and password is not allowed via this endpoint',
-      );
-    }
+    return plainToInstance(AccountWithProfileDTO, updatedStaff);
 
-    const updateAccount: any = {};
-    if (updateStaffDto.phone !== undefined) {
-      updateAccount.phone = updateStaffDto.phone;
-    }
-    if (Object.keys(updateAccount).length > 0) {
-      await this.prisma.account.update({
-        where: { id: accountId },
-        data: updateAccount,
-      });
-    }
-
-
-    const updateEmployee: any = {};
-    if (updateStaffDto.firstName !== undefined) {
-      updateEmployee.firstName = updateStaffDto.firstName;
-    }
-    if (updateStaffDto.lastName !== undefined) {
-      updateEmployee.lastName = updateStaffDto.lastName;
-    }
-
-    if (Object.keys(updateEmployee).length > 0) {
-      if (existingStaff.employee) {
-        await this.prisma.employee.update({
-          where: { accountId },
-          data: updateEmployee,
-        });
-      }
-    }
-
-    const updatedStaff = await this.getStaffById(accountId);
-    if (!updatedStaff) {
-      throw new NotFoundException(
-        `Staff with ID ${accountId} not found after update`,
-      );
-    }
-    return updatedStaff;
   }
 
   async deleteStaff(accountId: string): Promise<{ message: string }> {
