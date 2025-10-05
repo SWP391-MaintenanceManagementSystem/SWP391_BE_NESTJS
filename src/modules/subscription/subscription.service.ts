@@ -80,4 +80,18 @@ export class SubscriptionService {
       return this.createSubscription(membershipId, customerId);
     }
   }
+
+  async getSubscriptionByCustomerId(customerId: string) {
+    const subscription = await this.prismaService.subscription.findFirst({
+      where: {
+        customerId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+      include: {
+        customer: true,
+        membership: true,
+      },
+    });
+    return subscription;
+  }
 }

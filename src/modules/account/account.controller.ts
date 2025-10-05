@@ -21,6 +21,7 @@ import { UseInterceptors } from '@nestjs/common';
 import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
 import { VehicleService } from '../vehicle/vehicle.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 @ApiTags('Me')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/me')
@@ -144,5 +145,15 @@ export class AccountController {
   ) {
     await this.accountService.uploadAvatar(user.sub, avatar);
     return { message: 'Avatar uploaded successfully' };
+  }
+
+  @Get('subscription')
+  @Roles(AccountRole.CUSTOMER)
+  async getMySubscription(@CurrentUser() user: JWT_Payload) {
+    const subscription = await this.accountService.getSubscriptionsByCustomerId(user.sub);
+    return {
+      message: 'Subscription retrieved successfully',
+      data: subscription,
+    };
   }
 }

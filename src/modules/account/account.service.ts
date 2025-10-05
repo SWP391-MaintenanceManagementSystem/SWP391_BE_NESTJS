@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
-import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
+import { Account, AccountRole, AccountStatus, Prisma, SubscriptionStatus } from '@prisma/client';
 import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
@@ -15,6 +15,7 @@ import { EmployeeDTO } from '../employee/dto/employee.dto';
 import { plainToInstance } from 'class-transformer';
 import { CloudinaryService } from '../upload/cloudinary.service';
 import { buildAccountOrderBy } from 'src/common/sort/sort.util';
+import { SubscriptionDTO } from '../subscription/dto/subscription.dto';
 @Injectable()
 export class AccountService {
   constructor(
@@ -291,5 +292,21 @@ export class AccountService {
       where: { id: accountId },
       data: { password: newPassword },
     });
+  }
+
+  async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO> {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        customerId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+      include: {
+        membership: true,
+      },
+    });
+    if (!subscription) {
+      throw new NotFoundException(`No active subscription found for customer id ${customerId}`);
+    }
+    return plainToInstance(SubscriptionDTO, subscription);
   }
 }
