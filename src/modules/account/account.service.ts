@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
 import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
@@ -15,7 +20,7 @@ export class AccountService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService
-  ) { }
+  ) {}
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -56,6 +61,20 @@ export class AccountService {
     const existingAccount = await this.getAccountByEmail(oauthUser.email);
 
     if (existingAccount) {
+      if (existingAccount.status === AccountStatus.DISABLED) {
+        throw new ForbiddenException({
+          message: 'User is banned. Please contact support.',
+          accountStatus: existingAccount.status,
+        });
+      }
+
+      if (existingAccount.status === AccountStatus.BANNED) {
+        throw new ForbiddenException({
+          message: 'User is banned. Please contact support.',
+          accountStatus: existingAccount.status,
+        });
+      }
+
       if (!existingAccount.provider.includes(oauthUser.provider)) {
         const updatedProviders = [...existingAccount.provider, oauthUser.provider];
         await this.prisma.account.update({
