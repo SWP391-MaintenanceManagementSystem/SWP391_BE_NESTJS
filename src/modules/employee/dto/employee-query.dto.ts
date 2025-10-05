@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsInt, Min, IsIn, IsBoolean, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AccountStatus } from '@prisma/client';
+import { Order } from 'src/common/sort/sort.config';
 
 export class EmployeeQueryDTO {
   @ApiPropertyOptional({ description: 'Customer first name' })
@@ -39,8 +40,7 @@ export class EmployeeQueryDTO {
   @ApiPropertyOptional({ description: 'Sort order example: "asc" or "desc"', type: String })
   @IsOptional()
   @IsString()
-  @IsIn(['asc', 'desc'])
-  orderBy?: 'asc' | 'desc';
+  orderBy?: Order;
 
   @ApiPropertyOptional({ description: 'Page number', example: 1 })
   @IsOptional()

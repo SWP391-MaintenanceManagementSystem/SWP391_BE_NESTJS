@@ -60,12 +60,23 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    const { data, page, pageSize, total, totalPages } = await this.technicianService.updateTechnician(
+      id,
+      updateTechnicianDto
+    );
+
+    const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
+
     return {
-      message: `Technician updated successfully`,
-      data,
+      message: 'Technician updated successfully',
+      data: accounts,
+      page,
+      pageSize,
+      total,
+      totalPages,
     };
   }
+
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)
   async deleteTechnician(@Param('id') id: string) {
