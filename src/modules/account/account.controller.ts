@@ -151,6 +151,11 @@ export class AccountController {
   @Roles(AccountRole.CUSTOMER)
   async getMySubscription(@CurrentUser() user: JWT_Payload) {
     const subscription = await this.accountService.getSubscriptionsByCustomerId(user.sub);
+    if (!subscription) {
+      return {
+        message: 'No active subscription found',
+      };
+    }
     return {
       message: 'Subscription retrieved successfully',
       data: subscription,

@@ -294,7 +294,11 @@ export class AccountService {
     });
   }
 
-  async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO> {
+  async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO | null> {
+    const customer = await this.getAccountById(customerId);
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
     const subscription = await this.prisma.subscription.findFirst({
       where: {
         customerId,
@@ -305,7 +309,7 @@ export class AccountService {
       },
     });
     if (!subscription) {
-      throw new NotFoundException(`No active subscription found for customer id ${customerId}`);
+      return null;
     }
     return plainToInstance(SubscriptionDTO, subscription);
   }
