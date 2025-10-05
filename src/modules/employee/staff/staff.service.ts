@@ -126,17 +126,37 @@ export class StaffService {
     _count: { id: true },
   });
 
-  const formatted = stats.map((s) => ({
-    status: s.status,
-    staffs: s._count.id,
-  }));
+  // Danh sách các trạng thái cần có
+  const allStatuses = [
+    AccountStatus.VERIFIED,
+    AccountStatus.NOT_VERIFY,
+    AccountStatus.DISABLED,
+    AccountStatus.BANNED,
+  ];
 
-  const totalStaff = formatted.reduce((sum, item) => sum + item.staffs, 0);
+  // Merge dữ liệu thực tế với danh sách mặc định
+  const formatted = allStatuses.map((status) => {
+    const found = stats.find((s) => s.status === status);
+    return {
+      status,
+      count: found ? found._count.id : 0,
+    };
+  });
+
+  const total = formatted.reduce((sum, item) => sum + item.count, 0);
+
+  const dataWithPercentage = formatted.map((item) => ({
+    ...item,
+    percentage: total > 0 ? parseFloat(((item.count / total) * 100).toFixed(2)) : 0,
+  }));
 
   return {
     success: true,
-    data: formatted,
-    totalStaff,
+    message: 'Fetched account statistics successfully',
+    data: {
+      data: dataWithPercentage,
+      total,
+    },
   };
 }
 }
