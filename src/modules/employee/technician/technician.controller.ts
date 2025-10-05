@@ -60,20 +60,10 @@ export class TechnicianController {
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    const { data, page, pageSize, total, totalPages } = await this.technicianService.updateTechnician(
-      id,
-      updateTechnicianDto
-    );
-
-    const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
-
+    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
     return {
       message: 'Technician updated successfully',
-      data: accounts,
-      page,
-      pageSize,
-      total,
-      totalPages,
+      data
     };
   }
 

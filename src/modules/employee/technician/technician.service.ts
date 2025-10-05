@@ -76,10 +76,10 @@ export class TechnicianService {
 
   async updateTechnician(
     accountId: string,
-    updateTechnicianDto: UpdateTechnicianDto
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
+    updateTechnicianDto: UpdateTechnicianDto,
+  ): Promise<UpdateTechnicianDto> {
     await this.accountService.updateAccount(accountId, updateTechnicianDto);
-    return await this.getTechnicians(new EmployeeQueryDTO());
+    return updateTechnicianDto;
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
