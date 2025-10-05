@@ -15,6 +15,17 @@ import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-prof
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 
+  @Get('/statistics')
+  @Roles(AccountRole.ADMIN)
+  async getTechnicianStatistics() {
+    const data = await this.technicianService.getTechnicianStatistics();
+    return {
+      success: true,
+      message: 'Fetched account statistics successfully',
+      data
+    };
+  }
+
   @Get('/')
   @Roles(AccountRole.ADMIN)
   async getTechnicians(@Query() query: EmployeeQueryDTO) {
@@ -58,12 +69,24 @@ export class TechnicianController {
   @ApiBody({ type: UpdateTechnicianDto })
   async updateTechnician(
     @Param('id') id: string,
-    @Body() updateTechnicianDto: UpdateTechnicianDto
+    @Body() updateTechnicianDto: UpdateTechnicianDto,
+    @Query() query: EmployeeQueryDTO
   ) {
-    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    const { data, page, pageSize, total, totalPages } = await this.technicianService.updateTechnician(
+      id,
+      updateTechnicianDto,
+      query
+    );
+
+    const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
+
     return {
       message: 'Technician updated successfully',
-      data
+      data: accounts,
+      page,
+      pageSize,
+      total,
+      totalPages,
     };
   }
 

@@ -12,6 +12,7 @@ import { ConflictException } from '@nestjs/common/exceptions/conflict.exception'
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
 import  {buildAccountOrderBy } from 'src/common/sort/sort.util';
+import { AccountStatus } from '@prisma/client';
 
 @Injectable()
 export class TechnicianService {
@@ -77,9 +78,10 @@ export class TechnicianService {
   async updateTechnician(
     accountId: string,
     updateTechnicianDto: UpdateTechnicianDto,
-  ): Promise<UpdateTechnicianDto> {
+    filter: EmployeeQueryDTO
+  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
     await this.accountService.updateAccount(accountId, updateTechnicianDto);
-    return updateTechnicianDto;
+    return await this.getTechnicians(filter);
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
@@ -112,5 +114,67 @@ export class TechnicianService {
       where: { id: accountId },
       data: { password: await hashPassword(defaultPassword) },
     });
+  }
+
+  async getTechnicianStatistics() {
+    // Get counts by status
+    const [verified, notVerified, banned, disabled, total] = await Promise.all([
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.VERIFIED
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.NOT_VERIFY
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.BANNED
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.DISABLED
+        }
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.TECHNICIAN }
+      })
+    ]);
+
+    // Create data array with status, count, and percentage
+    const statusData = [
+      {
+        status: 'VERIFIED',
+        count: verified,
+        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'NOT_VERIFY',
+        count: notVerified,
+        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'BANNED',
+        count: banned,
+        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'DISABLED',
+        count: disabled,
+        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0
+      }
+    ].filter(item => item.count > 0); // Only include statuses with technicians
+
+    return {
+      data: statusData,
+      total
+    };
   }
 }
