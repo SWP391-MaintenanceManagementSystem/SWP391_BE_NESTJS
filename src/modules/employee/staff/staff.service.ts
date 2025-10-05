@@ -119,23 +119,24 @@ export class StaffService {
     return { message: "Staff's password reset successfully" };
   }
 
-  async getStaffStatusStats(): Promise<{ status: string; staffs: number }[]> {
-  const grouped = await this.prisma.account.groupBy({
+ async getStaffStatusStats() {
+  const stats = await this.prisma.account.groupBy({
     by: ['status'],
-    where: {
-      role: AccountRole.STAFF,
-    },
-    _count: {
-      status: true,
-    },
+    where: { role: AccountRole.STAFF },
+    _count: { id: true },
   });
 
-
-  const stats = grouped.map(item => ({
-    status: item.status.toLowerCase(),
-    staffs: item._count.status,
+  const formatted = stats.map((s) => ({
+    status: s.status,
+    staffs: s._count.id,
   }));
 
-  return stats;
+  const totalStaff = formatted.reduce((sum, item) => sum + item.staffs, 0);
+
+  return {
+    success: true,
+    data: formatted,
+    totalStaff,
+  };
 }
 }
