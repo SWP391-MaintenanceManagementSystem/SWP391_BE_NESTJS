@@ -38,4 +38,20 @@ export class EmailService {
       },
     });
   }
+
+  async sendRemindRenewMembershipEmail(email: string, username: string, expiryDate: string) {
+    const renewalLink =
+      `${this.configService.get('FRONTEND_URL')}/membership` || 'http://localhost:5173/membership';
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Membership Expiration Reminder',
+      template: 'remind_renew_membership',
+      context: {
+        username: username ?? email,
+        expiryDate,
+        renewalLink,
+        year: new Date().getFullYear(),
+      },
+    });
+  }
 }

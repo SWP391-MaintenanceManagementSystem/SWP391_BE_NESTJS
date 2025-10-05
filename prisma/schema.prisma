@@ -40,6 +40,16 @@ enum BookingStatus {
   IN_PROCESS
 }
 
+enum ReferenceType {
+  BOOKING
+  MEMBERSHIP
+}
+
+enum Method {
+  CASH
+  CARD
+}
+
 enum TransactionStatus {
   PENDING
   SUCCESS
@@ -59,6 +69,33 @@ enum CenterStatus {
 enum ServiceStatus {
   ACTIVE
   INACTIVE
+}
+
+enum PackageStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ShiftStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PeriodType {
+  DAY
+  MONTH
+  YEAR
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  EXPIRED
 }
 
 /**
@@ -189,7 +226,6 @@ model Booking {
   serviceCenter      ServiceCenter       @relation(fields: [centerId], references: [id], onDelete: Cascade)
   bookingDetails     BookingDetail[]
   bookingAssignments BookingAssignment[]
-  transactions       Transaction[]
 
   @@index([customerId])
   @@index([status])
@@ -242,11 +278,13 @@ model Service {
 }
 
 model Package {
-  id        String   @id @default(uuid())
-  name      String
-  price     Float
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id           String        @id @default(uuid())
+  name         String
+  price        Float
+  discountRate Float         @default(0) @map("discount_rate")
+  status       PackageStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
 
   packageDetails PackageDetail[]
   bookingDetails BookingDetail[]
@@ -305,34 +343,35 @@ model ServicePart {
 }
 
 model ServiceCenter {
-  id        String   @id @default(uuid())
+  id        String       @id @default(uuid())
   name      String
   address   String
   status    CenterStatus @default(OPEN)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
 
   bookings    Booking[]
   workCenters WorkCenter[]
-  shifts Shift[]
+  shifts      Shift[]
 
   @@map("service_centers")
 }
 
 model Shift {
-  id          String    @id @default(uuid())
+  id          String      @id @default(uuid())
   name        String
-  startTime   DateTime  @map("start_time")
-  endTime     DateTime  @map("end_time")
-  startDate   DateTime? @map("start_date")
-  endDate     DateTime? @map("end_date")
-  maximumSlot Int?      @map("maximum_slot")
-  repeatDays  String?   @map("repeat_days")
-  centerId    String    @map("center_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  startTime   DateTime    @map("start_time")
+  endTime     DateTime    @map("end_time")
+  startDate   DateTime?   @map("start_date")
+  endDate     DateTime?   @map("end_date")
+  maximumSlot Int?        @map("maximum_slot")
+  repeatDays  Int[]       @map("repeat_days")
+  status      ShiftStatus @default(ACTIVE)
+  centerId    String      @map("center_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
-  serviceCenter  ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  serviceCenter ServiceCenter  @relation(fields: [centerId], references: [id], onDelete: Cascade)
   workSchedules WorkSchedule[]
 
   @@map("shifts")
@@ -356,8 +395,8 @@ model WorkCenter {
   id         String   @id @default(uuid())
   employeeId String   @map("employee_id")
   centerId   String   @map("center_id")
-  assignedAt DateTime @default(now()) @map("assigned_at")
-
+  startDate  DateTime @map("start_date")
+  endDate    DateTime @map("end_date")
   employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
   serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
 
@@ -377,29 +416,48 @@ model EmployeeCertificate {
 }
 
 model Transaction {
-  id         String            @id @default(uuid())
-  customerId String            @map("customer_id")
-  bookingId  String            @map("booking_id")
-  amount     Float
-  status     TransactionStatus @default(PENDING)
-  createdAt  DateTime          @default(now()) @map("created_at")
-
-  customer Customer @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
-  booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  id            String            @id @default(uuid())
+  customerId    String            @map("customer_id")
+  referenceId   String?           @map("reference_id")
+  referenceType ReferenceType?    @map("reference_type")
+  amount        Float
+  status        TransactionStatus @default(PENDING)
+  method        Method
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  customer      Customer          @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
 
   @@map("transactions")
 }
 
 model Subscription {
-  id         String   @id @default(uuid())
-  customerId String   @map("customer_id")
-  type       String
-  startDate  DateTime @map("start_date")
-  endDate    DateTime @map("end_date")
+  id           String             @id @default(uuid())
+  customerId   String             @map("customer_id")
+  membershipId String             @map("membership_id")
+  status       SubscriptionStatus @default(ACTIVE)
+  startDate    DateTime           @map("start_date")
+  endDate      DateTime           @map("end_date")
 
-  customer Customer @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
+  customer   Customer   @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id])
 
   @@map("subscriptions")
+}
+
+model Membership {
+  id          String           @id @default(uuid())
+  name        String
+  price       Float
+  duration    Int
+  periodType  PeriodType
+  status      MembershipStatus @default(ACTIVE)
+  description String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  subscriptions Subscription[]
+
+  @@map("memberships")
 }
 
 model Token {
