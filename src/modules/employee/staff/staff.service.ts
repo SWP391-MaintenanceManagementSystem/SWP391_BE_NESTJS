@@ -28,10 +28,10 @@ export class StaffService {
 
     const where: Prisma.AccountWhereInput = {
       employee: {
-        firstName: options?.firstName,
-        lastName: options?.lastName,
+        firstName: { contains: options?.firstName , mode: 'insensitive' },
+        lastName: { contains: options?.lastName , mode: 'insensitive' },
       },
-      email: options?.email,
+      email: { contains: options?.email , mode: 'insensitive' },
       phone: options?.phone,
       status: options?.status,
       role: AccountRole.STAFF,
@@ -40,15 +40,12 @@ export class StaffService {
     return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
 
-  async getStaffById(accountId: string): Promise<StaffDTO | null> {
-    const staff = await this.prisma.employee.findUnique({
-      where: { accountId },
-      include: { account: true },
-    });
-    if (!staff || staff.account.role !== AccountRole.STAFF) {
-      return null;
+  async getStaffById(accountId: string): Promise<AccountWithProfileDTO | null> {
+    const staff = await this.accountService.getAccountById(accountId);
+    if (!staff || staff.role !== AccountRole.STAFF) {
+      throw new NotFoundException(`Staff with ID ${accountId} not found`);
     }
-    return plainToInstance(StaffDTO, staff);
+    return plainToInstance(AccountWithProfileDTO, staff);
   }
 
   async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
@@ -74,12 +71,12 @@ export class StaffService {
     return employee;
   }
 
-  async updateStaff(
-    accountId: string,
-    updateStaffDto: UpdateStaffDto
-  ): Promise<AccountWithProfileDTO> {
-    const updatedStaff = await this.accountService.updateAccount(accountId, updateStaffDto);
+  async updateStaff(accountId: string,updateStaffDto: UpdateStaffDto,): Promise<AccountWithProfileDTO> {
+
+    const updatedStaff = await this.accountService.updateAccount(accountId,  updateStaffDto);
+
     return plainToInstance(AccountWithProfileDTO, updatedStaff);
+
   }
 
   async deleteStaff(accountId: string): Promise<{ message: string }> {

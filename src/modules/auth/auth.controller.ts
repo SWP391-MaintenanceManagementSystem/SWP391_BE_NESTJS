@@ -152,21 +152,26 @@ export class AuthController {
   @UseGuards(GoogleOauthGuard)
   @SkipResponseInterceptor()
   async googleAuthCallback(@Req() req: RequestWithOAuthUser, @Res() res: Response) {
-    const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
+    try {
+      const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
+      const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
+      const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
 
-    const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
-    const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge,
+      });
 
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      maxAge,
-    });
-
-    // Redirect to frontend with access token
-    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
-    return res.redirect(`${frontendUrl}/auth/success?token=${accessToken}`);
+      // Redirect to frontend with access token
+      const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/auth/success?token=${accessToken}`);
+    } catch (error) {
+      return res.redirect(
+        `${this.configService.get('FRONTEND_URL')}/auth/failed?message=${error.message}`
+      );
+    }
   }
 
   @Get('/me')
