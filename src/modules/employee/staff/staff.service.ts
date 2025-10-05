@@ -37,6 +37,8 @@ export class StaffService {
       role: AccountRole.STAFF,
     };
 
+
+
     return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
 
@@ -116,4 +118,45 @@ export class StaffService {
 
     return { message: "Staff's password reset successfully" };
   }
+
+ async getStaffStatusStats() {
+  const stats = await this.prisma.account.groupBy({
+    by: ['status'],
+    where: { role: AccountRole.STAFF },
+    _count: { id: true },
+  });
+
+  // Danh sách các trạng thái cần có
+  const allStatuses = [
+    AccountStatus.VERIFIED,
+    AccountStatus.NOT_VERIFY,
+    AccountStatus.DISABLED,
+    AccountStatus.BANNED,
+  ];
+
+  // Merge dữ liệu thực tế với danh sách mặc định
+  const formatted = allStatuses.map((status) => {
+    const found = stats.find((s) => s.status === status);
+    return {
+      status,
+      count: found ? found._count.id : 0,
+    };
+  });
+
+  const total = formatted.reduce((sum, item) => sum + item.count, 0);
+
+  const dataWithPercentage = formatted.map((item) => ({
+    ...item,
+    percentage: total > 0 ? parseFloat(((item.count / total) * 100).toFixed(2)) : 0,
+  }));
+
+  return {
+    success: true,
+    message: 'Fetched account statistics successfully',
+    data: {
+      data: dataWithPercentage,
+      total,
+    },
+  };
+}
 }

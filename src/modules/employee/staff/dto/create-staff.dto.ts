@@ -7,7 +7,7 @@ export class CreateStaffDto {
     })
     @IsNotEmpty({ message: 'First name must not be empty' })
     @IsString({ message: 'First name must be a string' })
-    @Matches(/^[A-Za-zÀ-ỹ\s]+$/, {
+    @Matches(/^[A-Za-zÀ-ỹ0-9_\s]+$/, {
         message: 'First name can only contain letters and spaces',
     })
     firstName: string;
@@ -18,7 +18,7 @@ export class CreateStaffDto {
     })
     @IsNotEmpty({ message: 'Last name must not be empty' })
     @IsString({ message: 'Last name must be a string' })
-    @Matches(/^[A-Za-zÀ-ỹ\s]+$/, {
+    @Matches(/^[A-Za-zÀ-ỹ0-9_\s]+$/, {
         message: 'Last name can only contain letters and spaces',
     })
     lastName: string;

@@ -38,6 +38,17 @@ export class StaffController {
     };
   }
 
+  @Get('/status-stats')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async getStaffStatusStats() {
+    const stats = await this.staffService.getStaffStatusStats();
+    return {
+      message: 'Staff status statistics retrieved successfully',
+      data: stats,
+    };
+  }
+
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
@@ -78,4 +89,6 @@ export class StaffController {
     await this.staffService.resetStaffPassword(id);
     return { message: `Password for staff ${id} has been reset to default` };
   }
+
+
 }
