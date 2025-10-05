@@ -37,6 +37,8 @@ export class StaffService {
       role: AccountRole.STAFF,
     };
 
+
+
     return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
 
@@ -116,4 +118,24 @@ export class StaffService {
 
     return { message: "Staff's password reset successfully" };
   }
+
+  async getStaffStatusStats(): Promise<{ status: string; staffs: number }[]> {
+  const grouped = await this.prisma.account.groupBy({
+    by: ['status'],
+    where: {
+      role: AccountRole.STAFF,
+    },
+    _count: {
+      status: true,
+    },
+  });
+
+
+  const stats = grouped.map(item => ({
+    status: item.status.toLowerCase(),
+    staffs: item._count.status,
+  }));
+
+  return stats;
+}
 }
