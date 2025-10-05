@@ -77,12 +77,9 @@ export class TechnicianService {
   async updateTechnician(
     accountId: string,
     updateTechnicianDto: UpdateTechnicianDto
-  ): Promise<AccountWithProfileDTO> {
-    const updatedTechnician = await this.accountService.updateAccount(
-      accountId,
-      updateTechnicianDto
-    );
-    return plainToInstance(AccountWithProfileDTO, updatedTechnician);
+  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
+    await this.accountService.updateAccount(accountId, updateTechnicianDto);
+    return await this.getTechnicians(new EmployeeQueryDTO());
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
