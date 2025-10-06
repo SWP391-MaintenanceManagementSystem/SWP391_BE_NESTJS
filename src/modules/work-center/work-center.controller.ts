@@ -18,7 +18,6 @@ export class WorkCenterController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiOperation({ summary: 'Assign employees to service center (ADMIN only)' })
   @ApiBody({ type: CreateWorkCenterDto })
   async createWorkCenter(
     @Body() createWorkCenterDto: CreateWorkCenterDto,
@@ -33,7 +32,6 @@ export class WorkCenterController {
 
   @Get()
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Get work center assignments (role-based access)' })
   async getWorkCenters(
     @Query() query: WorkCenterQueryDto,
     @CurrentUser() user: any
@@ -52,7 +50,6 @@ export class WorkCenterController {
 
   @Get(':id')
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  @ApiOperation({ summary: 'Get work center assignment by ID' })
   async getWorkCenterById(
     @Param('id') id: string,
     @CurrentUser() user: any
@@ -66,7 +63,6 @@ export class WorkCenterController {
 
   @Patch(':id')
   @Roles(AccountRole.ADMIN)
-  @ApiOperation({ summary: 'Update work center assignments (ADMIN only)' })
   @ApiBody({ type: UpdateWorkCenterDto })
   async updateWorkCenter(
     @Param('id') id: string,
@@ -83,7 +79,6 @@ export class WorkCenterController {
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
-  @ApiOperation({ summary: 'End work center assignment (ADMIN only)' })
   async deleteWorkCenter(
     @Param('id') id: string,
     @CurrentUser() user: any

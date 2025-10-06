@@ -18,10 +18,6 @@ export class WorkScheduleController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiOperation({
-    summary: 'Create work schedule assignments (ADMIN only)',
-    description: 'Assign multiple STAFF and TECHNICIAN employees to a shift for a specific date. Creates multiple WorkSchedule records (one per employee).'
-  })
   @ApiBody({ type: CreateWorkScheduleDto })
   async createWorkSchedule(
     @Body() createDto: CreateWorkScheduleDto,
@@ -40,10 +36,6 @@ export class WorkScheduleController {
 
   @Get()
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  @ApiOperation({
-    summary: 'Get work schedules (filtered by role)',
-    description: 'ADMIN: All schedules. STAFF: Own centers + own schedules. TECHNICIAN: Own schedules only.'
-  })
   async getWorkSchedules(
     @Query() query: WorkScheduleQueryDto,
     @CurrentUser() user: any
@@ -68,10 +60,6 @@ export class WorkScheduleController {
 
   @Get(':id')
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  @ApiOperation({
-    summary: 'Get work schedule by ID (role-based access)',
-    description: 'ADMIN: Any schedule. STAFF: Own centers + own schedules. TECHNICIAN: Own schedules only.'
-  })
   async getWorkScheduleById(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: any
@@ -85,10 +73,6 @@ export class WorkScheduleController {
 
   @Patch('shift/:shiftId/date/:date')
   @Roles(AccountRole.ADMIN)
-  @ApiOperation({
-    summary: 'Update work schedule assignments for a shift on specific date (ADMIN only)',
-    description: 'Replace all employee assignments for a specific shift and date. Removes existing assignments and creates new ones.'
-  })
   @ApiBody({ type: UpdateWorkScheduleDto })
   async updateWorkSchedule(
     @Param('shiftId', ParseUUIDPipe) shiftId: string,
@@ -111,10 +95,6 @@ export class WorkScheduleController {
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
-  @ApiOperation({
-    summary: 'Remove specific work schedule assignment (ADMIN only)',
-    description: 'Remove a specific employee assignment from a shift on a specific date.'
-  })
   async deleteWorkSchedule(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: any
