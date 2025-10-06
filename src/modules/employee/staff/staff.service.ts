@@ -119,44 +119,65 @@ export class StaffService {
     return { message: "Staff's password reset successfully" };
   }
 
- async getStaffStatusStats() {
-  const stats = await this.prisma.account.groupBy({
-    by: ['status'],
-    where: { role: AccountRole.STAFF },
-    _count: { id: true },
-  });
+ async getStaffStatistics() {
+    // Get counts by status
+    const [verified, notVerified, banned, disabled, total] = await Promise.all([
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.STAFF,
+          status: AccountStatus.VERIFIED
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.STAFF,
+          status: AccountStatus.NOT_VERIFY
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.STAFF,
+          status: AccountStatus.BANNED
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.STAFF,
+          status: AccountStatus.DISABLED
+        }
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF }
+      })
+    ]);
 
-  // Danh sách các trạng thái cần có
-  const allStatuses = [
-    AccountStatus.VERIFIED,
-    AccountStatus.NOT_VERIFY,
-    AccountStatus.DISABLED,
-    AccountStatus.BANNED,
-  ];
+    // Create data array with status, count, and percentage
+    const statusData = [
+      {
+        status: 'VERIFIED',
+        count: verified,
+        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'NOT_VERIFY',
+        count: notVerified,
+        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'BANNED',
+        count: banned,
+        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'DISABLED',
+        count: disabled,
+        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0
+      }
+    ].filter(item => item.count > 0); // Only include statuses with technicians
 
-  // Merge dữ liệu thực tế với danh sách mặc định
-  const formatted = allStatuses.map((status) => {
-    const found = stats.find((s) => s.status === status);
     return {
-      status,
-      count: found ? found._count.id : 0,
+      data: statusData,
+      total
     };
-  });
-
-  const total = formatted.reduce((sum, item) => sum + item.count, 0);
-
-  const dataWithPercentage = formatted.map((item) => ({
-    ...item,
-    percentage: total > 0 ? parseFloat(((item.count / total) * 100).toFixed(2)) : 0,
-  }));
-
-  return {
-    success: true,
-    message: 'Fetched account statistics successfully',
-    data: {
-      data: dataWithPercentage,
-      total,
-    },
-  };
-}
+  }
 }

@@ -42,7 +42,7 @@ export class StaffController {
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getStaffStatusStats() {
-    const stats = await this.staffService.getStaffStatusStats();
+    const stats = await this.staffService.getStaffStatistics();
     return {
       message: 'Staff status statistics retrieved successfully',
       data: stats,
