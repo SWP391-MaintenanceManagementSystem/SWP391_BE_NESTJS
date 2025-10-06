@@ -18,11 +18,11 @@ export class TechnicianController {
   @Get('/statistics')
   @Roles(AccountRole.ADMIN)
   async getTechnicianStatistics() {
-    const data = await this.technicianService.getTechnicianStatistics();
+    const { data, total } = await this.technicianService.getTechnicianStatistics();
     return {
-      success: true,
-      message: 'Fetched account statistics successfully',
-      data
+      message: 'Get technician statistics successfully',
+      data,
+      total,
     };
   }
 

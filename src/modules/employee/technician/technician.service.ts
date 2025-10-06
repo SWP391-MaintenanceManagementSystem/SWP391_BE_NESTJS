@@ -116,7 +116,6 @@ export class TechnicianService {
   }
 
   async getTechnicianStatistics() {
-    // Get counts by status
     const [verified, notVerified, banned, disabled, total] = await Promise.all([
       this.prisma.account.count({
         where: {
@@ -147,7 +146,7 @@ export class TechnicianService {
       })
     ]);
 
-    const statusData = [
+    const data = [
       {
         status: 'VERIFIED',
         count: verified,
@@ -169,10 +168,6 @@ export class TechnicianService {
         percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0
       }
     ].filter(item => item.count > 0);
-
-    return {
-      data: statusData,
-      total
-    };
+    return { data, total };
   }
 }
