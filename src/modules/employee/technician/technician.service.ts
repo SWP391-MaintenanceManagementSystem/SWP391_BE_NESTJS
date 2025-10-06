@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateTechnicianDto } from './dto/create-technician.dto';
 import { UpdateTechnicianDto } from './dto/update-technician.dto';
@@ -12,6 +12,7 @@ import { ConflictException } from '@nestjs/common/exceptions/conflict.exception'
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
 import  {buildAccountOrderBy } from 'src/common/sort/sort.util';
+import { AccountStatus } from '@prisma/client';
 
 @Injectable()
 export class TechnicianService {
@@ -62,10 +63,10 @@ export class TechnicianService {
 
   const where: Prisma.AccountWhereInput = {
     employee: {
-      firstName: filter?.firstName ? { contains: filter.firstName, mode: 'insensitive' } : undefined,
-      lastName: filter?.lastName ? { contains: filter.lastName, mode: 'insensitive' } : undefined,
+      firstName: { contains: filter?.firstName, mode: 'insensitive' },
+      lastName: { contains: filter?.lastName, mode: 'insensitive' },
     },
-    email: filter?.email ? { contains: filter.email, mode: 'insensitive' } : undefined,
+    email: { contains: filter?.email, mode: 'insensitive' },
     phone: filter?.phone,
     status: filter?.status,
     role: AccountRole.TECHNICIAN,
@@ -76,13 +77,10 @@ export class TechnicianService {
 
   async updateTechnician(
     accountId: string,
-    updateTechnicianDto: UpdateTechnicianDto
+    updateTechnicianDto: UpdateTechnicianDto,
   ): Promise<AccountWithProfileDTO> {
-    const updatedTechnician = await this.accountService.updateAccount(
-      accountId,
-      updateTechnicianDto
-    );
-    return plainToInstance(AccountWithProfileDTO, updatedTechnician);
+    const updatedTechnician = await this.accountService.updateAccount(accountId, updateTechnicianDto);
+    return updatedTechnician;
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
@@ -115,5 +113,61 @@ export class TechnicianService {
       where: { id: accountId },
       data: { password: await hashPassword(defaultPassword) },
     });
+  }
+
+  async getTechnicianStatistics() {
+    const [verified, notVerified, banned, disabled, total] = await Promise.all([
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.VERIFIED
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.NOT_VERIFY
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.BANNED
+        }
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.DISABLED
+        }
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.TECHNICIAN }
+      })
+    ]);
+
+    const data = [
+      {
+        status: 'VERIFIED',
+        count: verified,
+        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'NOT_VERIFY',
+        count: notVerified,
+        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'BANNED',
+        count: banned,
+        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0
+      },
+      {
+        status: 'DISABLED',
+        count: disabled,
+        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0
+      }
+    ].filter(item => item.count > 0);
+    return { data, total };
   }
 }

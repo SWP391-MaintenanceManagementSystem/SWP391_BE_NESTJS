@@ -15,15 +15,25 @@ import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-prof
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 
+  @Get('/statistics')
+  @Roles(AccountRole.ADMIN)
+  async getTechnicianStatistics() {
+    const { data, total } = await this.technicianService.getTechnicianStatistics();
+    return {
+      message: 'Get technician statistics successfully',
+      data,
+      total,
+    };
+  }
+
   @Get('/')
   @Roles(AccountRole.ADMIN)
   async getTechnicians(@Query() query: EmployeeQueryDTO) {
     const { data, page, pageSize, total, totalPages } =
       await this.technicianService.getTechnicians(query);
-    const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
     return {
       message: 'Technicians retrieved successfully',
-      data: accounts,
+      data: plainToInstance(AccountWithProfileDTO, data),
       page,
       pageSize,
       total,
@@ -58,14 +68,18 @@ export class TechnicianController {
   @ApiBody({ type: UpdateTechnicianDto })
   async updateTechnician(
     @Param('id') id: string,
-    @Body() updateTechnicianDto: UpdateTechnicianDto
+    @Body() updateTechnicianDto: UpdateTechnicianDto,
   ) {
-    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
+    const data = await this.technicianService.updateTechnician(
+      id,
+      updateTechnicianDto,
+    );
     return {
-      message: `Technician updated successfully`,
-      data,
+      message: 'Technician updated successfully',
+      data: plainToInstance(AccountWithProfileDTO, data),
     };
   }
+
   @Delete('/:id')
   @Roles(AccountRole.ADMIN)
   async deleteTechnician(@Param('id') id: string) {
