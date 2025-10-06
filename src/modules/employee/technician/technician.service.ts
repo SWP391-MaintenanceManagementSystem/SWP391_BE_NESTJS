@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateTechnicianDto } from './dto/create-technician.dto';
 import { UpdateTechnicianDto } from './dto/update-technician.dto';
@@ -63,10 +63,10 @@ export class TechnicianService {
 
   const where: Prisma.AccountWhereInput = {
     employee: {
-      firstName: filter?.firstName ? { contains: filter.firstName, mode: 'insensitive' } : undefined,
-      lastName: filter?.lastName ? { contains: filter.lastName, mode: 'insensitive' } : undefined,
+      firstName: { contains: filter?.firstName, mode: 'insensitive' },
+      lastName: { contains: filter?.lastName, mode: 'insensitive' },
     },
-    email: filter?.email ? { contains: filter.email, mode: 'insensitive' } : undefined,
+    email: { contains: filter?.email, mode: 'insensitive' },
     phone: filter?.phone,
     status: filter?.status,
     role: AccountRole.TECHNICIAN,
@@ -78,10 +78,9 @@ export class TechnicianService {
   async updateTechnician(
     accountId: string,
     updateTechnicianDto: UpdateTechnicianDto,
-    filter: EmployeeQueryDTO
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    await this.accountService.updateAccount(accountId, updateTechnicianDto);
-    return await this.getTechnicians(filter);
+  ): Promise<AccountWithProfileDTO> {
+    const updatedTechnician = await this.accountService.updateAccount(accountId, updateTechnicianDto);
+    return plainToInstance(AccountWithProfileDTO, updatedTechnician);
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
@@ -148,7 +147,6 @@ export class TechnicianService {
       })
     ]);
 
-    // Create data array with status, count, and percentage
     const statusData = [
       {
         status: 'VERIFIED',
@@ -170,7 +168,7 @@ export class TechnicianService {
         count: disabled,
         percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0
       }
-    ].filter(item => item.count > 0); // Only include statuses with technicians
+    ].filter(item => item.count > 0);
 
     return {
       data: statusData,
