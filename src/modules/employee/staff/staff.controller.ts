@@ -38,14 +38,15 @@ export class StaffController {
     };
   }
 
-  @Get('/status-stats')
+  @Get('/statistics')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getStaffStatusStats() {
-    const stats = await this.staffService.getStaffStatistics();
+    const {data , total } = await this.staffService.getStaffStatistics();
     return {
       message: 'Staff status statistics retrieved successfully',
-      data: stats,
+      data,
+      total,
     };
   }
 
