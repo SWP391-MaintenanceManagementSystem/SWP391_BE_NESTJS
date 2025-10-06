@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post} from '@nestjs/common';
 import { CertificateService } from './certificate.service';
 import { CreateCertificateDto } from './dto/create-certificate.dto';
 import { UpdateCertificateDto } from './dto/update-certificate.dto';
@@ -8,7 +8,7 @@ import { AccountRole } from '@prisma/client';
 
 @ApiTags('Certificates')
 @Controller('certificates')
-@ApiBearerAuth()
+@ApiBearerAuth('jwt-auth')
 @Roles(AccountRole.ADMIN)
 export class CertificateController {
   constructor(private readonly certificateService: CertificateService) {}
@@ -36,7 +36,7 @@ export class CertificateController {
     return { message: `Certificate with id ${id} retrieved successfully` };
   }
 
-  @Put('/:id')
+  @Patch('/:id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   @ApiBody({ type: UpdateCertificateDto })

@@ -29,6 +29,7 @@ import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { PaymentModule } from './modules/payment/payment.module';import { ServicePartModule } from './modules/service-part/service-part.module';
 import { PackageModule } from './modules/package/package.module';
 import { PackageDetailModule } from './modules/package-detail/package-detail.module';
+import { CertificateModule } from './modules/employee/certificate/certificate.module';
 
 
 @Module({
@@ -72,6 +73,7 @@ import { PackageDetailModule } from './modules/package-detail/package-detail.mod
     RedisModule,
     CustomerModule,
     TechnicianModule,
+    CertificateModule,
     VehicleModule,
     ServiceModule,
     CategoryModule,
