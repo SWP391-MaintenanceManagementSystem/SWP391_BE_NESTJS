@@ -7,6 +7,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountService } from '../account/account.service';
 import { CustomerQueryDTO } from './dto/customer-query.dto';
 import { UpdateCustomerDTO } from './dto/update-customer.dto';
+import { CustomerStatisticsDTO, CustomerStatisticsItemDTO } from './dto/customer-statistics.dto';
 
 @Injectable()
 export class CustomerService {
@@ -65,5 +66,37 @@ export class CustomerService {
 
   async deleteCustomer(id: string): Promise<void> {
     return await this.accountService.deleteAccount(id);
+  }
+
+  async getCustomerStatistics(): Promise<CustomerStatisticsDTO> {
+    const [statusStats, premium, total] = await Promise.all([
+      this.prismaService.account.groupBy({
+        by: ['status'],
+        _count: { status: true },
+        where: { role: AccountRole.CUSTOMER },
+      }),
+
+      this.prismaService.customer.count({ where: { isPremium: true } }),
+
+      this.prismaService.account.count({ where: { role: AccountRole.CUSTOMER } }),
+    ]);
+
+    const safeDivide = (num: number, den: number) =>
+      den === 0 ? 0 : Number(((num / den) * 100).toFixed(2));
+
+    const data: CustomerStatisticsItemDTO[] = statusStats.map(s => ({
+      status: s.status,
+      count: s._count.status,
+      percentage: safeDivide(s._count.status, total),
+    }));
+
+    return {
+      total,
+      premium: {
+        count: premium,
+        percentage: safeDivide(premium, total),
+      },
+      data,
+    };
   }
 }

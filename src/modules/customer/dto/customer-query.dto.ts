@@ -18,6 +18,7 @@ export class CustomerQueryDTO {
   @ApiPropertyOptional({ description: 'Is premium customer?' })
   @IsOptional()
   @IsBoolean()
+  @Type(() => Boolean)
   isPremium?: boolean;
 
   @ApiPropertyOptional({

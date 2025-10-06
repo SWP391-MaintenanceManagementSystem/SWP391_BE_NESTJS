@@ -7,7 +7,7 @@ export class UpdateStaffDto {
  @IsOptional({ message: 'First name is required' })
    @IsString({ message: 'First name must be a string' })
    @Length(2, 30, { message: 'First name must be between 2 and 30 characters long' })
-   @Matches(/^[\p{L}\s]+$/u, {
+   @Matches(/^[A-Za-zÀ-ỹ0-9_\s]+$/, {
      message: 'First name can only contain letters and spaces',
    })
    @ApiPropertyOptional({
@@ -21,7 +21,7 @@ export class UpdateStaffDto {
    @IsOptional({ message: 'Last name is required' })
    @IsString({ message: 'Last name must be a string' })
    @Length(2, 30, { message: 'Last name must be between 2 and 30 characters long' })
-   @Matches(/^[\p{L}\s]+$/u, {
+   @Matches(/^[A-Za-zÀ-ỹ0-9_\s]+$/, {
      message: 'Last name can only contain letters and spaces',
    })
    @ApiPropertyOptional({
