@@ -37,7 +37,7 @@ export class PaymentController {
   ) {
     const { referenceId, referenceType, amount } = body;
 
-    const { url } = await this.paymentService.createCheckoutSession(
+    const { sessionId } = await this.paymentService.createCheckoutSession(
       user.sub,
       referenceId,
       referenceType,
@@ -46,7 +46,7 @@ export class PaymentController {
 
     return {
       message: 'Checkout session created successfully',
-      data: url,
+      data: sessionId,
     };
   }
 
