@@ -36,58 +36,72 @@ export class WorkCenterService {
     const startDate = createWorkCenterDto.startDate ? new Date(createWorkCenterDto.startDate) : new Date();
     const endDate = createWorkCenterDto.endDate ? new Date(createWorkCenterDto.endDate) : null;
 
+    if (endDate && startDate >= endDate) {
+      throw new BadRequestException('Start date must be before end date');
+    }
+
     const createdAssignments = [];
 
-  for (const empId of createWorkCenterDto.employeeId) {
-    const employee = await this.prismaService.employee.findUnique({
-      where: { accountId: empId },
-      include: { account: true },
-    });
+    for (const empId of createWorkCenterDto.employeeId) {
+      const employee = await this.prismaService.employee.findUnique({
+        where: { accountId: empId },
+        include: { account: true },
+      });
 
-    if (!employee) {
-      throw new NotFoundException(`Employee with ID ${empId} not found`);
+      if (!employee) {
+        throw new NotFoundException(`Employee with ID ${empId} not found`);
+      }
+
+      if (employee.account?.role !== AccountRole.STAFF && employee.account?.role !== AccountRole.TECHNICIAN) {
+        throw new BadRequestException('Only STAFF and TECHNICIAN employees can be assigned to service centers');
+      }
+
+      // Validate: Check overlapping assignments logic
+      const overlapping = await this.prismaService.workCenter.findFirst({
+        where: {
+          employeeId: empId,
+          centerId: createWorkCenterDto.centerId,
+          OR: [
+            // Case 1: New assignment overlaps with existing assignment that has end date
+            {
+              AND: [
+                { endDate: { not: null } },
+                { startDate: { lte: endDate || new Date('2099-12-31') } },
+                { endDate: { gte: startDate } }
+              ]
+            },
+            // Case 2: New assignment overlaps with existing assignment that has no end date
+            {
+              AND: [
+                { endDate: null },
+                { startDate: { lte: endDate || new Date('2099-12-31') } }
+              ]
+            }
+          ],
+        },
+      });
+
+      if (overlapping) {
+        throw new ConflictException(
+          `Employee ${employee.firstName} ${employee.lastName} already has an overlapping assignment at this center`
+        );
+      }
+
+      const workCenter = await this.prismaService.workCenter.create({
+        data: {
+          employeeId: empId,
+          centerId: createWorkCenterDto.centerId,
+          startDate,
+          endDate,
+        },
+        include: {
+          employee: { include: { account: true } },
+          serviceCenter: true,
+        },
+      });
+
+      createdAssignments.push(workCenter);
     }
-
-    if (employee.account?.role !== AccountRole.STAFF && employee.account?.role !== AccountRole.TECHNICIAN) {
-      throw new BadRequestException('Only STAFF and TECHNICIAN employees can be assigned to service centers');
-    }
-
-    // Check overlapping assignments
-    const overlapping = await this.prismaService.workCenter.findFirst({
-      where: {
-        employeeId: empId,
-        centerId: createWorkCenterDto.centerId,
-        OR: [
-          {
-            startDate: { lte: endDate || new Date('2099-12-31') },
-            endDate: { gte: startDate },
-          },
-          { endDate: null },
-        ],
-      },
-    });
-
-    if (overlapping) {
-      throw new ConflictException(
-        `Employee ${employee.firstName} ${employee.lastName} already has an overlapping assignment at this center`
-      );
-    }
-
-    const workCenter = await this.prismaService.workCenter.create({
-      data: {
-        employeeId: empId,
-        centerId: createWorkCenterDto.centerId,
-        startDate,
-        endDate,
-      },
-      include: {
-        employee: { include: { account: true } },
-        serviceCenter: true,
-      },
-    });
-
-    createdAssignments.push(workCenter);
-  }
 
     return createdAssignments.map(wc => plainToInstance(WorkCenterDto, wc));
   }
@@ -195,10 +209,11 @@ export class WorkCenterService {
     updateWorkCenterDto: UpdateWorkCenterDto,
     userRole: AccountRole,
     currentUserId?: string
-    ): Promise<WorkCenterDto[]> {
+  ): Promise<WorkCenterDto[]> {
     if (userRole !== AccountRole.ADMIN) {
       throw new ForbiddenException('Only ADMIN can update work center assignments');
     }
+
     const existingWorkCenter = await this.prismaService.workCenter.findUnique({
       where: { id },
       include: {
@@ -251,11 +266,10 @@ export class WorkCenterService {
         }
       }
 
+      // Fix: Get current assignments related to THIS specific assignment
       const currentAssignments = await this.prismaService.workCenter.findMany({
         where: {
-          centerId: existingWorkCenter.centerId,
-          startDate: existingWorkCenter.startDate,
-          endDate: existingWorkCenter.endDate,
+          id: id, // Only get the current assignment being updated
         },
       });
 
@@ -263,29 +277,35 @@ export class WorkCenterService {
       const newEmployeeIds = updateWorkCenterDto.employeeId;
 
       // Calculate changes
-      const toKeep = newEmployeeIds.filter(id => currentEmployeeIds.includes(id));
-      const toAdd = newEmployeeIds.filter(id => !currentEmployeeIds.includes(id));
-      const toRemove = currentEmployeeIds.filter(id => !newEmployeeIds.includes(id));
+      const toKeep = newEmployeeIds.filter(empId => currentEmployeeIds.includes(empId));
+      const toAdd = newEmployeeIds.filter(empId => !currentEmployeeIds.includes(empId));
+      const toRemove = currentEmployeeIds.filter(empId => !newEmployeeIds.includes(empId));
 
       // Check for overlapping assignments for new employees
       if (toAdd.length > 0) {
         for (const empId of toAdd) {
-          const overlappingConditions = [
-            {
-              startDate: { lte: targetEndDate || new Date('2099-12-31') },
-              endDate: { gte: targetStartDate }
-            }
-          ];
-
-          if (!targetEndDate) {
-            overlappingConditions.push({ endDate: null });
-          }
-
           const overlapping = await this.prismaService.workCenter.findFirst({
             where: {
               employeeId: empId,
               centerId: targetCenterId,
-              OR: overlappingConditions,
+              id: { not: id }, // Exclude current assignment
+              OR: [
+                // Case 1: Overlaps with existing assignment that has end date
+                {
+                  AND: [
+                    { endDate: { not: null } },
+                    { startDate: { lte: targetEndDate || new Date('2099-12-31') } },
+                    { endDate: { gte: targetStartDate } }
+                  ]
+                },
+                // Case 2: Overlaps with existing assignment that has no end date
+                {
+                  AND: [
+                    { endDate: null },
+                    { startDate: { lte: targetEndDate || new Date('2099-12-31') } }
+                  ]
+                }
+              ],
             },
           });
 
@@ -297,65 +317,35 @@ export class WorkCenterService {
           }
         }
       }
-      await this.prismaService.$transaction(async (prisma) => {
-        if (toRemove.length > 0) {
-          await prisma.workCenter.deleteMany({
-            where: {
-              centerId: existingWorkCenter.centerId,
-              startDate: existingWorkCenter.startDate,
-              endDate: existingWorkCenter.endDate,
-              employeeId: { in: toRemove },
-            },
-          });
-        }
 
-        // Add new employees
-        if (toAdd.length > 0) {
-          await prisma.workCenter.createMany({
-            data: toAdd.map(empId => ({
-              employeeId: empId,
-              centerId: targetCenterId,
-              startDate: targetStartDate,
-              endDate: targetEndDate,
-            })),
-          });
-        }
-
-        // Update existing assignments if center or dates changed
-        if (toKeep.length > 0 && (updateWorkCenterDto.centerId || updateWorkCenterDto.startDate || updateWorkCenterDto.endDate !== undefined)) {
-          await prisma.workCenter.updateMany({
-            where: {
-              centerId: existingWorkCenter.centerId,
-              startDate: existingWorkCenter.startDate,
-              endDate: existingWorkCenter.endDate,
-              employeeId: { in: toKeep },
-            },
-            data: {
-              ...(updateWorkCenterDto.centerId && { centerId: updateWorkCenterDto.centerId }),
-              ...(updateWorkCenterDto.startDate && { startDate: targetStartDate }),
-              ...(updateWorkCenterDto.endDate !== undefined && { endDate: targetEndDate }),
-            },
-          });
-        }
-      });
-
-      const updatedAssignments = await this.prismaService.workCenter.findMany({
-        where: {
+      // Fix: Update logic - since we're working with a single assignment, not multiple
+      if (newEmployeeIds.length === 1) {
+        // Simple case: updating to a single employee
+        const updateData: any = {
+          employeeId: newEmployeeIds[0],
           centerId: targetCenterId,
-          employeeId: { in: newEmployeeIds },
           startDate: targetStartDate,
-          endDate: targetEndDate,
-        },
-        include: {
-          employee: { include: { account: true } },
-          serviceCenter: true,
-        },
-        orderBy: { employee: { firstName: 'asc' } },
-      });
+        };
 
-      return updatedAssignments.map(wc => plainToInstance(WorkCenterDto, wc));
-    }
-    else {
+        if (updateWorkCenterDto.endDate !== undefined) {
+          updateData.endDate = targetEndDate;
+        }
+
+        const updatedWorkCenter = await this.prismaService.workCenter.update({
+          where: { id },
+          data: updateData,
+          include: {
+            employee: { include: { account: true } },
+            serviceCenter: true,
+          },
+        });
+
+        return [plainToInstance(WorkCenterDto, updatedWorkCenter)];
+      } else {
+        throw new BadRequestException('Cannot assign multiple employees to a single work center assignment. Create separate assignments instead.');
+      }
+    } else {
+      // Update other fields without changing employee assignment
       const updateData: any = {};
       if (updateWorkCenterDto.centerId) updateData.centerId = updateWorkCenterDto.centerId;
       if (updateWorkCenterDto.startDate) updateData.startDate = targetStartDate;
