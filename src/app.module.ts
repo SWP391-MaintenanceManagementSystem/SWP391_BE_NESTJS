@@ -30,6 +30,10 @@ import { PaymentModule } from './modules/payment/payment.module';import { Servic
 import { PackageModule } from './modules/package/package.module';
 import { PackageDetailModule } from './modules/package-detail/package-detail.module';
 import { CertificateModule } from './modules/employee/certificate/certificate.module';
+import { EmployeeModule } from './modules/employee/employee.module';
+import { ShiftModule } from './modules/shift/shift.module';
+import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module';
+import { WorkCenterModule } from './modules/work-center/work-center.module';
 
 
 @Module({
@@ -86,6 +90,11 @@ import { CertificateModule } from './modules/employee/certificate/certificate.mo
     ServicePartModule,
     PackageModule,
     PackageDetailModule,
+    WorkScheduleModule,
+    ShiftModule,
+    EmployeeModule,
+    WorkCenterModule,
+    ServiceModule
   ],
   controllers: [AppController],
   providers: [
