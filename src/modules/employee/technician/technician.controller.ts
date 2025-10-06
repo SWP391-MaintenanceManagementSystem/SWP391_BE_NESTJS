@@ -70,23 +70,14 @@ export class TechnicianController {
   async updateTechnician(
     @Param('id') id: string,
     @Body() updateTechnicianDto: UpdateTechnicianDto,
-    @Query() query: EmployeeQueryDTO
   ) {
-    const { data, page, pageSize, total, totalPages } = await this.technicianService.updateTechnician(
+    const data = await this.technicianService.updateTechnician(
       id,
       updateTechnicianDto,
-      query
     );
-
-    const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
-
     return {
       message: 'Technician updated successfully',
-      data: accounts,
-      page,
-      pageSize,
-      total,
-      totalPages,
+      data,
     };
   }
 
