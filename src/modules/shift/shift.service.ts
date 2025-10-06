@@ -31,6 +31,20 @@ export class ShiftService {
         throw new BadRequestException('Start date must be before end date');
       }
     }
+
+    let repeatDaysData: number[] | undefined;
+    if (shift.repeatDays) {
+      if (typeof shift.repeatDays === 'string') {
+        try {
+          repeatDaysData = JSON.parse(shift.repeatDays);
+        } catch {
+          repeatDaysData = shift.repeatDays.split(',').map(day => parseInt(day.trim()));
+        }
+      } else if (Array.isArray(shift.repeatDays)) {
+        repeatDaysData = shift.repeatDays;
+      }
+    }
+
     const existCenter = await this.prismaService.serviceCenter.findUnique({
       where: { id: shift.centerId }
     });
@@ -58,7 +72,7 @@ export class ShiftService {
         endDate: shift.endDate ? new Date(shift.endDate) : undefined,
         maximumSlot: shift.maximumSlot,
         status: ShiftStatus.ACTIVE,
-        repeatDays: shift.repeatDays,
+        repeatDays: repeatDaysData,
         centerId: shift.centerId,
       },
       include: {
@@ -128,10 +142,9 @@ export class ShiftService {
     if (filter.startTime) where.startTime = { gte: filter.startTime };
     if (filter.endTime) where.endTime = { lte: filter.endTime };
 
-    // Handle repeatDays filter
     if (filter.repeatDays && filter.repeatDays.length > 0) {
       const dayConditions = filter.repeatDays.map(day => ({
-        repeatDays: { contains: day }
+        repeatDays: { has: parseInt(day.toString()) }
       }));
       where.OR = dayConditions;
     }
@@ -272,11 +285,5 @@ export class ShiftService {
         }
       });
     }
-    // If you prefer to hard delete when there are no work schedules
-    //  else {
-    //   await this.prismaService.shift.delete({
-    //     where: { id }
-    //   });
-    // }
   }
 }
