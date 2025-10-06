@@ -27,7 +27,7 @@ export class PaymentService {
     referenceId: string,
     referenceType: ReferenceType,
     amount: number
-  ): Promise<{ url: string }> {
+  ): Promise<{ sessionId: string }> {
     let reference: PaymentReference | null = null;
     switch (referenceType) {
       case ReferenceType.MEMBERSHIP:
@@ -86,7 +86,7 @@ export class PaymentService {
     if (!session.url) {
       throw new InternalServerErrorException('Failed to create checkout session');
     }
-    return { url: session.url };
+    return { sessionId: session.id };
   }
 
   async handleWebhook(event: Stripe.Event) {
