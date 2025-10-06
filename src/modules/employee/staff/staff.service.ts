@@ -23,23 +23,41 @@ export class StaffService {
 
   async getStaffs(options: EmployeeQueryDTO): Promise<PaginationResponse<AccountWithProfileDTO>> {
     let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = options;
-    page < 1 && (page = 1);
-    pageSize < 1 && (pageSize = 10);
 
-    const where: Prisma.AccountWhereInput = {
-      employee: {
-        firstName: { contains: options?.firstName , mode: 'insensitive' },
-        lastName: { contains: options?.lastName , mode: 'insensitive' },
-      },
-      email: { contains: options?.email , mode: 'insensitive' },
-      phone: options?.phone,
-      status: options?.status,
-      role: AccountRole.STAFF,
-    };
+  page = Math.max(1, page);
+  pageSize = Math.max(1, pageSize);
 
+  const where: Prisma.AccountWhereInput = {
+    role: AccountRole.STAFF,
+    employee: {
+      firstName: options?.firstName
+        ? { contains: options?.firstName, mode: 'insensitive' }
+        : undefined,
+      lastName: options?.lastName
+        ? { contains: options?.lastName, mode: 'insensitive' }
+        : undefined,
+    },
+    email: options?.email
+      ? { contains: options?.email, mode: 'insensitive' }
+      : undefined,
+    phone: options?.phone,
+    status: options?.status,
+  };
 
+  // Lấy danh sách ban đầu
+  const result = await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
 
-    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+  // 🔒 Giữ thứ tự ổn định: sort theo createdAt (rồi theo id để tránh đổi chỗ)
+  result.data.sort((a, b) => {
+    const tA = new Date(a.createdAt).getTime();
+    const tB = new Date(b.createdAt).getTime();
+    if (tA === tB) {
+      return a.id.localeCompare(b.id); // fallback ổn định
+    }
+    return orderBy === 'asc' ? tA - tB : tB - tA;
+  });
+
+  return result;
   }
 
   async getStaffById(accountId: string): Promise<AccountWithProfileDTO | null> {
@@ -120,64 +138,26 @@ export class StaffService {
   }
 
  async getStaffStatistics() {
-    // Get counts by status
-    const [verified, notVerified, banned, disabled, total] = await Promise.all([
-      this.prisma.account.count({
-        where: {
-          role: AccountRole.STAFF,
-          status: AccountStatus.VERIFIED
-        }
-      }),
-      this.prisma.account.count({
-        where: {
-          role: AccountRole.STAFF,
-          status: AccountStatus.NOT_VERIFY
-        }
-      }),
-      this.prisma.account.count({
-        where: {
-          role: AccountRole.STAFF,
-          status: AccountStatus.BANNED
-        }
-      }),
-      this.prisma.account.count({
-        where: {
-          role: AccountRole.STAFF,
-          status: AccountStatus.DISABLED
-        }
-      }),
-      this.prisma.account.count({
-        where: { role: AccountRole.STAFF }
-      })
-    ]);
+  const [verified, notVerified, banned, disabled, total] = await Promise.all([
+    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.VERIFIED } }),
+    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.NOT_VERIFY } }),
+    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.BANNED } }),
+    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.DISABLED } }),
+    this.prisma.account.count({ where: { role: AccountRole.STAFF } }),
+  ]);
 
-    // Create data array with status, count, and percentage
-    const statusData = [
-      {
-        status: 'VERIFIED',
-        count: verified,
-        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0
-      },
-      {
-        status: 'NOT_VERIFY',
-        count: notVerified,
-        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0
-      },
-      {
-        status: 'BANNED',
-        count: banned,
-        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0
-      },
-      {
-        status: 'DISABLED',
-        count: disabled,
-        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0
-      }
-    ].filter(item => item.count > 0); // Only include statuses with technicians
+  const data = [
+    { status: 'VERIFIED', count: verified, percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0 },
+    { status: 'NOT_VERIFY', count: notVerified, percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0 },
+    { status: 'BANNED', count: banned, percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0 },
+    { status: 'DISABLED', count: disabled, percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0 },
+  ].filter(item => item.count > 0);
 
-    return {
-      data: statusData,
-      total
-    };
-  }
+  // 💡 giống kiểu customer: không bọc riêng "data"
+  return {
+    total,
+    data, // hoặc rename thành "data" nếu bạn thích
+  };
+}
+
 }
