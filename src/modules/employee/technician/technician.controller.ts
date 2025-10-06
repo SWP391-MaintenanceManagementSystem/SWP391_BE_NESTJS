@@ -31,10 +31,9 @@ export class TechnicianController {
   async getTechnicians(@Query() query: EmployeeQueryDTO) {
     const { data, page, pageSize, total, totalPages } =
       await this.technicianService.getTechnicians(query);
-    const accounts = data.map(tech => plainToInstance(AccountWithProfileDTO, tech));
     return {
       message: 'Technicians retrieved successfully',
-      data: accounts,
+      data: plainToInstance(AccountWithProfileDTO, data),
       page,
       pageSize,
       total,
@@ -77,7 +76,7 @@ export class TechnicianController {
     );
     return {
       message: 'Technician updated successfully',
-      data,
+      data: plainToInstance(AccountWithProfileDTO, data),
     };
   }
 

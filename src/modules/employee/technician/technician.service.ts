@@ -80,7 +80,7 @@ export class TechnicianService {
     updateTechnicianDto: UpdateTechnicianDto,
   ): Promise<AccountWithProfileDTO> {
     const updatedTechnician = await this.accountService.updateAccount(accountId, updateTechnicianDto);
-    return plainToInstance(AccountWithProfileDTO, updatedTechnician);
+    return updatedTechnician;
   }
 
   async deleteTechnician(accountId: string): Promise<void> {

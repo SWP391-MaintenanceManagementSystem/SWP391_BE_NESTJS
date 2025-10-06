@@ -24,6 +24,7 @@ import { MembershipModule } from './modules/membership/membership.module';
 import { StripeModule } from './modules/stripe/stripe.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
 import { PaymentModule } from './modules/payment/payment.module';
+import { CertificateModule } from './modules/employee/certificate/certificate.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { PaymentModule } from './modules/payment/payment.module';
     RedisModule,
     CustomerModule,
     TechnicianModule,
+    CertificateModule,
     VehicleModule,
     StaffModule,
     MembershipModule,
