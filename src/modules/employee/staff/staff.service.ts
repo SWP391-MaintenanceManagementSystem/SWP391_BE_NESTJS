@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
 import { CreateStaffDto } from './dto/create-staff.dto';
@@ -28,36 +28,18 @@ export class StaffService {
   pageSize = Math.max(1, pageSize);
 
   const where: Prisma.AccountWhereInput = {
-    role: AccountRole.STAFF,
     employee: {
-      firstName: options?.firstName
-        ? { contains: options?.firstName, mode: 'insensitive' }
-        : undefined,
-      lastName: options?.lastName
-        ? { contains: options?.lastName, mode: 'insensitive' }
-        : undefined,
+      firstName: { contains: options?.firstName, mode: 'insensitive' },
+      lastName: { contains: options?.lastName, mode: 'insensitive' },
     },
-    email: options?.email
-      ? { contains: options?.email, mode: 'insensitive' }
-      : undefined,
+    email: { contains: options?.email, mode: 'insensitive' },
     phone: options?.phone,
     status: options?.status,
+    role: AccountRole.STAFF,
   };
 
-  // Lấy danh sách ban đầu
-  const result = await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
 
-  // 🔒 Giữ thứ tự ổn định: sort theo createdAt (rồi theo id để tránh đổi chỗ)
-  result.data.sort((a, b) => {
-    const tA = new Date(a.createdAt).getTime();
-    const tB = new Date(b.createdAt).getTime();
-    if (tA === tB) {
-      return a.id.localeCompare(b.id); // fallback ổn định
-    }
-    return orderBy === 'asc' ? tA - tB : tB - tA;
-  });
-
-  return result;
+  return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
 
   async getStaffById(accountId: string): Promise<AccountWithProfileDTO | null> {
@@ -69,7 +51,16 @@ export class StaffService {
   }
 
   async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
+    const existingAccount = await this.prisma.account.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (existingAccount) {
+      throw new BadRequestException('Email is already in use');
+    }
+
     const defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
+
     const staffAccount = await this.prisma.account.create({
       data: {
         email: dto.email,
