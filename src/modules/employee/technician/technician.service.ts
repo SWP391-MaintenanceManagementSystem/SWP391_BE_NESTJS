@@ -27,6 +27,16 @@ export class TechnicianService {
     if (!defaultPassword) {
       throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
     }
+
+    if (createTechnicianDto.email) {
+      const existingAccount = await this.prisma.account.findUnique({
+        where: { email: createTechnicianDto.email },
+      });
+      if (existingAccount) {
+        throw new ConflictException('Email is already exists');
+      }
+    }
+
     const technicianAccount = await this.prisma.account.create({
       data: {
         email: createTechnicianDto.email,
