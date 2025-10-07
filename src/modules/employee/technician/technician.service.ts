@@ -11,7 +11,7 @@ import { hashPassword } from 'src/utils';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
-import  {buildAccountOrderBy } from 'src/common/sort/sort.util';
+import { buildAccountOrderBy } from 'src/common/sort/sort.util';
 import { AccountStatus } from '@prisma/client';
 
 @Injectable()
@@ -33,7 +33,7 @@ export class TechnicianService {
         where: { email: createTechnicianDto.email },
       });
       if (existingAccount) {
-        throw new ConflictException('Email is already exists');
+        throw new BadRequestException('Technician with email is already exists');
       }
     }
 
@@ -66,30 +66,35 @@ export class TechnicianService {
     return plainToInstance(AccountWithProfileDTO, technician);
   }
 
-  async getTechnicians(filter: EmployeeQueryDTO): Promise<PaginationResponse<AccountWithProfileDTO>> {
-  let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = filter;
-  page < 1 && (page = 1);
-  pageSize < 1 && (pageSize = 10);
+  async getTechnicians(
+    filter: EmployeeQueryDTO
+  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
+    let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = filter;
+    page < 1 && (page = 1);
+    pageSize < 1 && (pageSize = 10);
 
-  const where: Prisma.AccountWhereInput = {
-    employee: {
-      firstName: { contains: filter?.firstName, mode: 'insensitive' },
-      lastName: { contains: filter?.lastName, mode: 'insensitive' },
-    },
-    email: { contains: filter?.email, mode: 'insensitive' },
-    phone: filter?.phone,
-    status: filter?.status,
-    role: AccountRole.TECHNICIAN,
-  };
+    const where: Prisma.AccountWhereInput = {
+      employee: {
+        firstName: { contains: filter?.firstName, mode: 'insensitive' },
+        lastName: { contains: filter?.lastName, mode: 'insensitive' },
+      },
+      email: { contains: filter?.email, mode: 'insensitive' },
+      phone: filter?.phone,
+      status: filter?.status,
+      role: AccountRole.TECHNICIAN,
+    };
 
-  return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
-}
+    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+  }
 
   async updateTechnician(
     accountId: string,
-    updateTechnicianDto: UpdateTechnicianDto,
+    updateTechnicianDto: UpdateTechnicianDto
   ): Promise<AccountWithProfileDTO> {
-    const updatedTechnician = await this.accountService.updateAccount(accountId, updateTechnicianDto);
+    const updatedTechnician = await this.accountService.updateAccount(
+      accountId,
+      updateTechnicianDto
+    );
     return updatedTechnician;
   }
 
@@ -130,53 +135,53 @@ export class TechnicianService {
       this.prisma.account.count({
         where: {
           role: AccountRole.TECHNICIAN,
-          status: AccountStatus.VERIFIED
-        }
+          status: AccountStatus.VERIFIED,
+        },
       }),
       this.prisma.account.count({
         where: {
           role: AccountRole.TECHNICIAN,
-          status: AccountStatus.NOT_VERIFY
-        }
+          status: AccountStatus.NOT_VERIFY,
+        },
       }),
       this.prisma.account.count({
         where: {
           role: AccountRole.TECHNICIAN,
-          status: AccountStatus.BANNED
-        }
+          status: AccountStatus.BANNED,
+        },
       }),
       this.prisma.account.count({
         where: {
           role: AccountRole.TECHNICIAN,
-          status: AccountStatus.DISABLED
-        }
+          status: AccountStatus.DISABLED,
+        },
       }),
       this.prisma.account.count({
-        where: { role: AccountRole.TECHNICIAN }
-      })
+        where: { role: AccountRole.TECHNICIAN },
+      }),
     ]);
 
     const data = [
       {
         status: 'VERIFIED',
         count: verified,
-        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0
+        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0,
       },
       {
         status: 'NOT_VERIFY',
         count: notVerified,
-        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0
+        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0,
       },
       {
         status: 'BANNED',
         count: banned,
-        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0
+        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0,
       },
       {
         status: 'DISABLED',
         count: disabled,
-        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0
-      }
+        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0,
+      },
     ].filter(item => item.count > 0);
     return { data, total };
   }
