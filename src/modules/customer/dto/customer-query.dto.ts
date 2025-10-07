@@ -3,6 +3,7 @@ import { IsOptional, IsString, IsInt, Min, IsIn, IsBoolean, IsEnum } from 'class
 import { Type } from 'class-transformer';
 import { AccountStatus } from '@prisma/client';
 import { Order } from 'src/common/sort/sort.config';
+import { ToBoolean } from 'src/common/decorator/to-boolean.decorator';
 
 export class CustomerQueryDTO {
   @ApiPropertyOptional({ description: 'Customer first name' })
@@ -18,7 +19,7 @@ export class CustomerQueryDTO {
   @ApiPropertyOptional({ description: 'Is premium customer?' })
   @IsOptional()
   @IsBoolean()
-  @Type(() => Boolean)
+  @ToBoolean()
   isPremium?: boolean;
 
   @ApiPropertyOptional({
