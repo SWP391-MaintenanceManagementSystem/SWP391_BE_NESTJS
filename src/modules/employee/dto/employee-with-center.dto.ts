@@ -1,10 +1,16 @@
-import { AccountWithProfileDTO } from "src/modules/account/dto/account-with-profile.dto";
+import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { Expose, Type } from 'class-transformer';
 
-export type WorkCenter = {
-    centerId: string;
-    name: string;
+export class WorkCenterDTO {
+  @Expose()
+  id: string;
+
+  @Expose()
+  name: string;
 }
 
 export class EmployeeWithCenterDTO extends AccountWithProfileDTO {
-    workCenters: WorkCenter;
+  @Expose()
+  @Type(() => WorkCenterDTO)
+  workCenters: WorkCenterDTO[];
 }
