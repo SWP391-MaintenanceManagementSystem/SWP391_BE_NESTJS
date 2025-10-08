@@ -9,7 +9,7 @@ export class UpdateWorkCenterDto {
     example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
     description: 'Employee account UUID',
   })
-  employeeId?: string[];
+  employeeId?: string;
 
   @IsOptional()
   @IsString({ message: 'Center ID must be a string' })

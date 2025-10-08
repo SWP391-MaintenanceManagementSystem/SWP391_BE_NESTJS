@@ -24,7 +24,7 @@ export class WorkCenterQueryDto {
   @IsOptional()
   @IsString()
   @IsUUID()
-  @ApiProperty({ required: false, description: 'Filter by center ID' })
+  @ApiProperty({ required: false, description: 'Filter by service center ID' })
   centerId?: string;
 
   @IsOptional()
