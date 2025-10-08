@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  ForbiddenException,
+} from '@nestjs/common';
 import { ServiceCenterService } from './service-center.service';
 import { CreateServiceCenterDto } from './dto/create-service-center.dto';
 import { UpdateServiceCenterDto } from './dto/update-service-center.dto';
@@ -7,10 +17,11 @@ import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AccountRole } from '@prisma/client';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { ServiceCenterDto } from './dto/service-center.dto';
 
-@ApiTags('Service Centers')
+@ApiTags('Service Center')
 @ApiBearerAuth('jwt-auth')
-@Controller('api/service-centers')
+@Controller('api/service-center')
 export class ServiceCenterController {
   constructor(private readonly serviceCenterService: ServiceCenterService) {}
 
@@ -23,46 +34,44 @@ export class ServiceCenterController {
   }
 
   @Get('/')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getServiceCenters(@Query() query: ServiceCenterQueryDTO, @CurrentUser() user: { sub: string; role: AccountRole; centerId?: string }) {
-    const { data, page, pageSize, total, totalPages } = await this.serviceCenterService.getServiceCenters(query);
+  @Roles(AccountRole.ADMIN)
+  async getServiceCenters(@Query() query: ServiceCenterQueryDTO) {
+    const { data } = await this.serviceCenterService.getServiceCenters(query);
 
-    if (user.role === AccountRole.ADMIN) {
-      return {
-        message: 'Service centers retrieved successfully',
-        data,
-        page,
-        pageSize,
-        total,
-        totalPages,
-      };
-    } else {
-      const userCenter = data.find(center => center.id === user.centerId);
-      return {
-        message: 'Assigned service centers retrieved successfully',
-        data: userCenter ? [userCenter] : [],
-        page: 1,
-        pageSize: userCenter ? 1 : 0,
-        total: userCenter ? 1 : 0,
-        totalPages: userCenter ? 1 : 0,
-      };
-    }
+    return {
+      message: 'Service centers retrieved successfully',
+      data,
+    };
   }
 
   @Get('/:id')
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getServiceCenterById(@Param('id') id: string) {
+  async getServiceCenterById(
+    @Param('id') id: string,
+    @CurrentUser() user: { sub: string; role: AccountRole; centerId?: string }
+  ): Promise<{
+    message: string;
+    data: ServiceCenterDto;
+  }> {
+    // Authorization check for non-admin users
+    if (user.role !== AccountRole.ADMIN && user.centerId !== id) {
+      throw new ForbiddenException('You can only access your assigned service center');
+    }
+
     const data = await this.serviceCenterService.getServiceCenterById(id);
     return {
-        message: 'Service center retrieved successfully',
-        data,
+      message: 'Service center retrieved successfully',
+      data,
     };
   }
 
   @Patch('/:id')
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: UpdateServiceCenterDto })
-  async updateServiceCenter(@Param('id') id: string, @Body() updateServiceCenterDto: UpdateServiceCenterDto) {
+  async updateServiceCenter(
+    @Param('id') id: string,
+    @Body() updateServiceCenterDto: UpdateServiceCenterDto
+  ) {
     const data = await this.serviceCenterService.updateServiceCenter(id, updateServiceCenterDto);
     return {
       message: 'Service center updated successfully',

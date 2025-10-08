@@ -1,15 +1,14 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "src/modules/prisma/prisma.service";
-import { CreateServiceCenterDto } from "./dto/create-service-center.dto";
-import { UpdateServiceCenterDto } from "./dto/update-service-center.dto";
-import { CenterStatus, Prisma, ServiceCenter } from "@prisma/client";
-import { PaginationResponse } from "src/common/dto/pagination-response.dto";
-import { ServiceCenterQueryDTO } from "./dto/service-center.query.dto";
-import { ServiceCenterDto } from "./dto/service-center.dto";
-import { plainToInstance } from "class-transformer";
-import { BookingStatus } from "@prisma/client";
-import { ConflictException } from "@nestjs/common/exceptions/conflict.exception";
-
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from 'src/modules/prisma/prisma.service';
+import { CreateServiceCenterDto } from './dto/create-service-center.dto';
+import { UpdateServiceCenterDto } from './dto/update-service-center.dto';
+import { CenterStatus, Prisma, ServiceCenter } from '@prisma/client';
+import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
+import { ServiceCenterQueryDTO } from './dto/service-center.query.dto';
+import { ServiceCenterDto } from './dto/service-center.dto';
+import { plainToInstance } from 'class-transformer';
+import { BookingStatus } from '@prisma/client';
+import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 
 @Injectable()
 export class ServiceCenterService {
@@ -33,38 +32,24 @@ export class ServiceCenterService {
     return serviceCenter;
   }
 
-  async getServiceCenters(filter: ServiceCenterQueryDTO): Promise<PaginationResponse<ServiceCenterDto>> {
-    let { page = 1, pageSize = 10} = filter;
-    page < 1 && (page = 1);
-    pageSize < 1 && (pageSize = 10);
-
+  async getServiceCenters(filter: ServiceCenterQueryDTO): Promise<{ data: ServiceCenterDto[] }> {
     const where: Prisma.ServiceCenterWhereInput = {
-
       status: filter.status,
+      id: filter.id ? { contains: filter.id, mode: 'insensitive' } : undefined,
       name: filter.name ? { contains: filter.name, mode: 'insensitive' } : undefined,
       address: filter.address ? { contains: filter.address, mode: 'insensitive' } : undefined,
     };
 
-    const [serviceCenters, total] = await this.prisma.$transaction([
-      this.prisma.serviceCenter.findMany({
-        where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: filter.sortBy
-          ? { [filter.sortBy]: filter.orderBy ?? 'asc' }
-          : { createdAt: 'asc' },
-      }),
-      this.prisma.serviceCenter.count({ where }),
-    ]);
+    const serviceCenters = await this.prisma.serviceCenter.findMany({
+      where,
+      orderBy: filter.sortBy ? { [filter.sortBy]: filter.orderBy ?? 'asc' } : { createdAt: 'asc' },
+    });
 
     return {
-      data: serviceCenters.map(item => plainToInstance(ServiceCenterDto, item)),
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      data: serviceCenters.map(item =>
+        plainToInstance(ServiceCenterDto, item, { excludeExtraneousValues: true })
+      ),
     };
-
   }
 
   async getServiceCenterById(id: string): Promise<ServiceCenterDto> {
@@ -72,20 +57,44 @@ export class ServiceCenterService {
       where: { id },
       include: {
         workCenters: {
-          include: {
+          select: {
+            id: true,
+            employeeId: true,
+            startDate: true,
+            endDate: true,
             employee: {
-              include: { account: true }
-            }
-          }
+              select: {
+                account: {
+                  select: {
+                    email: true,
+                    phone: true,
+                    role: true,
+                    status: true,
+                    avatar: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    employee: {
+                      select: {
+                        firstName: true,
+                        lastName: true,
+                        createdAt: true,
+                        updatedAt: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { startDate: 'desc' },
         },
-        shifts: true,
         _count: {
           select: {
             workCenters: true,
             shifts: true,
-            bookings: true
-          }
-        }
+            bookings: true,
+          },
+        },
       },
     });
 
@@ -93,10 +102,15 @@ export class ServiceCenterService {
       throw new NotFoundException(`Service center with ID ${id} not found`);
     }
 
-    return plainToInstance(ServiceCenterDto, serviceCenter);
+    return plainToInstance(ServiceCenterDto, serviceCenter, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  async updateServiceCenter(id: string, updateServiceCenterDto: UpdateServiceCenterDto): Promise<ServiceCenterDto> {
+  async updateServiceCenter(
+    id: string,
+    updateServiceCenterDto: UpdateServiceCenterDto
+  ): Promise<ServiceCenterDto> {
     const existingServiceCenter = await this.prisma.serviceCenter.findUnique({
       where: { id },
     });
@@ -113,13 +127,15 @@ export class ServiceCenterService {
             {
               name: updateServiceCenterDto.name || existingServiceCenter.name,
               address: updateServiceCenterDto.address || existingServiceCenter.address,
-            }
-          ]
+            },
+          ],
         },
       });
 
       if (existingCenter) {
-        throw new ConflictException('A service center with the same name and address already exists');
+        throw new ConflictException(
+          'A service center with the same name and address already exists'
+        );
       }
     }
 
@@ -141,13 +157,13 @@ export class ServiceCenterService {
             bookings: {
               where: {
                 status: {
-                  in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROCESS'] // Active bookings
-                }
-              }
-            }
-          }
-        }
-      }
+                  in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROCESS'], // Active bookings
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!existingServiceCenter) {
@@ -159,43 +175,14 @@ export class ServiceCenterService {
     }
 
     if (existingServiceCenter._count.workCenters > 0) {
-      throw new ConflictException('Cannot close service center with assigned employees. Please reassign them first.');
+      throw new ConflictException(
+        'Cannot close service center with assigned employees. Please reassign them first.'
+      );
     }
 
     await this.prisma.serviceCenter.update({
       where: { id },
       data: { status: CenterStatus.CLOSED },
     });
-  }
-
-  async getAssignedCenters(accountId: string): Promise<ServiceCenterDto[]> {
-    const account = await this.prisma.account.findUnique({
-      where: { id: accountId },
-    });
-
-    if (!account) {
-      throw new NotFoundException(`Employee with ID ${accountId} not found`);
-    }
-
-    const workCenters = await this.prisma.workCenter.findMany({
-      where: { employeeId: accountId },
-      include: {
-        serviceCenter: {
-          include: {
-            _count: {
-              select: {
-                workCenters: true,
-                shifts: true,
-                bookings: true
-              }
-            }
-          }
-        }
-      },
-    });
-
-    return workCenters.map(wc =>
-      plainToInstance(ServiceCenterDto, wc.serviceCenter)
-    );
   }
 }
