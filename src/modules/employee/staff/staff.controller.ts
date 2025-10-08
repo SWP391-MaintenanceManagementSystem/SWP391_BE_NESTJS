@@ -12,21 +12,13 @@ import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-prof
 @ApiTags('Staff')
 @Controller('api/staff')
 export class StaffController {
-  constructor(private readonly staffService: StaffService) { }
+  constructor(private readonly staffService: StaffService) {}
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  async getStaffs(
-    @Query() query: EmployeeQueryDTO,
-  ) {
-    const {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages,
-    } = await this.staffService.getStaffs(query);
+  async getStaffs(@Query() query: EmployeeQueryDTO) {
+    const { data, page, pageSize, total, totalPages } = await this.staffService.getStaffs(query);
     const staffs = data.map(staff => plainToInstance(AccountWithProfileDTO, staff));
     return {
       message: 'Staffs retrieved successfully',
@@ -42,7 +34,7 @@ export class StaffController {
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getStaffStatusStats() {
-    const {data , total } = await this.staffService.getStaffStatistics();
+    const { data, total } = await this.staffService.getStaffStatistics();
     return {
       message: 'Staff status statistics retrieved successfully',
       data,
@@ -69,10 +61,7 @@ export class StaffController {
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   @ApiBody({ type: UpdateStaffDto })
-  async updateStaff(
-    @Param('id') id: string,
-    @Body() updateStaffDto: UpdateStaffDto,
-  ) {
+  async updateStaff(@Param('id') id: string, @Body() updateStaffDto: UpdateStaffDto) {
     return this.staffService.updateStaff(id, updateStaffDto);
   }
 
@@ -90,6 +79,4 @@ export class StaffController {
     await this.staffService.resetStaffPassword(id);
     return { message: `Password for staff ${id} has been reset to default` };
   }
-
-
 }

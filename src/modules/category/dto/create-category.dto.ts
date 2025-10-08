@@ -1,8 +1,8 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsString, MaxLength, MinLength } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateCategoryDto {
-     @ApiProperty({
+  @ApiProperty({
     example: 'Engine Parts',
     description: 'Name of the category',
   })

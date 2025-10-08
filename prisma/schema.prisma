@@ -37,7 +37,7 @@ enum BookingStatus {
   CHECKED_IN
   COMPLETED
   CANCELLED
-  IN_PROCESS
+  IN_PROGRESS
 }
 
 enum ReferenceType {
@@ -98,6 +98,12 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum BookingDetailStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 /**
  * ================= MODELS =================
  */
@@ -117,7 +123,7 @@ model Account {
   updatedAt      DateTime       @updatedAt @map("updated_at")
   customer       Customer?
   employee       Employee?
-  admin          Admin?
+  // admin          Admin?
   tokens         Token[]
 
   @@map("accounts")
@@ -157,16 +163,16 @@ model Employee {
   @@map("employees")
 }
 
-model Admin {
-  accountId String   @id @map("account_id")
-  fullName  String   @map("full_name")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// model Admin {
+//   accountId String   @id @map("account_id")
+//   fullName  String   @map("full_name")
+//   createdAt DateTime @default(now()) @map("created_at")
+//   updatedAt DateTime @updatedAt @map("updated_at")
 
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+//   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@map("admins")
-}
+//   @@map("admins")
+// }
 
 model Vehicle {
   id           String        @id @default(uuid())
@@ -214,6 +220,7 @@ model Booking {
   customerId  String        @map("customer_id")
   vehicleId   String        @map("vehicle_id")
   centerId    String        @map("center_id")
+  shiftId     String        @map("shift_id")
   totalCost   Float         @map("total_cost")
   status      BookingStatus @default(PENDING)
   note        String?
@@ -224,6 +231,7 @@ model Booking {
   customer           Customer            @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
   vehicle            Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   serviceCenter      ServiceCenter       @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  shift              Shift               @relation(fields: [shiftId], references: [id], onDelete: Cascade)
   bookingDetails     BookingDetail[]
   bookingAssignments BookingAssignment[]
 
@@ -234,14 +242,15 @@ model Booking {
 }
 
 model BookingDetail {
-  id        String   @id @default(uuid())
-  bookingId String   @map("booking_id")
-  serviceId String?  @map("service_id")
-  packageId String?  @map("package_id")
+  id        String              @id @default(uuid())
+  bookingId String              @map("booking_id")
+  serviceId String?             @map("service_id")
+  packageId String?             @map("package_id")
   quantity  Int
-  unitPrice Float    @map("unit_price")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  status    BookingDetailStatus @default(PENDING)
+  unitPrice Float               @map("unit_price")
+  createdAt DateTime            @default(now()) @map("created_at")
+  updatedAt DateTime            @updatedAt @map("updated_at")
 
   booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   service Service? @relation(fields: [serviceId], references: [id])
@@ -373,6 +382,7 @@ model Shift {
 
   serviceCenter ServiceCenter  @relation(fields: [centerId], references: [id], onDelete: Cascade)
   workSchedules WorkSchedule[]
+  Booking       Booking[]
 
   @@map("shifts")
 }
@@ -392,11 +402,11 @@ model WorkSchedule {
 }
 
 model WorkCenter {
-  id         String   @id @default(uuid())
-  employeeId String   @map("employee_id")
-  centerId   String   @map("center_id")
-  startDate  DateTime @map("start_date")
-  endDate    DateTime @map("end_date")
+  id            String        @id @default(uuid())
+  employeeId    String        @map("employee_id")
+  centerId      String        @map("center_id")
+  startDate     DateTime      @map("start_date")
+  endDate       DateTime      @map("end_date")
   employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
   serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
 

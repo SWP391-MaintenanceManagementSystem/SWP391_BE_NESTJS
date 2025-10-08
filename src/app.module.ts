@@ -26,11 +26,13 @@ import { PartModule } from './modules/part/part.module';
 import { MembershipModule } from './modules/membership/membership.module';
 import { StripeModule } from './modules/stripe/stripe.module';
 import { SubscriptionModule } from './modules/subscription/subscription.module';
-import { PaymentModule } from './modules/payment/payment.module';import { ServicePartModule } from './modules/service-part/service-part.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { ServicePartModule } from './modules/service-part/service-part.module';
 import { PackageModule } from './modules/package/package.module';
 import { PackageDetailModule } from './modules/package-detail/package-detail.module';
 import { CertificateModule } from './modules/employee/certificate/certificate.module';
-
+import { BookingModule } from './modules/booking/booking.module';
+import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
 
 @Module({
   imports: [
@@ -86,6 +88,8 @@ import { CertificateModule } from './modules/employee/certificate/certificate.mo
     ServicePartModule,
     PackageModule,
     PackageDetailModule,
+    BookingModule,
+    BookingDetailModule,
   ],
   controllers: [AppController],
   providers: [

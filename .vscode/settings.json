@@ -5,4 +5,7 @@
   "editor.formatOnPaste": true,
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  }
 }

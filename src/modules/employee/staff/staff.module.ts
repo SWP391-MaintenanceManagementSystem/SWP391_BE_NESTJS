@@ -9,4 +9,4 @@ import { AccountModule } from 'src/modules/account/account.module';
   providers: [StaffService],
   exports: [StaffService],
 })
-export class StaffModule { }
+export class StaffModule {}

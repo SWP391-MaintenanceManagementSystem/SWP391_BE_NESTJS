@@ -1,4 +1,9 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
 import { CreateStaffDto } from './dto/create-staff.dto';
@@ -24,22 +29,21 @@ export class StaffService {
   async getStaffs(options: EmployeeQueryDTO): Promise<PaginationResponse<AccountWithProfileDTO>> {
     let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = options;
 
-  page = Math.max(1, page);
-  pageSize = Math.max(1, pageSize);
+    page = Math.max(1, page);
+    pageSize = Math.max(1, pageSize);
 
-  const where: Prisma.AccountWhereInput = {
-    employee: {
-      firstName: { contains: options?.firstName, mode: 'insensitive' },
-      lastName: { contains: options?.lastName, mode: 'insensitive' },
-    },
-    email: { contains: options?.email, mode: 'insensitive' },
-    phone: options?.phone,
-    status: options?.status,
-    role: AccountRole.STAFF,
-  };
+    const where: Prisma.AccountWhereInput = {
+      employee: {
+        firstName: { contains: options?.firstName, mode: 'insensitive' },
+        lastName: { contains: options?.lastName, mode: 'insensitive' },
+      },
+      email: { contains: options?.email, mode: 'insensitive' },
+      phone: options?.phone,
+      status: options?.status,
+      role: AccountRole.STAFF,
+    };
 
-
-  return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
   }
 
   async getStaffById(accountId: string): Promise<AccountWithProfileDTO | null> {
@@ -82,12 +86,13 @@ export class StaffService {
     return employee;
   }
 
-  async updateStaff(accountId: string,updateStaffDto: UpdateStaffDto,): Promise<AccountWithProfileDTO> {
-
-    const updatedStaff = await this.accountService.updateAccount(accountId,  updateStaffDto);
+  async updateStaff(
+    accountId: string,
+    updateStaffDto: UpdateStaffDto
+  ): Promise<AccountWithProfileDTO> {
+    const updatedStaff = await this.accountService.updateAccount(accountId, updateStaffDto);
 
     return plainToInstance(AccountWithProfileDTO, updatedStaff);
-
   }
 
   async deleteStaff(accountId: string): Promise<{ message: string }> {
@@ -128,27 +133,50 @@ export class StaffService {
     return { message: "Staff's password reset successfully" };
   }
 
- async getStaffStatistics() {
-  const [verified, notVerified, banned, disabled, total] = await Promise.all([
-    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.VERIFIED } }),
-    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.NOT_VERIFY } }),
-    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.BANNED } }),
-    this.prisma.account.count({ where: { role: AccountRole.STAFF, status: AccountStatus.DISABLED } }),
-    this.prisma.account.count({ where: { role: AccountRole.STAFF } }),
-  ]);
+  async getStaffStatistics() {
+    const [verified, notVerified, banned, disabled, total] = await Promise.all([
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.VERIFIED },
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.NOT_VERIFY },
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.BANNED },
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.DISABLED },
+      }),
+      this.prisma.account.count({ where: { role: AccountRole.STAFF } }),
+    ]);
 
-  const data = [
-    { status: 'VERIFIED', count: verified, percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0 },
-    { status: 'NOT_VERIFY', count: notVerified, percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0 },
-    { status: 'BANNED', count: banned, percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0 },
-    { status: 'DISABLED', count: disabled, percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0 },
-  ].filter(item => item.count > 0);
+    const data = [
+      {
+        status: 'VERIFIED',
+        count: verified,
+        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'NOT_VERIFY',
+        count: notVerified,
+        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'BANNED',
+        count: banned,
+        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'DISABLED',
+        count: disabled,
+        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0,
+      },
+    ].filter(item => item.count > 0);
 
-  // 💡 giống kiểu customer: không bọc riêng "data"
-  return {
-    total,
-    data, // hoặc rename thành "data" nếu bạn thích
-  };
-}
-
+    // 💡 giống kiểu customer: không bọc riêng "data"
+    return {
+      total,
+      data, // hoặc rename thành "data" nếu bạn thích
+    };
+  }
 }

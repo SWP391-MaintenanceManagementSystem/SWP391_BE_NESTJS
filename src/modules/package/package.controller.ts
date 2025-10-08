@@ -25,7 +25,7 @@ export class PackageController {
     const data = await this.packageService.getAllPackages();
     return {
       data: data,
-      message: 'Get all packages successfully'
+      message: 'Get all packages successfully',
     };
   }
 
