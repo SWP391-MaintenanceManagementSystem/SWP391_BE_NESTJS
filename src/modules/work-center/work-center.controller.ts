@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { WorkCenterService } from './work-center.service';
 import { CreateWorkCenterDto } from './dto/create-work-center.dto';
@@ -25,17 +35,14 @@ export class WorkCenterController {
   ) {
     const data = await this.workCenterService.createWorkCenter(createWorkCenterDto, user.role);
     return {
-      message: 'Work center assignments created successfully',
+      message: 'Work center assignment created successfully',
       data,
     };
   }
 
   @Get()
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getWorkCenters(
-    @Query() query: WorkCenterQueryDto,
-    @CurrentUser() user: any
-  ) {
+  async getWorkCenters(@Query() query: WorkCenterQueryDto, @CurrentUser() user: any) {
     const { data, page, pageSize, total, totalPages } = await this.workCenterService.getWorkCenters(
       query,
       user.role,
@@ -50,10 +57,7 @@ export class WorkCenterController {
 
   @Get(':id')
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getWorkCenterById(
-    @Param('id') id: string,
-    @CurrentUser() user: any
-  ) {
+  async getWorkCenterById(@Param('id') id: string, @CurrentUser() user: any) {
     const data = await this.workCenterService.getWorkCenterById(id, user.role, user.sub);
     return {
       message: 'Work center assignment retrieved successfully',
@@ -63,27 +67,21 @@ export class WorkCenterController {
 
   @Patch(':id')
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: UpdateWorkCenterDto })
   async updateWorkCenter(
     @Param('id') id: string,
-    @Body() updateWorkCenterDto: UpdateWorkCenterDto,
-    @CurrentUser() user: any
+    @Body() updateWorkCenterDto: UpdateWorkCenterDto
   ) {
-    const data = await this.workCenterService.updateWorkCenter(id, updateWorkCenterDto, user.role, user.sub);
+    const data = await this.workCenterService.updateWorkCenter(id, updateWorkCenterDto);
     return {
-      message: 'Work center assignments updated successfully',
+      message: 'Work center assignment updated successfully',
       data,
-      count: data.length,
     };
   }
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
-  async deleteWorkCenter(
-    @Param('id') id: string,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.workCenterService.deleteWorkCenter(id, user.role, user.sub);
+  async deleteWorkCenter(@Param('id') id: string) {
+    const data = await this.workCenterService.deleteWorkCenter(id);
     return {
       message: 'Work center assignment deleted successfully',
       data,
