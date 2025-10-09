@@ -3,7 +3,7 @@ import { IsOptional, IsString, IsUUID, IsDateString, IsNumber } from 'class-vali
 import { Type } from 'class-transformer';
 import { Order } from 'src/common/sort/sort.config';
 
-export class WorkCenterQueryDto {
+export class WorkCenterQueryDTO {
   @IsOptional()
   @IsUUID()
   @ApiPropertyOptional({

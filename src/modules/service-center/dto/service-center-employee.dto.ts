@@ -1,6 +1,6 @@
 import { Expose, Transform } from 'class-transformer';
 
-export class ServiceCenterEmployeeDto {
+export class ServiceCenterEmployeeDTO {
   @Expose()
   id: string;
 

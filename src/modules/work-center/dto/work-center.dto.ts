@@ -1,7 +1,7 @@
 import { Expose, Transform } from 'class-transformer';
 import { $Enums } from '@prisma/client';
 
-export class WorkCenterDto {
+export class WorkCenterDTO {
   @Expose()
   id: string;
 

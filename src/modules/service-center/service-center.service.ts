@@ -1,11 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { CreateServiceCenterDto } from './dto/create-service-center.dto';
-import { UpdateServiceCenterDto } from './dto/update-service-center.dto';
+import { ServiceCenterDTO } from './dto/service-center.dto';
+import { CreateServiceCenterDTO } from './dto/create-service-center.dto';
+import { UpdateServiceCenterDTO } from './dto/update-service-center.dto';
 import { CenterStatus, Prisma, ServiceCenter } from '@prisma/client';
-import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { ServiceCenterQueryDTO } from './dto/service-center.query.dto';
-import { ServiceCenterDto } from './dto/service-center.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingStatus } from '@prisma/client';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
@@ -14,7 +13,7 @@ import { ConflictException } from '@nestjs/common/exceptions/conflict.exception'
 export class ServiceCenterService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createServiceCenter(createServiceCenterDto: CreateServiceCenterDto) {
+  async createServiceCenter(createServiceCenterDto: CreateServiceCenterDTO) {
     const existingCenter = await this.prisma.serviceCenter.findFirst({
       where: {
         name: createServiceCenterDto.name,
@@ -32,7 +31,7 @@ export class ServiceCenterService {
     return serviceCenter;
   }
 
-  async getServiceCenters(filter: ServiceCenterQueryDTO): Promise<{ data: ServiceCenterDto[] }> {
+  async getServiceCenters(filter: ServiceCenterQueryDTO): Promise<{ data: ServiceCenterDTO[] }> {
     const where: Prisma.ServiceCenterWhereInput = {
       status: filter.status,
       id: filter.id ? { contains: filter.id, mode: 'insensitive' } : undefined,
@@ -47,12 +46,12 @@ export class ServiceCenterService {
 
     return {
       data: serviceCenters.map(item =>
-        plainToInstance(ServiceCenterDto, item, { excludeExtraneousValues: true })
+        plainToInstance(ServiceCenterDTO, item, { excludeExtraneousValues: true })
       ),
     };
   }
 
-  async getServiceCenterById(id: string): Promise<ServiceCenterDto> {
+  async getServiceCenterById(id: string): Promise<ServiceCenterDTO> {
     const serviceCenter = await this.prisma.serviceCenter.findUnique({
       where: { id },
       include: {
@@ -102,15 +101,15 @@ export class ServiceCenterService {
       throw new NotFoundException(`Service center with ID ${id} not found`);
     }
 
-    return plainToInstance(ServiceCenterDto, serviceCenter, {
+    return plainToInstance(ServiceCenterDTO, serviceCenter, {
       excludeExtraneousValues: true,
     });
   }
 
   async updateServiceCenter(
     id: string,
-    updateServiceCenterDto: UpdateServiceCenterDto
-  ): Promise<ServiceCenterDto> {
+    updateServiceCenterDto: UpdateServiceCenterDTO
+  ): Promise<ServiceCenterDTO> {
     const existingServiceCenter = await this.prisma.serviceCenter.findUnique({
       where: { id },
     });
@@ -143,7 +142,7 @@ export class ServiceCenterService {
       where: { id },
       data: updateServiceCenterDto,
     });
-    return plainToInstance(ServiceCenterDto, updatedServiceCenter);
+    return plainToInstance(ServiceCenterDTO, updatedServiceCenter);
   }
 
   async deleteServiceCenter(id: string): Promise<void> {

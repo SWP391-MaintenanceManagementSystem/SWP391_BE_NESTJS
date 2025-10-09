@@ -1,7 +1,7 @@
 import { IsString, IsOptional, IsUUID, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class UpdateWorkCenterDto {
+export class UpdateWorkCenterDTO {
   @IsOptional()
   @IsString({ message: 'Employee ID must be a string' })
   @IsUUID(4, { message: 'Employee ID must be a valid UUID' })

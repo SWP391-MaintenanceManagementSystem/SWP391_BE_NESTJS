@@ -1,8 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { CenterStatus } from '@prisma/client';
 
-export class UpdateServiceCenterDto {
+export class UpdateServiceCenterDTO {
   @ApiProperty({ example: 'Main Service Center' })
   @IsString()
   @IsOptional()

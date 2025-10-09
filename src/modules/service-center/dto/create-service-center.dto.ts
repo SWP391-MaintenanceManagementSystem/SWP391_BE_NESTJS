@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsString } from 'class-validator';
 import { CenterStatus } from '@prisma/client';
 
-export class CreateServiceCenterDto {
+export class CreateServiceCenterDTO {
   @ApiProperty({ example: 'Main Service Center' })
   @IsString()
   @IsNotEmpty()
@@ -13,7 +13,7 @@ export class CreateServiceCenterDto {
   @IsNotEmpty()
   address: string;
 
-  @ApiProperty({ example: 'OPEN', enum: CenterStatus})
+  @ApiProperty({ example: 'OPEN', enum: CenterStatus })
   @IsEnum(CenterStatus)
   @IsString()
   @IsNotEmpty()

@@ -9,11 +9,11 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { WorkCenterService } from './work-center.service';
-import { CreateWorkCenterDto } from './dto/create-work-center.dto';
-import { UpdateWorkCenterDto } from './dto/update-work-center.dto';
-import { WorkCenterQueryDto } from './dto/work-center-query.dto';
+import { CreateWorkCenterDTO } from './dto/create-work-center.dto';
+import { UpdateWorkCenterDTO } from './dto/update-work-center.dto';
+import { WorkCenterQueryDTO } from './dto/work-center-query.dto';
 import { RoleGuard } from 'src/common/guard/role.guard';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
@@ -28,9 +28,9 @@ export class WorkCenterController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: CreateWorkCenterDto })
+  @ApiBody({ type: CreateWorkCenterDTO })
   async createWorkCenter(
-    @Body() createWorkCenterDto: CreateWorkCenterDto,
+    @Body() createWorkCenterDto: CreateWorkCenterDTO,
     @CurrentUser() user: any
   ) {
     const data = await this.workCenterService.createWorkCenter(createWorkCenterDto, user.role);
@@ -42,7 +42,7 @@ export class WorkCenterController {
 
   @Get()
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getWorkCenters(@Query() query: WorkCenterQueryDto, @CurrentUser() user: any) {
+  async getWorkCenters(@Query() query: WorkCenterQueryDTO, @CurrentUser() user: any) {
     const { data, page, pageSize, total, totalPages } = await this.workCenterService.getWorkCenters(
       query,
       user.role,
@@ -69,7 +69,7 @@ export class WorkCenterController {
   @Roles(AccountRole.ADMIN)
   async updateWorkCenter(
     @Param('id') id: string,
-    @Body() updateWorkCenterDto: UpdateWorkCenterDto
+    @Body() updateWorkCenterDto: UpdateWorkCenterDTO
   ) {
     const data = await this.workCenterService.updateWorkCenter(id, updateWorkCenterDto);
     return {

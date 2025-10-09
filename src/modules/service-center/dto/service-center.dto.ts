@@ -1,7 +1,7 @@
 import { Expose, Transform, Type } from 'class-transformer';
-import { ServiceCenterEmployeeDto } from './service-center-employee.dto';
+import { ServiceCenterEmployeeDTO } from './service-center-employee.dto';
 
-export class ServiceCenterDto {
+export class ServiceCenterDTO {
   @Expose()
   id: string;
 
@@ -24,7 +24,7 @@ export class ServiceCenterDto {
 
   // Optional fields for detailed view
   @Expose()
-  @Type(() => ServiceCenterEmployeeDto)
+  @Type(() => ServiceCenterEmployeeDTO)
   @Transform(({ obj }) => {
     if (!obj.workCenters) return undefined;
     // Filter active employees only (endDate is null or in future)
@@ -35,7 +35,7 @@ export class ServiceCenterDto {
       ) || []
     );
   })
-  employees?: ServiceCenterEmployeeDto[];
+  employees?: ServiceCenterEmployeeDTO[];
 
   @Expose()
   @Transform(({ obj }) => {

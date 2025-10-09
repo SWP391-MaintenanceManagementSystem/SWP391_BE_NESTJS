@@ -1,8 +1,7 @@
 import { IsString, IsNotEmpty, IsUUID, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
 
-export class CreateWorkCenterDto {
+export class CreateWorkCenterDTO {
   @IsString({ message: 'Employee ID must be a string' })
   @IsUUID(4, { message: 'Employee ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Employee ID must be provided' })

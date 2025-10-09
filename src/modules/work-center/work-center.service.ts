@@ -6,10 +6,10 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateWorkCenterDto } from './dto/create-work-center.dto';
-import { UpdateWorkCenterDto } from './dto/update-work-center.dto';
-import { WorkCenterQueryDto } from './dto/work-center-query.dto';
-import { WorkCenterDto } from './dto/work-center.dto';
+import { CreateWorkCenterDTO } from './dto/create-work-center.dto';
+import { UpdateWorkCenterDTO } from './dto/update-work-center.dto';
+import { WorkCenterQueryDTO } from './dto/work-center-query.dto';
+import { WorkCenterDTO } from './dto/work-center.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma } from '@prisma/client';
@@ -19,9 +19,9 @@ export class WorkCenterService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async createWorkCenter(
-    createWorkCenterDto: CreateWorkCenterDto,
+    createWorkCenterDto: CreateWorkCenterDTO,
     role: AccountRole
-  ): Promise<WorkCenterDto> {
+  ): Promise<WorkCenterDTO> {
     if (role !== AccountRole.ADMIN) {
       throw new ForbiddenException('Only ADMIN can assign employees to service centers');
     }
@@ -133,16 +133,16 @@ export class WorkCenterService {
       },
     });
 
-    return plainToInstance(WorkCenterDto, workCenter, {
+    return plainToInstance(WorkCenterDTO, workCenter, {
       excludeExtraneousValues: true,
     });
   }
 
   async getWorkCenters(
-    filter: WorkCenterQueryDto,
+    filter: WorkCenterQueryDTO,
     role: AccountRole,
     currentUserId?: string
-  ): Promise<PaginationResponse<WorkCenterDto>> {
+  ): Promise<PaginationResponse<WorkCenterDTO>> {
     const { page = 1, pageSize = 10, sortBy = 'startDate', orderBy = 'desc' } = filter;
 
     const where: Prisma.WorkCenterWhereInput = {
@@ -225,7 +225,7 @@ export class WorkCenterService {
 
     return {
       data: workCenters.map(wc =>
-        plainToInstance(WorkCenterDto, wc, {
+        plainToInstance(WorkCenterDTO, wc, {
           excludeExtraneousValues: true,
         })
       ),
@@ -240,7 +240,7 @@ export class WorkCenterService {
     id: string,
     role: AccountRole,
     currentUserId?: string
-  ): Promise<WorkCenterDto> {
+  ): Promise<WorkCenterDTO> {
     const workCenter = await this.prismaService.workCenter.findUnique({
       where: { id },
       include: {
@@ -289,15 +289,15 @@ export class WorkCenterService {
       }
     }
 
-    return plainToInstance(WorkCenterDto, workCenter, {
+    return plainToInstance(WorkCenterDTO, workCenter, {
       excludeExtraneousValues: true,
     });
   }
 
   async updateWorkCenter(
     id: string,
-    updateWorkCenterDto: UpdateWorkCenterDto
-  ): Promise<WorkCenterDto> {
+    updateWorkCenterDto: UpdateWorkCenterDTO
+  ): Promise<WorkCenterDTO> {
     const existingWorkCenter = await this.prismaService.workCenter.findUnique({
       where: { id },
       include: {
@@ -443,7 +443,7 @@ export class WorkCenterService {
       },
     });
 
-    return plainToInstance(WorkCenterDto, updatedWorkCenter, {
+    return plainToInstance(WorkCenterDTO, updatedWorkCenter, {
       excludeExtraneousValues: true,
     });
   }

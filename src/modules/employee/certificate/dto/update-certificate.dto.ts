@@ -2,7 +2,7 @@ import { IsString, IsOptional, IsArray, ArrayNotEmpty, ValidateNested } from 'cl
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
-export class UpdateCertificateDto {
+export class UpdateCertificateDTO {
   @IsOptional()
   @IsString()
   @ApiPropertyOptional({ example: 'Certified Electrician' })
@@ -24,7 +24,7 @@ export class UpdateCertificatesDto {
   @IsArray()
   @ArrayNotEmpty()
   @ValidateNested({ each: true })
-  @Type(() => UpdateCertificateDto)
-  @ApiPropertyOptional({ type: [UpdateCertificateDto] })
-  certificates?: UpdateCertificateDto[];
+  @Type(() => UpdateCertificateDTO)
+  @ApiPropertyOptional({ type: [UpdateCertificateDTO] })
+  certificates?: UpdateCertificateDTO[];
 }

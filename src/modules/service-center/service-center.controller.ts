@@ -10,14 +10,14 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ServiceCenterService } from './service-center.service';
-import { CreateServiceCenterDto } from './dto/create-service-center.dto';
-import { UpdateServiceCenterDto } from './dto/update-service-center.dto';
+import { ServiceCenterDTO } from './dto/service-center.dto';
+import { CreateServiceCenterDTO } from './dto/create-service-center.dto';
+import { UpdateServiceCenterDTO } from './dto/update-service-center.dto';
 import { ServiceCenterQueryDTO } from './dto/service-center.query.dto';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { AccountRole } from '@prisma/client';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
-import { ServiceCenterDto } from './dto/service-center.dto';
 
 @ApiTags('Service Center')
 @ApiBearerAuth('jwt-auth')
@@ -27,8 +27,8 @@ export class ServiceCenterController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: CreateServiceCenterDto })
-  async createServiceCenter(@Body() createServiceCenterDto: CreateServiceCenterDto) {
+  @ApiBody({ type: CreateServiceCenterDTO })
+  async createServiceCenter(@Body() createServiceCenterDto: CreateServiceCenterDTO) {
     const data = await this.serviceCenterService.createServiceCenter(createServiceCenterDto);
     return { data, message: 'Service center created successfully' };
   }
@@ -51,7 +51,7 @@ export class ServiceCenterController {
     @CurrentUser() user: { sub: string; role: AccountRole; centerId?: string }
   ): Promise<{
     message: string;
-    data: ServiceCenterDto;
+    data: ServiceCenterDTO;
   }> {
     // Authorization check for non-admin users
     if (user.role !== AccountRole.ADMIN && user.centerId !== id) {
@@ -67,10 +67,10 @@ export class ServiceCenterController {
 
   @Patch('/:id')
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: UpdateServiceCenterDto })
+  @ApiBody({ type: UpdateServiceCenterDTO })
   async updateServiceCenter(
     @Param('id') id: string,
-    @Body() updateServiceCenterDto: UpdateServiceCenterDto
+    @Body() updateServiceCenterDto: UpdateServiceCenterDTO
   ) {
     const data = await this.serviceCenterService.updateServiceCenter(id, updateServiceCenterDto);
     return {
