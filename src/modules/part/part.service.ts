@@ -42,6 +42,9 @@ export class PartService {
   if (pageSize < 1) pageSize = 10;
 
 
+  if (sortBy === 'quantity') sortBy = 'stock';
+
+
   const where: Prisma.PartWhereInput = {
     AND: [
       name
@@ -70,7 +73,10 @@ export class PartService {
         category: true,
         ServicePart: true,
       },
-      orderBy: { [sortBy]: orderBy },
+      orderBy:
+        ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
+          ? { [sortBy]: orderBy }
+          : { createdAt: 'desc' },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -80,6 +86,7 @@ export class PartService {
 
   let mappedParts = parts.map((p) => ({
     ...p,
+    quantity: p.stock,
     status: p.stock <= p.minStock ? PartStatus.LOWSTOCK : PartStatus.INSTOCK,
   }));
 
@@ -102,6 +109,7 @@ export class PartService {
     totalPages: Math.ceil(total / pageSize),
   };
 }
+
   async getPartByID(id: string): Promise<PartDto> {
      const part = await this.prisma.part.findUnique({
     where: { id },

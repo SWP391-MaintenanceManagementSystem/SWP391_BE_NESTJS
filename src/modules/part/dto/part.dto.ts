@@ -24,6 +24,10 @@ export class PartDto {
 
   @ApiProperty({ description: 'Current stock quantity' })
   @Expose()
+  quantity: number;
+
+  @ApiProperty({ description: 'Current stock quantity'})
+  @Exclude()
   stock: number;
 
   @ApiProperty({ description: 'Minimum stock quantity before reordering' })
