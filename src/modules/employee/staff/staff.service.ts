@@ -17,33 +17,20 @@ import { plainToClass, plainToInstance } from 'class-transformer';
 import { hashPassword } from 'src/utils';
 import { ConfigService } from '@nestjs/config';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
+import { EmployeeService } from '../employee.service';
 
 @Injectable()
 export class StaffService {
   constructor(
     private prisma: PrismaService,
     private readonly accountService: AccountService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly employeeService: EmployeeService
   ) {}
 
-  async getStaffs(options: EmployeeQueryDTO): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = options;
-
-    page = Math.max(1, page);
-    pageSize = Math.max(1, pageSize);
-
-    const where: Prisma.AccountWhereInput = {
-      employee: {
-        firstName: { contains: options?.firstName, mode: 'insensitive' },
-        lastName: { contains: options?.lastName, mode: 'insensitive' },
-      },
-      email: { contains: options?.email, mode: 'insensitive' },
-      phone: options?.phone,
-      status: options?.status,
-      role: AccountRole.STAFF,
-    };
-
-    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+  async getStaffs(filter: EmployeeQueryDTO): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
+    return this.employeeService.getEmployees(filter, AccountRole.STAFF);
   }
 
   async getStaffById(accountId: string): Promise<AccountWithProfileDTO | null> {
@@ -173,10 +160,9 @@ export class StaffService {
       },
     ].filter(item => item.count > 0);
 
-    // 💡 giống kiểu customer: không bọc riêng "data"
     return {
       total,
-      data, // hoặc rename thành "data" nếu bạn thích
+      data,
     };
   }
 }

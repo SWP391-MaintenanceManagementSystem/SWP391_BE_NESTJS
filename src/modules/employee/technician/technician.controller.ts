@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Query, Param, Delete, Post, Patch } from '@nestjs/common';
 import { TechnicianService } from './technician.service';
 import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
-import { CreateTechnicianDto } from './dto/create-technician.dto';
-import { UpdateTechnicianDto } from './dto/update-technician.dto';
+import { CreateTechnicianDTO } from './dto/create-technician.dto';
+import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
@@ -57,18 +57,18 @@ export class TechnicianController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: CreateTechnicianDto })
-  async createTechnician(@Body() createTechnicianDto: CreateTechnicianDto) {
+  @ApiBody({ type: CreateTechnicianDTO })
+  async createTechnician(@Body() createTechnicianDto: CreateTechnicianDTO) {
     const data = await this.technicianService.createTechnician(createTechnicianDto);
     return { data, message: 'Technician created successfully' };
   }
 
   @Patch('/:id')
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: UpdateTechnicianDto })
+  @ApiBody({ type: UpdateTechnicianDTO })
   async updateTechnician(
     @Param('id') id: string,
-    @Body() updateTechnicianDto: UpdateTechnicianDto
+    @Body() updateTechnicianDto: UpdateTechnicianDTO
   ) {
     const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
     return {

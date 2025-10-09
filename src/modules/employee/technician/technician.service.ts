@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { CreateTechnicianDto } from './dto/create-technician.dto';
-import { UpdateTechnicianDto } from './dto/update-technician.dto';
+import { CreateTechnicianDTO } from './dto/create-technician.dto';
+import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { Employee, AccountRole, Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
@@ -13,16 +13,19 @@ import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { buildAccountOrderBy } from 'src/common/sort/sort.util';
 import { AccountStatus } from '@prisma/client';
+import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
+import { EmployeeService } from '../employee.service';
 
 @Injectable()
 export class TechnicianService {
   constructor(
     private prisma: PrismaService,
     private readonly accountService: AccountService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly employeeService: EmployeeService
   ) {}
 
-  async createTechnician(createTechnicianDto: CreateTechnicianDto): Promise<Employee | null> {
+  async createTechnician(createTechnicianDto: CreateTechnicianDTO): Promise<Employee | null> {
     const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
     if (!defaultPassword) {
       throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
@@ -68,23 +71,8 @@ export class TechnicianService {
 
   async getTechnicians(
     filter: EmployeeQueryDTO
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = filter;
-    page < 1 && (page = 1);
-    pageSize < 1 && (pageSize = 10);
-
-    const where: Prisma.AccountWhereInput = {
-      employee: {
-        firstName: { contains: filter?.firstName, mode: 'insensitive' },
-        lastName: { contains: filter?.lastName, mode: 'insensitive' },
-      },
-      email: { contains: filter?.email, mode: 'insensitive' },
-      phone: filter?.phone,
-      status: filter?.status,
-      role: AccountRole.TECHNICIAN,
-    };
-
-    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+  ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
+    return this.employeeService.getEmployees(filter, AccountRole.TECHNICIAN);
   }
 
   async updateTechnician(

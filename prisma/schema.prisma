@@ -406,7 +406,7 @@ model WorkCenter {
   employeeId    String        @map("employee_id")
   centerId      String        @map("center_id")
   startDate     DateTime      @map("start_date")
-  endDate       DateTime      @map("end_date")
+  endDate       DateTime?     @map("end_date")
   employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
   serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
 

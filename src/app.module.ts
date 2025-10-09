@@ -31,6 +31,10 @@ import { ServicePartModule } from './modules/service-part/service-part.module';
 import { PackageModule } from './modules/package/package.module';
 import { PackageDetailModule } from './modules/package-detail/package-detail.module';
 import { CertificateModule } from './modules/employee/certificate/certificate.module';
+import { EmployeeModule } from './modules/employee/employee.module';
+import { ShiftModule } from './modules/shift/shift.module';
+import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module';
+import { WorkCenterModule } from './modules/work-center/work-center.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
 
@@ -88,6 +92,11 @@ import { BookingDetailModule } from './modules/booking-detail/booking-detail.mod
     ServicePartModule,
     PackageModule,
     PackageDetailModule,
+    WorkScheduleModule,
+    ShiftModule,
+    EmployeeModule,
+    WorkCenterModule,
+    ServiceModule,
     BookingModule,
     BookingDetailModule,
   ],

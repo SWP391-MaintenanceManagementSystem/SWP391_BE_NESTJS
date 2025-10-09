@@ -2,7 +2,7 @@ import { IsString, IsOptional, Matches, IsNotEmpty, IsEnum, Length } from 'class
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountStatus } from '@prisma/client';
 
-export class UpdateTechnicianDto {
+export class UpdateTechnicianDTO {
   @IsOptional({ message: 'First name is required' })
   @IsString({ message: 'First name must be a string' })
   @Length(2, 30, { message: 'First name must be between 2 and 30 characters long' })
