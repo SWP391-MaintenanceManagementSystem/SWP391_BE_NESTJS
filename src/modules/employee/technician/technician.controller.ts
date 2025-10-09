@@ -45,7 +45,7 @@ export class TechnicianController {
   @Roles(AccountRole.ADMIN)
   async resetDefaultPassword(@Param('id') id: string) {
     await this.technicianService.resetDefaultPassword(id);
-    return { message: `Technician's password reset successfully`,};
+    return { message: `Technician's password reset successfully` };
   }
 
   @Get('/:id')
@@ -68,12 +68,9 @@ export class TechnicianController {
   @ApiBody({ type: UpdateTechnicianDto })
   async updateTechnician(
     @Param('id') id: string,
-    @Body() updateTechnicianDto: UpdateTechnicianDto,
+    @Body() updateTechnicianDto: UpdateTechnicianDto
   ) {
-    const data = await this.technicianService.updateTechnician(
-      id,
-      updateTechnicianDto,
-    );
+    const data = await this.technicianService.updateTechnician(id, updateTechnicianDto);
     return {
       message: 'Technician updated successfully',
       data: plainToInstance(AccountWithProfileDTO, data),
@@ -85,6 +82,7 @@ export class TechnicianController {
   async deleteTechnician(@Param('id') id: string) {
     const data = await this.technicianService.deleteTechnician(id);
     return {
-      message: `Technician deleted successfully` };
+      message: `Technician deleted successfully`,
+    };
   }
 }

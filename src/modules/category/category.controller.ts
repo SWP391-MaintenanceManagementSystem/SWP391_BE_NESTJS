@@ -11,7 +11,7 @@ import { AccountRole } from '@prisma/client';
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
-  @Post("/")
+  @Post('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   create(@Body() createCategoryDto: CreateCategoryDto) {
@@ -52,5 +52,4 @@ export class CategoryController {
   remove(@Param('id') id: string) {
     return this.categoryService.removeCategory(id);
   }
-
 }

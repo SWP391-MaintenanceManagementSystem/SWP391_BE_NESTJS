@@ -1,7 +1,15 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Expose, Transform } from "class-transformer";
-import { ArrayNotEmpty, IsArray, IsNotEmpty, IsNumber, IsOptional, IsPositive, IsString } from "class-validator";
-import { PackageDetailDto } from "src/modules/package-detail/dto/package-detail.dto";
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Expose, Transform } from 'class-transformer';
+import {
+  ArrayNotEmpty,
+  IsArray,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsString,
+} from 'class-validator';
+import { PackageDetailDto } from 'src/modules/package-detail/dto/package-detail.dto';
 
 export class CreatePackageDto {
   @ApiProperty({ example: 'Basic Maintenance Package' })
@@ -15,19 +23,22 @@ export class CreatePackageDto {
   @IsPositive()
   price: number;
 
-  @ApiPropertyOptional({ example: 1500000})
+  @ApiPropertyOptional({ example: 1500000 })
   @IsOptional()
   @IsNumber()
   @IsPositive()
   totalPrice?: number;
 
-  @ApiPropertyOptional({ example: 10})
+  @ApiPropertyOptional({ example: 10 })
   @IsOptional()
   @IsNumber()
   @IsPositive()
   discountRate?: number;
 
-  @ApiPropertyOptional({ type: [String], description: 'List of service IDs to include in this package' })
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'List of service IDs to include in this package',
+  })
   @IsOptional()
   @IsArray()
   @ArrayNotEmpty()

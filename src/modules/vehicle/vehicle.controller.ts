@@ -26,7 +26,7 @@ import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 @ApiBearerAuth('jwt-auth')
 @ApiTags('Vehicles')
 export class VehicleController {
-  constructor(private readonly vehicleService: VehicleService) { }
+  constructor(private readonly vehicleService: VehicleService) {}
 
   @Get('brands')
   async getAllVehicleBrands() {
