@@ -57,7 +57,7 @@ export class WorkCenterService {
     }
 
     const startDate = new Date(createWorkCenterDto.startDate);
-    const endDate = createWorkCenterDto.endDate ? new Date(createWorkCenterDto.endDate) : null;
+    const endDate = new Date(createWorkCenterDto.endDate);
 
     if (endDate && startDate >= endDate) {
       throw new BadRequestException('Start date must be before end date');
@@ -69,17 +69,8 @@ export class WorkCenterService {
         employeeId: createWorkCenterDto.employeeId,
         centerId: createWorkCenterDto.centerId,
         OR: [
-          // Case 1: New assignment overlaps with existing assignment that has end date
           {
-            AND: [
-              { endDate: { not: null } },
-              { startDate: { lte: endDate || new Date('2099-12-31') } },
-              { endDate: { gte: startDate } },
-            ],
-          },
-          // Case 2: New assignment overlaps with existing assignment that has no end date
-          {
-            AND: [{ endDate: null }, { startDate: { lte: endDate || new Date('2099-12-31') } }],
+            AND: [{ startDate: { lte: endDate } }, { endDate: { gte: startDate } }],
           },
         ],
       },
@@ -371,21 +362,12 @@ export class WorkCenterService {
         where: {
           employeeId: targetEmployeeId,
           centerId: targetCenterId,
-          id: { not: id }, // Exclude current assignment
+          id: { not: id },
           OR: [
-            // Case 1: Overlaps with existing assignment that has end date
             {
               AND: [
-                { endDate: { not: null } },
                 { startDate: { lte: targetEndDate || new Date('2099-12-31') } },
                 { endDate: { gte: targetStartDate } },
-              ],
-            },
-            // Case 2: Overlaps with existing assignment that has no end date
-            {
-              AND: [
-                { endDate: null },
-                { startDate: { lte: targetEndDate || new Date('2099-12-31') } },
               ],
             },
           ],
@@ -405,7 +387,7 @@ export class WorkCenterService {
         employeeId: targetEmployeeId,
         centerId: targetCenterId,
         startDate: targetStartDate,
-        endDate: targetEndDate,
+        endDate: targetEndDate || new Date('2099-12-31'),
       },
       include: {
         employee: {

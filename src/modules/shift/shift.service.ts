@@ -125,9 +125,6 @@ export class ShiftService {
             },
           },
         },
-        _count: {
-          select: { workSchedules: true },
-        },
       },
     });
 
@@ -172,17 +169,19 @@ export class ShiftService {
     const [shifts, total] = await this.prismaService.$transaction([
       this.prismaService.shift.findMany({
         where,
-        include: {
-          serviceCenter: {
-            select: {
-              name: true,
-              address: true,
-              status: true,
-            },
-          },
-          _count: {
-            select: { workSchedules: true },
-          },
+        select: {
+          id: true,
+          name: true,
+          startTime: true,
+          endTime: true,
+          startDate: true,
+          endDate: true,
+          maximumSlot: true,
+          status: true,
+          repeatDays: true,
+          centerId: true,
+          createdAt: true,
+          updatedAt: true,
         },
         orderBy: orderByClause,
         skip: (page - 1) * pageSize,
@@ -324,9 +323,6 @@ export class ShiftService {
             status: true,
           },
         },
-        _count: {
-          select: { workSchedules: true },
-        },
       },
     });
 
@@ -336,9 +332,6 @@ export class ShiftService {
   async deleteShift(id: string): Promise<void> {
     const existingShift = await this.prismaService.shift.findUnique({
       where: { id },
-      include: {
-        _count: { select: { workSchedules: true } },
-      },
     });
 
     if (!existingShift) {

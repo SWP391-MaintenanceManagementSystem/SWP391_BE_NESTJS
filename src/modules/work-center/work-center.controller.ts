@@ -51,7 +51,10 @@ export class WorkCenterController {
     return {
       message: 'Work center assignments retrieved successfully',
       data,
-      pagination: { page, pageSize, total, totalPages },
+      page,
+      pageSize,
+      total,
+      totalPages,
     };
   }
 

@@ -33,12 +33,10 @@ export class ShiftController {
     return {
       message: 'Shifts retrieved successfully',
       data,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages,
-      },
+      page,
+      pageSize,
+      total,
+      totalPages,
     };
   }
 
