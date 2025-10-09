@@ -68,12 +68,4 @@ export default class ShiftDTO {
     address: string;
     status: string;
   };
-
-  @Expose()
-  @Transform(({ obj }) => ({
-    workSchedules: obj._count?.workSchedules || 0,
-  }))
-  _count?: {
-    workSchedules: number;
-  };
 }

@@ -34,5 +34,5 @@ export class CreateWorkCenterDTO {
     example: '2029-11-25T17:00:00.000Z',
     description: 'End date of the work center assignment (optional)',
   })
-  endDate?: string;
+  endDate: string;
 }
