@@ -1,8 +1,8 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
 import { ShiftService } from './shift.service';
-import { CreateShiftDto } from './dto/create-shift.dto';
-import { UpdateShiftDto } from './dto/update-shift.dto';
+import { CreateShiftDTO } from './dto/create-shift.dto';
+import { UpdateShiftDTO } from './dto/update-shift.dto';
 import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
@@ -16,8 +16,8 @@ export class ShiftController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: CreateShiftDto })
-  async createShift(@Body() createShiftDto: CreateShiftDto) {
+  @ApiBody({ type: CreateShiftDTO })
+  async createShift(@Body() createShiftDto: CreateShiftDTO) {
     const data = await this.shiftService.createShift(createShiftDto);
     return {
       message: 'Shift created successfully',
@@ -26,18 +26,9 @@ export class ShiftController {
   }
 
   @Get()
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getShifts(
-    @Query() query: ShiftQueryDTO,
-    @CurrentUser() user: any
-  ) {
-    const {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages,
-    } = await this.shiftService.getShifts(query, user.role, user.sub);
+  @Roles(AccountRole.ADMIN)
+  async getShifts(@Query() query: ShiftQueryDTO) {
+    const { data, page, pageSize, total, totalPages } = await this.shiftService.getShifts(query);
 
     return {
       message: 'Shifts retrieved successfully',
@@ -52,20 +43,16 @@ export class ShiftController {
   }
 
   @Get(':id')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
+  @Roles(AccountRole.ADMIN)
   @ApiParam({
     name: 'id',
     type: String,
     description: 'Shift UUID',
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
   })
-  async getShiftById(
-    @Param('id') id: string,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.shiftService.getShiftById(id, user.role, user.sub);
+  async getShiftById(@Param('id') id: string) {
+    const data = await this.shiftService.getShiftById(id);
     return {
-      message: `Shift with ID ${id} retrieved successfully`,
+      message: `Shift retrieved successfully`,
       data,
     };
   }
@@ -73,11 +60,8 @@ export class ShiftController {
   @Patch(':id')
   @Roles(AccountRole.ADMIN)
   @ApiParam({ name: 'id', type: String, description: 'Shift UUID' })
-  @ApiBody({ type: UpdateShiftDto })
-  async updateShift(
-    @Param('id') id: string,
-    @Body() updateShiftDto: UpdateShiftDto
-  ) {
+  @ApiBody({ type: UpdateShiftDTO })
+  async updateShift(@Param('id') id: string, @Body() updateShiftDto: UpdateShiftDTO) {
     const data = await this.shiftService.updateShift(id, updateShiftDto);
     return {
       message: 'Shift updated successfully',
@@ -91,44 +75,12 @@ export class ShiftController {
     name: 'id',
     type: String,
     description: 'Shift UUID',
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
   })
-  async deleteShift(
-    @Param('id') id: string,
-  ) {
+  async deleteShift(@Param('id') id: string) {
     const data = await this.shiftService.deleteShift(id);
     return {
       message: 'Shift deleted successfully',
       data,
-    }
+    };
   }
-
-  // Get available shifts (có slot trống)
-
-  // @Get('available/slots')
-  // @Roles(AccountRole.ADMIN, AccountRole.STAFF)
-  // @ApiQuery({ name: 'centerId', required: false, type: String })
-  // async getAvailableShifts(
-  //   @Query('centerId') centerId?: string
-  // ) {
-  //   // Implement this method in service if needed
-  //   return {
-  //     message: 'Available shifts retrieved successfully',
-  //     data: [], // Implementation needed in service
-  //   };
-  // }
-
-  // Get assigned shifts (cho TECHNICIAN)
-
-  // @Get('assigned/me')
-  // @Roles(AccountRole.TECHNICIAN)
-  // @ApiOperation({ summary: 'Get my assigned shifts (Technician only)' })
-  // @ApiResponse({ status: 200, description: 'Assigned shifts retrieved successfully' })
-  // async getMyAssignedShifts(@CurrentUser() user: any) {
-  //   // Implement this method in service if needed
-  //   return {
-  //     message: 'Your assigned shifts retrieved successfully',
-  //     data: [], // Implementation needed in service
-  //   };
-  // }
 }
