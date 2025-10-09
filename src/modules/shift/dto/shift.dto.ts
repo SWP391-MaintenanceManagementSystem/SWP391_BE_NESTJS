@@ -1,7 +1,6 @@
 import { ShiftStatus } from '@prisma/client';
 import { Expose, Transform } from 'class-transformer';
-import { IsNotEmpty, IsString } from 'class-validator';
-import { ServiceCenterDto } from 'src/modules/service-center/dto/service-center.dto';
+
 export default class ShiftDTO {
   @Expose()
   id: string;
@@ -28,21 +27,17 @@ export default class ShiftDTO {
   @Expose()
   maximumSlot?: number;
 
-  @IsString()
-  @IsNotEmpty()
   @Expose()
   status: ShiftStatus;
 
   @Expose()
   @Transform(({ value }) => {
-    // Transform database string to array for frontend
-    if (typeof value === 'string' && value) {
-      return value.split(',').map(day => day.trim());
+    if (Array.isArray(value)) {
+      return value;
     }
-    return value || [];
+    return [];
   })
-  repeatDays?: string[]; // Array for frontend (e.g., ['1', '3', '5'])
-
+  repeatDays?: number[]; // Array of numbers (0=Sunday, 1=Monday, ..., 6=Saturday)
 
   @Expose()
   centerId: string;
@@ -56,9 +51,28 @@ export default class ShiftDTO {
   updatedAt: Date;
 
   @Expose()
-  serviceCenter?: ServiceCenterDto;
+  @Transform(({ obj }) => {
+    const serviceCenter = obj.serviceCenter;
+    if (!serviceCenter) return undefined;
+
+    return {
+      id: serviceCenter.id,
+      name: serviceCenter.name,
+      address: serviceCenter.address,
+      status: serviceCenter.status,
+    };
+  })
+  serviceCenter?: {
+    id: string;
+    name: string;
+    address: string;
+    status: string;
+  };
 
   @Expose()
+  @Transform(({ obj }) => ({
+    workSchedules: obj._count?.workSchedules || 0,
+  }))
   _count?: {
     workSchedules: number;
   };
