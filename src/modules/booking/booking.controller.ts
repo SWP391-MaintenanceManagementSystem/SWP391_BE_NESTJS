@@ -3,6 +3,8 @@ import { BookingService } from './booking.service';
 import { CreateBookingDTO } from './dto/create-booking.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BookingQueryDTO } from './dto/booking-query.dto';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { JWT_Payload } from 'src/common/types';
 
 @Controller('api/bookings')
 @ApiTags('Bookings')
@@ -23,7 +25,10 @@ export class BookingController {
   }
 
   @Post('/')
-  async createBooking(@Body() bookingData: CreateBookingDTO): Promise<any> {
-    return this.bookingService.createBooking(bookingData);
+  async createBooking(
+    @Body() bookingData: CreateBookingDTO,
+    @CurrentUser() user: JWT_Payload
+  ): Promise<any> {
+    return this.bookingService.createBooking(bookingData, user.sub);
   }
 }

@@ -5,12 +5,6 @@ import { ApiProperty } from '@nestjs/swagger';
 export class CreateBookingDTO {
   @IsUUID()
   @ApiProperty({
-    example: 'cb1fb34f-6cdb-4543-b3ca-74176865a910',
-  })
-  customerId: string;
-
-  @IsUUID()
-  @ApiProperty({
     example: 'f1d23654-07fa-4b3e-9e0d-f2e32baf6a90',
   })
   vehicleId: string;
@@ -36,6 +30,7 @@ export class CreateBookingDTO {
   })
   note?: string;
 
+  @IsOptional()
   @IsArray()
   @ArrayNotEmpty()
   @IsUUID('4', { each: true })
@@ -46,6 +41,7 @@ export class CreateBookingDTO {
   })
   serviceIds?: string[];
 
+  @IsOptional()
   @IsArray()
   @IsUUID('4', { each: true })
   @ApiProperty({

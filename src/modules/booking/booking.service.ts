@@ -5,22 +5,22 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { BookingDTO } from './dto/booking.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingQueryDTO } from './dto/booking-query.dto';
-import { Prisma } from '@prisma/client';
+import { Package, Prisma, Service } from '@prisma/client';
 import * as dateFns from 'date-fns';
 import { buildBookingSearch } from 'src/common/search/search.util';
 import { buildBookingOrderBy } from 'src/common/sort/sort.util';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
+import { getVNDayOfWeek } from 'src/utils';
 @Injectable()
 export class BookingService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly bookingDetailService: BookingDetailService
   ) {}
-  async createBooking(bookingData: CreateBookingDTO): Promise<BookingDTO> {
+  async createBooking(bookingData: CreateBookingDTO, customerId: string): Promise<BookingDTO> {
     const {
       bookingDate,
       centerId,
-      customerId,
       note,
       vehicleId,
       serviceIds = [],
@@ -30,9 +30,10 @@ export class BookingService {
     const matchedShift = await this.prismaService.shift.findFirst({
       where: {
         status: 'ACTIVE',
-        startTime: { lte: bookingDate },
-        endTime: { gt: bookingDate },
         centerId,
+        startDate: { lte: bookingDate },
+        endDate: { gte: bookingDate },
+        repeatDays: { has: getVNDayOfWeek(bookingDate) },
       },
     });
 
@@ -40,16 +41,25 @@ export class BookingService {
       throw new BadRequestException('No matching shift for this booking date');
     }
 
+    const bookingHour = bookingDate.getHours();
+    const startHour = matchedShift.startTime.getHours();
+    const endHour = matchedShift.endTime.getHours();
+
+    if (bookingHour < startHour || bookingHour >= endHour) {
+      throw new BadRequestException('Booking time is outside of shift hours');
+    }
+
     if (serviceIds.length === 0 && packageIds.length === 0) {
       throw new BadRequestException('At least one service or package must be selected');
     }
 
-    const services = serviceIds.length
+    const services: Service[] = serviceIds.length
       ? await this.prismaService.service.findMany({
           where: { id: { in: serviceIds } },
         })
       : [];
-    const packages = packageIds.length
+
+    const packages: Package[] = packageIds.length
       ? await this.prismaService.package.findMany({
           where: { id: { in: packageIds } },
         })
