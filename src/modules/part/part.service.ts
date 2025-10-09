@@ -157,6 +157,7 @@ export class PartService {
 }
 
 async getPartStatistics() {
+
   const totalItems = await this.prisma.part.count();
 
   const parts = await this.prisma.part.findMany({
@@ -165,18 +166,21 @@ async getPartStatistics() {
 
   const totalValue = parts.reduce((sum, p) => sum + p.price * p.stock, 0);
 
+  const totalQuantity = parts.reduce((sum, p) => sum + p.stock, 0);
 
-  const lowStockItemsRaw = await this.prisma.$queryRawUnsafe<{ count: number }[]>(
-    `SELECT COUNT(*)::int AS count FROM "parts" WHERE stock <= "min_stock"`
-  );
-
+  const lowStockItemsRaw = await this.prisma.$queryRawUnsafe<{ count: number }[]>(`
+    SELECT COUNT(*)::int AS count FROM "parts" WHERE stock <= "min_stock"
+  `);
   const lowStockItems = lowStockItemsRaw[0].count;
 
+
   const categories = await this.prisma.category.count();
+
 
   return {
     totalItems,
     totalValue,
+    totalQuantity,
     lowStockItems,
     categories,
   };
