@@ -208,7 +208,7 @@ export class AccountService {
   ): Promise<AccountWithProfileDTO> {
     const exists = await this.prisma.account.findUnique({
       where: { id },
-      include: { customer: true, employee: true, admin: true },
+      include: { customer: true, employee: true },
     });
     if (!exists) throw new NotFoundException(`Account with id ${id} not found`);
 
@@ -245,7 +245,7 @@ export class AccountService {
     const updated = await this.prisma.account.update({
       where: { id },
       data: accountData,
-      include: { customer: true, employee: true, admin: true },
+      include: { customer: true, employee: true },
     });
 
     return this.mapAccountToDTO(updated);
