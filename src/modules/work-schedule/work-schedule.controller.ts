@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  UseGuards,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { WorkScheduleService } from './work-schedule.service';
 import { CreateWorkScheduleDto } from './dto/create-work-schedule.dto';
@@ -19,15 +30,8 @@ export class WorkScheduleController {
   @Post()
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateWorkScheduleDto })
-  async createWorkSchedule(
-    @Body() createDto: CreateWorkScheduleDto,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.workScheduleService.createWorkSchedule(
-      createDto,
-      user.role,
-      user.sub
-    );
+  async createWorkSchedule(@Body() createDto: CreateWorkScheduleDto, @CurrentUser() user: any) {
+    const data = await this.workScheduleService.createWorkSchedule(createDto, user.role, user.sub);
     return {
       message: 'Work schedules created successfully',
       data,
@@ -36,15 +40,9 @@ export class WorkScheduleController {
 
   @Get()
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getWorkSchedules(
-    @Query() query: WorkScheduleQueryDto,
-    @CurrentUser() user: any
-  ) {
-    const { data, page, pageSize, total, totalPages } = await this.workScheduleService.getWorkSchedules(
-      query,
-      user.role,
-      user.sub
-    );
+  async getWorkSchedules(@Query() query: WorkScheduleQueryDto, @CurrentUser() user: any) {
+    const { data, page, pageSize, total, totalPages } =
+      await this.workScheduleService.getWorkSchedules(query, user.role, user.sub);
 
     return {
       message: 'Work schedules retrieved successfully',
@@ -60,10 +58,7 @@ export class WorkScheduleController {
 
   @Get(':id')
   @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
-  async getWorkScheduleById(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: any
-  ) {
+  async getWorkScheduleById(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     const data = await this.workScheduleService.getWorkScheduleById(id, user.role, user.sub);
     return {
       message: 'Work schedule retrieved successfully',
@@ -84,7 +79,7 @@ export class WorkScheduleController {
       shiftId,
       date,
       updateDto,
-      user.role,
+      user.role
     );
     return {
       message: 'Work schedules updated successfully',
@@ -95,14 +90,11 @@ export class WorkScheduleController {
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
-  async deleteWorkSchedule(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: any
-  ) {
+  async deleteWorkSchedule(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     const data = await this.workScheduleService.deleteWorkSchedule(id, user.role, user.sub);
     return {
       message: 'Work schedule deleted successfully',
       data,
-    }
+    };
   }
 }

@@ -29,11 +29,13 @@ export class WorkScheduleService {
 
     const shift = await this.prismaService.shift.findUnique({
       where: { id: shiftId },
-      include: { serviceCenter: true }
+      include: { serviceCenter: true },
     });
 
     if (!shift || !shift.startDate || !shift.endDate || !shift.repeatDays?.length) {
-      throw new BadRequestException('Shift must have startDate, endDate, and repeatDays to generate schedules');
+      throw new BadRequestException(
+        'Shift must have startDate, endDate, and repeatDays to generate schedules'
+      );
     }
 
     if (shift.status !== 'ACTIVE') {
@@ -41,16 +43,18 @@ export class WorkScheduleService {
     }
 
     if (shift.serviceCenter.status !== 'OPEN') {
-      throw new BadRequestException('Cannot generate schedules for a shift in a closed service center');
+      throw new BadRequestException(
+        'Cannot generate schedules for a shift in a closed service center'
+      );
     }
 
     const employees = await this.prismaService.employee.findMany({
       where: {
         accountId: { in: employeeId },
         account: {
-          role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] }
-        }
-      }
+          role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] },
+        },
+      },
     });
 
     if (employees.length !== employeeId.length) {
@@ -69,14 +73,14 @@ export class WorkScheduleService {
         const existingCount = await this.prismaService.workSchedule.count({
           where: {
             shiftId,
-            date: new Date(currentDate)
-          }
+            date: new Date(currentDate),
+          },
         });
 
-        if (shift.maximumSlot && (existingCount + employeeId.length) > shift.maximumSlot) {
+        if (shift.maximumSlot && existingCount + employeeId.length > shift.maximumSlot) {
           throw new ConflictException(
             `Shift capacity exceeded on ${currentDate.toDateString()}. ` +
-            `Max: ${shift.maximumSlot}, Current: ${existingCount}, Trying to add: ${employeeId.length}`
+              `Max: ${shift.maximumSlot}, Current: ${existingCount}, Trying to add: ${employeeId.length}`
           );
         }
 
@@ -85,7 +89,7 @@ export class WorkScheduleService {
           scheduleData.push({
             employeeId: employeeIds,
             shiftId,
-            date: new Date(currentDate)
+            date: new Date(currentDate),
           });
         }
       }
@@ -103,20 +107,20 @@ export class WorkScheduleService {
         OR: scheduleData.map(data => ({
           employeeId: data.employeeId,
           shiftId: data.shiftId,
-          date: data.date
-        }))
-      }
+          date: data.date,
+        })),
+      },
     });
 
     if (existingSchedules.length > 0) {
-      const duplicates = existingSchedules.map(s =>
-        `Employee ${s.employeeId} on ${s.date.toDateString()}`
+      const duplicates = existingSchedules.map(
+        s => `Employee ${s.employeeId} on ${s.date.toDateString()}`
       );
       throw new ConflictException(`Duplicate assignments found: ${duplicates.join(', ')}`);
     }
 
     await this.prismaService.workSchedule.createMany({
-      data: scheduleData
+      data: scheduleData,
     });
 
     const createdSchedules = await this.prismaService.workSchedule.findMany({
@@ -125,17 +129,14 @@ export class WorkScheduleService {
         employeeId: { in: employeeId },
         date: {
           gte: shift.startDate,
-          lte: shift.endDate
-        }
+          lte: shift.endDate,
+        },
       },
       include: {
         employee: { include: { account: true } },
-        shift: { include: { serviceCenter: true } }
+        shift: { include: { serviceCenter: true } },
       },
-      orderBy: [
-        { date: 'asc' },
-        { employee: { firstName: 'asc' } }
-      ]
+      orderBy: [{ date: 'asc' }, { employee: { firstName: 'asc' } }],
     });
 
     return createdSchedules.map(ws => plainToInstance(WorkScheduleDto, ws));
@@ -152,7 +153,7 @@ export class WorkScheduleService {
 
     const shift = await this.prismaService.shift.findUnique({
       where: { id: createWorkScheduleDto.shiftId },
-      include: { serviceCenter: true }
+      include: { serviceCenter: true },
     });
 
     if (!shift) {
@@ -173,10 +174,10 @@ export class WorkScheduleService {
       where: {
         accountId: { in: createWorkScheduleDto.employeeId },
         account: {
-          role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] }
-        }
+          role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] },
+        },
       },
-      include: { account: true }
+      include: { account: true },
     });
 
     if (employees.length !== createWorkScheduleDto.employeeId.length) {
@@ -187,14 +188,17 @@ export class WorkScheduleService {
     const existingCount = await this.prismaService.workSchedule.count({
       where: {
         shiftId: createWorkScheduleDto.shiftId,
-        date: targetDate
-      }
+        date: targetDate,
+      },
     });
 
-    if (shift.maximumSlot && (existingCount + createWorkScheduleDto.employeeId.length) > shift.maximumSlot) {
+    if (
+      shift.maximumSlot &&
+      existingCount + createWorkScheduleDto.employeeId.length > shift.maximumSlot
+    ) {
       throw new ConflictException(
         `Shift capacity exceeded on ${targetDate.toDateString()}. ` +
-        `Max: ${shift.maximumSlot}, Current: ${existingCount}, Available: ${shift.maximumSlot - existingCount}`
+          `Max: ${shift.maximumSlot}, Current: ${existingCount}, Available: ${shift.maximumSlot - existingCount}`
       );
     }
 
@@ -203,8 +207,8 @@ export class WorkScheduleService {
       where: {
         shiftId: createWorkScheduleDto.shiftId,
         date: targetDate,
-        employeeId: { in: createWorkScheduleDto.employeeId }
-      }
+        employeeId: { in: createWorkScheduleDto.employeeId },
+      },
     });
 
     if (existingSchedules.length > 0) {
@@ -221,12 +225,12 @@ export class WorkScheduleService {
           data: {
             employeeId,
             shiftId: createWorkScheduleDto.shiftId,
-            date: targetDate
+            date: targetDate,
           },
           include: {
             employee: { include: { account: true } },
-            shift: { include: { serviceCenter: true } }
-          }
+            shift: { include: { serviceCenter: true } },
+          },
         })
       )
     );
@@ -255,7 +259,7 @@ export class WorkScheduleService {
     if (filter.dateFrom && filter.dateTo) {
       where.date = {
         gte: new Date(filter.dateFrom),
-        lte: new Date(filter.dateTo)
+        lte: new Date(filter.dateTo),
       };
     } else if (filter.dateFrom) {
       where.date = { gte: new Date(filter.dateFrom) };
@@ -266,13 +270,13 @@ export class WorkScheduleService {
     if ((userRole === AccountRole.STAFF || userRole === AccountRole.TECHNICIAN) && employeeId) {
       const assignedCenters = await this.prismaService.workCenter.findMany({
         where: { employeeId },
-        select: { centerId: true }
+        select: { centerId: true },
       });
       const centerIds = assignedCenters.map(ac => ac.centerId);
 
       where.OR = [
         { employeeId }, // Own schedules
-        ...(centerIds.length > 0 ? [{ shift: { centerId: { in: centerIds } } }] : [])
+        ...(centerIds.length > 0 ? [{ shift: { centerId: { in: centerIds } } }] : []),
       ];
     }
 
@@ -290,13 +294,13 @@ export class WorkScheduleService {
         where,
         include: {
           employee: { include: { account: true } },
-          shift: { include: { serviceCenter: true } }
+          shift: { include: { serviceCenter: true } },
         },
         orderBy: orderByClause,
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
-      this.prismaService.workSchedule.count({ where })
+      this.prismaService.workSchedule.count({ where }),
     ]);
 
     return {
@@ -304,7 +308,7 @@ export class WorkScheduleService {
       page,
       pageSize,
       total,
-      totalPages: Math.ceil(total / pageSize)
+      totalPages: Math.ceil(total / pageSize),
     };
   }
 
@@ -317,8 +321,8 @@ export class WorkScheduleService {
       where: { id },
       include: {
         employee: { include: { account: true } },
-        shift: { include: { serviceCenter: true } }
-      }
+        shift: { include: { serviceCenter: true } },
+      },
     });
 
     if (!workSchedule) {
@@ -333,8 +337,8 @@ export class WorkScheduleService {
         const isAssignedCenter = await this.prismaService.workCenter.findFirst({
           where: {
             employeeId,
-            centerId: workSchedule.shift.centerId
-          }
+            centerId: workSchedule.shift.centerId,
+          },
         });
         if (!isAssignedCenter) {
           throw new ForbiddenException('Access denied');
@@ -357,7 +361,7 @@ export class WorkScheduleService {
 
     const shift = await this.prismaService.shift.findUnique({
       where: { id: shiftId },
-      include: { serviceCenter: true }
+      include: { serviceCenter: true },
     });
 
     if (!shift) {
@@ -367,13 +371,13 @@ export class WorkScheduleService {
     const targetDate = new Date(date);
 
     const existing = await this.prismaService.workSchedule.findMany({
-      where: { shiftId, date: targetDate }
+      where: { shiftId, date: targetDate },
     });
     const existingIds = existing.map(e => e.employeeId);
     const newIds = updateDto.employeeId || [];
 
-    const isSame = existingIds.length === newIds.length &&
-                   existingIds.every(id => newIds.includes(id));
+    const isSame =
+      existingIds.length === newIds.length && existingIds.every(id => newIds.includes(id));
     if (isSame) {
       return existing.map(ws => plainToInstance(WorkScheduleDto, ws));
     }
@@ -391,8 +395,8 @@ export class WorkScheduleService {
       const validEmployees = await this.prismaService.employee.findMany({
         where: {
           accountId: { in: toAdd },
-          account: { role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] } }
-        }
+          account: { role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] } },
+        },
       });
 
       if (validEmployees.length !== toAdd.length) {
@@ -404,17 +408,19 @@ export class WorkScheduleService {
     if (toAdd.length || toRemove.length) {
       await this.prismaService.$transaction([
         // Remove employees
-        ...(toRemove.length > 0 ? [
-          this.prismaService.workSchedule.deleteMany({
-            where: { shiftId, date: targetDate, employeeId: { in: toRemove } }
-          })
-        ] : []),
+        ...(toRemove.length > 0
+          ? [
+              this.prismaService.workSchedule.deleteMany({
+                where: { shiftId, date: targetDate, employeeId: { in: toRemove } },
+              }),
+            ]
+          : []),
         // Add new employees
         ...toAdd.map(empId =>
           this.prismaService.workSchedule.create({
-            data: { employeeId: empId, shiftId, date: targetDate }
+            data: { employeeId: empId, shiftId, date: targetDate },
           })
-        )
+        ),
       ]);
     }
 
@@ -422,9 +428,9 @@ export class WorkScheduleService {
       where: { shiftId, date: targetDate },
       include: {
         employee: { include: { account: true } },
-        shift: { include: { serviceCenter: true } }
+        shift: { include: { serviceCenter: true } },
       },
-      orderBy: { employee: { firstName: 'asc' } }
+      orderBy: { employee: { firstName: 'asc' } },
     });
 
     return updated.map(ws => plainToInstance(WorkScheduleDto, ws));
@@ -443,8 +449,8 @@ export class WorkScheduleService {
       where: { id },
       include: {
         shift: { include: { serviceCenter: true } },
-        employee: { include: { account: true } }
-      }
+        employee: { include: { account: true } },
+      },
     });
 
     if (!workSchedule) {
@@ -452,12 +458,12 @@ export class WorkScheduleService {
     }
 
     await this.prismaService.workSchedule.delete({
-      where: { id }
+      where: { id },
     });
 
     const employeeRole = workSchedule.employee.account?.role;
     return {
-      message: `Removed ${employeeRole} ${workSchedule.employee.firstName} ${workSchedule.employee.lastName} from shift "${workSchedule.shift.name}" on ${workSchedule.date.toDateString()}`
+      message: `Removed ${employeeRole} ${workSchedule.employee.firstName} ${workSchedule.employee.lastName} from shift "${workSchedule.shift.name}" on ${workSchedule.date.toDateString()}`,
     };
   }
 }
