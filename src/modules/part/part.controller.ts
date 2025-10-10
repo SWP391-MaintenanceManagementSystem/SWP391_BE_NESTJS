@@ -54,7 +54,7 @@ export class PartController {
     const stats = await this.partService.getPartStatistics();
     return {
       message: 'Part statistics retrieved successfully',
-      data: [stats],
+      data: stats,
     }
   }
 
