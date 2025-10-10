@@ -5,7 +5,6 @@ import { CreateShiftDTO } from './dto/create-shift.dto';
 import { UpdateShiftDTO } from './dto/update-shift.dto';
 import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
-import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Shift')
@@ -33,12 +32,10 @@ export class ShiftController {
     return {
       message: 'Shifts retrieved successfully',
       data,
-      pagination: {
-        page,
-        pageSize,
-        total,
-        totalPages,
-      },
+      page,
+      pageSize,
+      total,
+      totalPages,
     };
   }
 

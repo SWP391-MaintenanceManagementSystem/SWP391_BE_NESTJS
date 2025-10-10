@@ -25,7 +25,7 @@ export class WorkCenterDTO {
 
   @Expose()
   @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
-  endDate: Date | null;
+  endDate: Date;
 
   @Expose()
   @Transform(({ obj }) => {

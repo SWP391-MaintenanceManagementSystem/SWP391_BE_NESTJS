@@ -4,7 +4,7 @@ import { Type } from 'class-transformer';
 import { IsOptional, IsString, IsNumber, IsUUID, IsDateString } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
 
-export class WorkScheduleQueryDto {
+export class WorkScheduleQueryDTO {
   @ApiProperty({ required: false, description: 'Filter by shift ID' })
   @IsOptional()
   @IsUUID(4)
@@ -34,7 +34,7 @@ export class WorkScheduleQueryDto {
   @IsOptional()
   orderBy?: Order;
 
-  @ApiProperty({ required: false, description: 'Field to sort by', example: 'createdAt' })
+  @ApiProperty({ required: false, description: 'Field to sort by' })
   @IsOptional()
   @IsString()
   sortBy?: string;

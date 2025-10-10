@@ -25,89 +25,80 @@ export class PartService {
     return plainToInstance(PartDto, newPart, { excludeExtraneousValues: true });
   }
 
- async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
-  let {
-    page = 1,
-    pageSize = 10,
-    sortBy = 'createdAt',
-    orderBy = 'desc',
-    name,
-    categoryName,
-    status,
-  } = filter;
+  async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
+    let {
+      page = 1,
+      pageSize = 10,
+      sortBy = 'createdAt',
+      orderBy = 'desc',
+      name,
+      categoryName,
+      status,
+    } = filter;
 
+    if (page < 1) page = 1;
+    if (pageSize < 1) pageSize = 10;
 
-  if (page < 1) page = 1;
-  if (pageSize < 1) pageSize = 10;
+    if (sortBy === 'quantity') sortBy = 'stock';
 
+    const where: Prisma.PartWhereInput = {
+      AND: [
+        name
+          ? {
+              OR: [
+                { name: { contains: name, mode: 'insensitive' } },
+                { description: { contains: name, mode: 'insensitive' } },
+              ],
+            }
+          : {},
+        categoryName
+          ? {
+              category: {
+                name: { contains: categoryName, mode: 'insensitive' },
+              },
+            }
+          : {},
+      ],
+    };
 
-  if (sortBy === 'quantity') sortBy = 'stock';
-
-
-  const where: Prisma.PartWhereInput = {
-    AND: [
-      name
-        ? {
-            OR: [
-              { name: { contains: name, mode: 'insensitive' } },
-              { description: { contains: name, mode: 'insensitive' } },
-            ],
-          }
-        : {},
-      categoryName
-        ? {
-            category: {
-              name: { contains: categoryName, mode: 'insensitive' },
-            },
-          }
-        : {},
-    ],
-  };
-
-
-  const [parts, total] = await this.prisma.$transaction([
-    this.prisma.part.findMany({
-      where,
-      include: {
-        category: true,
-        ServicePart: true,
-      },
-      orderBy:
-        ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
+    const [parts, total] = await this.prisma.$transaction([
+      this.prisma.part.findMany({
+        where,
+        include: {
+          category: true,
+          ServicePart: true,
+        },
+        orderBy: ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
           ? { [sortBy]: orderBy }
           : { createdAt: 'desc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    this.prisma.part.count({ where }),
-  ]);
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.part.count({ where }),
+    ]);
 
+    let mappedParts = parts.map(p => ({
+      ...p,
+      quantity: p.stock,
+      status: p.stock <= p.minStock ? PartStatus.LOWSTOCK : PartStatus.INSTOCK,
+    }));
 
-  let mappedParts = parts.map((p) => ({
-    ...p,
-    quantity: p.stock,
-    status: p.stock <= p.minStock ? PartStatus.LOWSTOCK : PartStatus.INSTOCK,
-  }));
+    if (status) {
+      mappedParts = mappedParts.filter(p => p.status === status);
+    }
 
+    const paginatedData = plainToInstance(PartDto, mappedParts, {
+      excludeExtraneousValues: true,
+    });
 
-  if (status) {
-    mappedParts = mappedParts.filter((p) => p.status === status);
+    return {
+      data: paginatedData,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
-
-
-  const paginatedData = plainToInstance(PartDto, mappedParts, {
-    excludeExtraneousValues: true,
-  });
-
-
-  return {
-    data: paginatedData,
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  };
-}
 
   async getPartByID(id: string): Promise<PartDto> {
     const part = await this.prisma.part.findUnique({
@@ -143,45 +134,42 @@ export class PartService {
   }
 
   async deletePart(id: string): Promise<{ message: string }> {
-   try {
-    await this.prisma.part.delete({ where: { id } });
-    return { message: `Part with ID ${id} has been deleted successfully` };
-  } catch (error) {
-    if (error.code === 'P2025') { // Prisma error code for "Record not found"
-      throw new NotFoundException(`Part with ID ${id} not found`);
+    try {
+      await this.prisma.part.delete({ where: { id } });
+      return { message: `Part with ID ${id} has been deleted successfully` };
+    } catch (error) {
+      if (error.code === 'P2025') {
+        // Prisma error code for "Record not found"
+        throw new NotFoundException(`Part with ID ${id} not found`);
+      }
+      throw error; // Re-throw other unexpected errors
     }
-    throw error; // Re-throw other unexpected errors
   }
-}
 
-async getPartStatistics() {
+  async getPartStatistics() {
+    const totalItems = await this.prisma.part.count();
 
-  const totalItems = await this.prisma.part.count();
+    const parts = await this.prisma.part.findMany({
+      select: { price: true, stock: true },
+    });
 
-  const parts = await this.prisma.part.findMany({
-    select: { price: true, stock: true },
-  });
+    const totalValue = parts.reduce((sum, p) => sum + p.price * p.stock, 0);
 
-  const totalValue = parts.reduce((sum, p) => sum + p.price * p.stock, 0);
+    const totalQuantity = parts.reduce((sum, p) => sum + p.stock, 0);
 
-  const totalQuantity = parts.reduce((sum, p) => sum + p.stock, 0);
-
-  const lowStockItemsRaw = await this.prisma.$queryRawUnsafe<{ count: number }[]>(`
+    const lowStockItemsRaw = await this.prisma.$queryRawUnsafe<{ count: number }[]>(`
     SELECT COUNT(*)::int AS count FROM "parts" WHERE stock <= "min_stock"
   `);
-  const lowStockItems = lowStockItemsRaw[0].count;
+    const lowStockItems = lowStockItemsRaw[0].count;
 
+    const categories = await this.prisma.category.count();
 
-  const categories = await this.prisma.category.count();
-
-
-  return {
-    totalItems,
-    totalValue,
-    totalQuantity,
-    lowStockItems,
-    categories,
-  };
-}
-
+    return {
+      totalItems,
+      totalValue,
+      totalQuantity,
+      lowStockItems,
+      categories,
+    };
+  }
 }
