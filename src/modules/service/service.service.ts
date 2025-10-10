@@ -13,7 +13,7 @@ import { ServiceQueryCustomerDTO } from './dto/service-query-customer.dto';
 export class ServiceService {
   constructor(private readonly prisma: PrismaService) {}
 
-  // Chỉ trả finalPrice trên Api Response, không hiện trên swagger
+
   async findAllForAdmin(query: ServiceQueryDTO): Promise<PaginationResponse<ServiceDto>> {
     const { page = 1, pageSize = 10, status } = query;
 
@@ -26,7 +26,7 @@ export class ServiceService {
               lte: query.maxPrice ?? undefined,
             }
           : undefined,
-      status: status ?? ServiceStatus.ACTIVE, // nếu không truyền thì mặc định ACTIVE
+      status: status ?? ServiceStatus.ACTIVE,
     };
 
     const [data, total] = await this.prisma.$transaction([
