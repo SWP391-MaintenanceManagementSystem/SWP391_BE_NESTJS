@@ -14,7 +14,7 @@ import { plainToInstance } from 'class-transformer';
 export class PartController {
   constructor(private readonly partService: PartService) {}
 
-  @Post("/")
+  @Post('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   create(@Body() createPartDto: CreatePartDto) {

@@ -7,7 +7,6 @@ import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class CategoryService {
-
   constructor(private readonly prisma: PrismaService) {}
 
   async createCategory(createCategoryDto: CreateCategoryDto): Promise<CategoryDto> {
@@ -24,18 +23,18 @@ export class CategoryService {
     return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });
   }
 
-    async getCategoryByName(name: string): Promise<CategoryDto[]> {
-      const categories = await this.prisma.category.findMany({
-        where: {
-          name: { contains: name, mode: 'insensitive'}
-        },
-        include: { parts: true },
-      });
-      if (!categories || categories.length === 0) {
-        throw new NotFoundException(`Category with Name ${name} not found`);
-      }
-      return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });
+  async getCategoryByName(name: string): Promise<CategoryDto[]> {
+    const categories = await this.prisma.category.findMany({
+      where: {
+        name: { contains: name, mode: 'insensitive' },
+      },
+      include: { parts: true },
+    });
+    if (!categories || categories.length === 0) {
+      throw new NotFoundException(`Category with Name ${name} not found`);
     }
+    return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });
+  }
 
   async getCategoryById(id: string): Promise<CategoryDto> {
     const category = await this.prisma.category.findUnique({
@@ -55,8 +54,6 @@ export class CategoryService {
     });
     return plainToInstance(CategoryDto, category);
   }
-
-
 
   async removeCategory(id: string): Promise<void> {
     const category = await this.prisma.category.findUnique({ where: { id } });

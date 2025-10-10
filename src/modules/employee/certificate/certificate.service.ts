@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { CreateCertificateDto } from './dto/create-certificate.dto';
-import { UpdateCertificateDto } from './dto/update-certificate.dto';
+import { CreateCertificateDTO } from './dto/create-certificate.dto';
+import { UpdateCertificateDTO } from './dto/update-certificate.dto';
 import { CertificateDTO } from './dto/certificate.dto';
 import { EmployeeCertificate } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
@@ -11,7 +11,7 @@ export class CertificateService {
   constructor(private prisma: PrismaService) {}
 
   async createCertificate(
-    createCertificateDto: CreateCertificateDto
+    createCertificateDto: CreateCertificateDTO
   ): Promise<EmployeeCertificate> {
     const certificate = await this.prisma.employeeCertificate.create({
       data: {
@@ -47,7 +47,7 @@ export class CertificateService {
 
   async updateCertificate(
     id: string,
-    updateCertificateDto: UpdateCertificateDto
+    updateCertificateDto: UpdateCertificateDTO
   ): Promise<CertificateDTO> {
     const existingCertificate = await this.prisma.employeeCertificate.findUnique({
       where: { id },

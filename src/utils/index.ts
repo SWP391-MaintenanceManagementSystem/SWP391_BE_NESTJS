@@ -3,6 +3,7 @@ import {} from 'date-fns';
 import * as ms from 'ms';
 import * as dateFns from 'date-fns';
 import { PeriodType } from '@prisma/client';
+import { toZonedTime } from 'date-fns-tz';
 
 const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(12);
@@ -39,4 +40,13 @@ export function convertToPeriod(
   }
 }
 
-export { hashPassword, comparePassword, convertMStoDate, isEmpty };
+const getVNDayOfWeek = (date: Date) => {
+  const vnTime = toZonedTime(date, 'Asia/Ho_Chi_Minh');
+  return vnTime.getDay();
+};
+
+const toVNDate = (date: Date) => {
+  return toZonedTime(date, 'Asia/Ho_Chi_Minh');
+};
+
+export { hashPassword, comparePassword, convertMStoDate, isEmpty, getVNDayOfWeek, toVNDate };

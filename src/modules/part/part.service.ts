@@ -11,7 +11,6 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 export class PartService {
   constructor(private readonly prisma: PrismaService) {}
 
-
   async createPart(createPartDto: CreatePartDto): Promise<PartDto> {
     const newPart = await this.prisma.part.create({
       data: {
@@ -111,38 +110,37 @@ export class PartService {
 }
 
   async getPartByID(id: string): Promise<PartDto> {
-     const part = await this.prisma.part.findUnique({
-    where: { id },
-    include: { category: true },
-  });
+    const part = await this.prisma.part.findUnique({
+      where: { id },
+      include: { category: true },
+    });
 
-  if (!part) {
-    throw new NotFoundException(`Part with ID ${id} not found`);
-  }
+    if (!part) {
+      throw new NotFoundException(`Part with ID ${id} not found`);
+    }
 
-  return plainToInstance(PartDto, part, { excludeExtraneousValues: true });
+    return plainToInstance(PartDto, part, { excludeExtraneousValues: true });
   }
 
   async updatePart(id: string, updatePartDto: UpdatePartDto): Promise<PartDto> {
-  const existingPart = await this.prisma.part.findUnique({ where: { id } });
-  if (!existingPart) {
-    throw new NotFoundException(`Part with ID ${id} not found`);
+    const existingPart = await this.prisma.part.findUnique({ where: { id } });
+    if (!existingPart) {
+      throw new NotFoundException(`Part with ID ${id} not found`);
+    }
+
+    const { categoryId, ...rest } = updatePartDto;
+
+    const updatedPart = await this.prisma.part.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(categoryId && { category: { connect: { id: categoryId } } }),
+      },
+      include: { category: true },
+    });
+
+    return plainToInstance(PartDto, updatedPart, { excludeExtraneousValues: true });
   }
-
-  const { categoryId, ...rest } = updatePartDto;
-
-  const updatedPart = await this.prisma.part.update({
-    where: { id },
-    data: {
-      ...rest,
-      ...(categoryId && { category: { connect: { id: categoryId } } }),
-    },
-    include: { category: true },
-  });
-
-  return plainToInstance(PartDto, updatedPart, { excludeExtraneousValues: true });
-}
-
 
   async deletePart(id: string): Promise<{ message: string }> {
    try {
