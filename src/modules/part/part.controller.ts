@@ -10,7 +10,7 @@ import { PartDto } from './dto/part.dto';
 import { plainToInstance } from 'class-transformer';
 
 @ApiTags('Part')
-@Controller('part')
+@Controller('api/part')
 export class PartController {
   constructor(private readonly partService: PartService) {}
 

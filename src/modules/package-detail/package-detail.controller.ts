@@ -7,7 +7,7 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Package Detail')
-@Controller('package-detail')
+@Controller('api/package-detail')
 export class PackageDetailController {
   constructor(private readonly packageDetailService: PackageDetailService) {}
 

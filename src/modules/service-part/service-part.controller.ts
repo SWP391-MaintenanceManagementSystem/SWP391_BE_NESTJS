@@ -7,7 +7,7 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Service Parts')
-@Controller('service-part')
+@Controller('api/service-part')
 export class ServicePartController {
   constructor(private readonly servicePartService: ServicePartService) {}
 
