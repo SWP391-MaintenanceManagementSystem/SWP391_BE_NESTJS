@@ -9,12 +9,10 @@ export default class ShiftDTO {
   name: string;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  startTime: Date;
+  startTime: string;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  endTime: Date;
+  endTime: string;
 
   @Expose()
   maximumSlot?: number;
