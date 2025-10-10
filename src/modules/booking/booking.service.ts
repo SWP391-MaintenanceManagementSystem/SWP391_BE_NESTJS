@@ -41,6 +41,19 @@ export class BookingService {
       throw new BadRequestException('No matching shift for this booking date');
     }
 
+    const existingBooking = await this.prismaService.booking.findFirst({
+      where: {
+        customerId,
+        vehicleId,
+        shiftId: matchedShift.id,
+        status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+      },
+    });
+
+    if (existingBooking) {
+      throw new BadRequestException('You already have a booking for this vehicle at this time');
+    }
+
     const bookingHour = bookingDate.getHours();
     const startHour = matchedShift.startTime.getHours();
     const endHour = matchedShift.endTime.getHours();

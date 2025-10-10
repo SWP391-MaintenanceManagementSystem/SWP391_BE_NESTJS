@@ -1,26 +1,26 @@
-import { Exclude } from 'class-transformer';
+import { Expose } from 'class-transformer';
 
 export class BookingDTO {
-  @Exclude()
+  @Expose()
   id: string;
-  @Exclude()
+  @Expose()
   customerId: string;
-  @Exclude()
+  @Expose()
   vehicleId: string;
-  @Exclude()
+  @Expose()
   centerId: string;
-  @Exclude()
+  @Expose()
   shiftId: string;
-  @Exclude()
+  @Expose()
   totalCost: number;
-  @Exclude()
+  @Expose()
   bookingDate: Date;
-  @Exclude()
+  @Expose()
   status: string;
-  @Exclude()
+  @Expose()
   note?: string;
-  @Exclude()
+  @Expose()
   createdAt: Date;
-  @Exclude()
+  @Expose()
   updatedAt: Date;
 }
