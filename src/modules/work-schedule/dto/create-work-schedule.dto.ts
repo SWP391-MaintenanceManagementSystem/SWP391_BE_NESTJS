@@ -8,7 +8,6 @@ export class CreateWorkScheduleDTO {
   @ApiProperty({
     example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
     description: 'Shift UUID',
-    description: 'Shift UUID',
   })
   shiftId: string;
 
@@ -25,7 +24,6 @@ export class CreateWorkScheduleDTO {
     { message: 'Date must be a valid ISO date string (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)' }
   )
   @Transform(({ value }) => {
-    // ✅ Thêm transform để handle date properly
     if (typeof value === 'string') {
       return new Date(value).toISOString();
     }

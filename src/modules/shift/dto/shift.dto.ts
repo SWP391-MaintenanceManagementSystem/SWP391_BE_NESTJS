@@ -17,27 +17,10 @@ export default class ShiftDTO {
   endTime: Date;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  startDate?: Date;
-
-  @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  endDate?: Date;
-
-  @Expose()
   maximumSlot?: number;
 
   @Expose()
   status: ShiftStatus;
-
-  @Expose()
-  @Transform(({ value }) => {
-    if (Array.isArray(value)) {
-      return value;
-    }
-    return [];
-  })
-  repeatDays?: number[]; // Array of numbers (0=Sunday, 1=Monday, ..., 6=Saturday)
 
   @Expose()
   centerId: string;
