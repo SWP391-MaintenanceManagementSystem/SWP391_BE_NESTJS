@@ -38,7 +38,7 @@ export class WorkScheduleService {
 
     const targetDate = new Date(createWorkScheduleDto.date);
 
-    // Validate single employee
+    // Validate employee
     const employee = await this.prismaService.employee.findUnique({
       where: { accountId: createWorkScheduleDto.employeeId },
       include: { account: true },
@@ -65,8 +65,7 @@ export class WorkScheduleService {
 
     if (shift.maximumSlot && existingCount >= shift.maximumSlot) {
       throw new ConflictException(
-        `Shift capacity exceeded on ${targetDate.toDateString()}. ` +
-          `Max: ${shift.maximumSlot}, Current: ${existingCount}`
+        `Shift capacity exceeded on ${targetDate.toDateString()}. Max: ${shift.maximumSlot}, Current: ${existingCount}`
       );
     }
 
@@ -85,7 +84,7 @@ export class WorkScheduleService {
       );
     }
 
-    // Create single schedule
+    // Create schedule
     const workSchedule = await this.prismaService.workSchedule.create({
       data: {
         employeeId: createWorkScheduleDto.employeeId,
@@ -121,11 +120,7 @@ export class WorkScheduleService {
       },
     });
 
-    return [
-      plainToInstance(WorkScheduleDTO, workSchedule, {
-        excludeExtraneousValues: true,
-      }),
-    ];
+    return [plainToInstance(WorkScheduleDTO, workSchedule, { excludeExtraneousValues: true })];
   }
 
   async getWorkSchedules(
@@ -145,7 +140,7 @@ export class WorkScheduleService {
       where.shift = { centerId: filter.centerId };
     }
 
-    // Date range filters
+    // Date filters
     if (filter.dateFrom && filter.dateTo) {
       where.date = {
         gte: new Date(filter.dateFrom),
@@ -157,10 +152,10 @@ export class WorkScheduleService {
       where.date = { lte: new Date(filter.dateTo) };
     }
 
-    // Role-based filtering
+    // Role-based filter
     if ((userRole === AccountRole.STAFF || userRole === AccountRole.TECHNICIAN) && employeeId) {
       where.OR = [
-        { employeeId }, // Own schedules
+        { employeeId },
         {
           shift: {
             serviceCenter: {
@@ -211,9 +206,7 @@ export class WorkScheduleService {
               },
             },
           },
-          shift: {
-            include: { serviceCenter: true },
-          },
+          shift: { include: { serviceCenter: true } },
         },
         orderBy: orderByClause,
         skip: (page - 1) * pageSize,
@@ -224,9 +217,7 @@ export class WorkScheduleService {
 
     return {
       data: workSchedules.map(ws =>
-        plainToInstance(WorkScheduleDTO, ws, {
-          excludeExtraneousValues: true,
-        })
+        plainToInstance(WorkScheduleDTO, ws, { excludeExtraneousValues: true })
       ),
       page,
       pageSize,
@@ -265,9 +256,7 @@ export class WorkScheduleService {
             },
           },
         },
-        shift: {
-          include: { serviceCenter: true },
-        },
+        shift: { include: { serviceCenter: true } },
       },
     });
 
@@ -275,12 +264,10 @@ export class WorkScheduleService {
       throw new NotFoundException(`Work schedule with ID ${id} not found`);
     }
 
-    // Authorization check
     if ((userRole === AccountRole.STAFF || userRole === AccountRole.TECHNICIAN) && employeeId) {
       const isOwnSchedule = workSchedule.employeeId === employeeId;
 
       if (!isOwnSchedule) {
-        // Check if user is assigned to the same center
         const isAssignedCenter = await this.prismaService.workCenter.findFirst({
           where: {
             employeeId,
@@ -311,7 +298,6 @@ export class WorkScheduleService {
 
     const targetDate = new Date(date);
 
-    // Find existing schedules for this shift+date
     const existingSchedules = await this.prismaService.workSchedule.findMany({
       where: { shiftId, date: targetDate },
       include: {
@@ -324,7 +310,6 @@ export class WorkScheduleService {
       throw new NotFoundException(`No work schedules found for shift ${shiftId} on ${date}`);
     }
 
-    // If updating employee, validate and replace
     if (updateDto.employeeId) {
       const newEmployee = await this.prismaService.employee.findUnique({
         where: { accountId: updateDto.employeeId },
@@ -342,7 +327,6 @@ export class WorkScheduleService {
         throw new BadRequestException('Only STAFF and TECHNICIAN employees can be assigned');
       }
 
-      // Replace all employees with new one (assuming single employee per shift+date)
       await this.prismaService.$transaction([
         this.prismaService.workSchedule.deleteMany({
           where: { shiftId, date: targetDate },
@@ -357,7 +341,6 @@ export class WorkScheduleService {
       ]);
     }
 
-    // Return updated schedules
     const updatedSchedules = await this.prismaService.workSchedule.findMany({
       where: { shiftId, date: targetDate },
       include: {
@@ -367,13 +350,11 @@ export class WorkScheduleService {
     });
 
     return updatedSchedules.map(ws =>
-      plainToInstance(WorkScheduleDTO, ws, {
-        excludeExtraneousValues: true,
-      })
+      plainToInstance(WorkScheduleDTO, ws, { excludeExtraneousValues: true })
     );
   }
 
-  async deleteWorkSchedule(id: string, userRole: AccountRole, employeeId?: string): Promise<void> {
+  async deleteWorkSchedule(id: string, userRole: AccountRole): Promise<void> {
     if (userRole !== AccountRole.ADMIN) {
       throw new ForbiddenException('Only ADMIN can delete work schedule assignments');
     }
@@ -390,8 +371,6 @@ export class WorkScheduleService {
       throw new NotFoundException(`Work schedule with ID ${id} not found`);
     }
 
-    await this.prismaService.workSchedule.delete({
-      where: { id },
-    });
+    await this.prismaService.workSchedule.delete({ where: { id } });
   }
 }

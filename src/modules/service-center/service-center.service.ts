@@ -156,7 +156,7 @@ export class ServiceCenterService {
             bookings: {
               where: {
                 status: {
-                  in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROCESS'], // Active bookings
+                  in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'], // Active bookings
                 },
               },
             },

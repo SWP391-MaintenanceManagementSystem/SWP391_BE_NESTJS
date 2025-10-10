@@ -1,4 +1,3 @@
-import { $Enums } from '@prisma/client';
 import { Expose, Transform } from 'class-transformer';
 
 export class WorkScheduleDTO {
@@ -61,49 +60,6 @@ export class WorkScheduleDTO {
       lastName: string;
       createdAt: string;
       updatedAt: string;
-    };
-  };
-
-  @Expose()
-  @Transform(({ obj }) => {
-    const shift = obj.shift;
-    if (!shift) return undefined;
-
-    return {
-      id: shift.id,
-      name: shift.name,
-      startTime: shift.startTime?.toISOString(),
-      endTime: shift.endTime?.toISOString(),
-      startDate: shift.startDate?.toISOString(),
-      endDate: shift.endDate?.toISOString(),
-      maximumSlot: shift.maximumSlot,
-      repeatDays: shift.repeatDays,
-      status: shift.status,
-      serviceCenter: shift.serviceCenter
-        ? {
-            id: shift.serviceCenter.id,
-            name: shift.serviceCenter.name,
-            address: shift.serviceCenter.address,
-            status: shift.serviceCenter.status,
-          }
-        : undefined,
-    };
-  })
-  shift?: {
-    id: string;
-    name: string;
-    startTime: string;
-    endTime: string;
-    startDate: string | null;
-    endDate: string | null;
-    maximumSlot: number | null;
-    repeatDays: number[];
-    status: $Enums.ShiftStatus;
-    serviceCenter?: {
-      id: string;
-      name: string;
-      address: string;
-      status: $Enums.CenterStatus;
     };
   };
 }

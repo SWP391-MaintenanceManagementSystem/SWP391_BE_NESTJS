@@ -160,10 +160,9 @@ export class StaffService {
       },
     ].filter(item => item.count > 0);
 
-    // 💡 giống kiểu customer: không bọc riêng "data"
     return {
       total,
-      data, // hoặc rename thành "data" nếu bạn thích
+      data,
     };
   }
 }

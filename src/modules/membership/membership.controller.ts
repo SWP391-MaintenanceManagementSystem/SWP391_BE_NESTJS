@@ -14,7 +14,6 @@ import { UpdateMembershipDTO } from './dto/update-membership.dto';
 export class MembershipController {
   constructor(private readonly membershipService: MembershipService) {}
 
-
   @Get('/')
   async getAllMemberships() {
     const data = await this.membershipService.getAllMemberships();
@@ -64,5 +63,4 @@ export class MembershipController {
       message: 'Membership deleted successfully',
     };
   }
-
 }

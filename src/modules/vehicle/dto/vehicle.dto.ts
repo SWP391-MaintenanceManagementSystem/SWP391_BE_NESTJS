@@ -38,7 +38,6 @@ export class VehicleDTO {
   @Exclude()
   customerId: string;
 
-
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   @Expose()
   lastService?: Date | null;
@@ -46,7 +45,6 @@ export class VehicleDTO {
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   @Expose()
   deletedAt?: Date | null;
-
 
   @IsNotEmpty()
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))

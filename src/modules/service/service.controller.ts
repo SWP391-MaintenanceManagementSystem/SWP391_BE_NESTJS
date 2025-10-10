@@ -30,14 +30,14 @@ export class ServiceController {
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getServiceByName(@Param('name') name: string) {
-  return this.serviceService.getServiceByNameForAdmin(name);
+    return this.serviceService.getServiceByNameForAdmin(name);
   }
 
   @Get('search/:name')
   @ApiBearerAuth('jwt-auth')
   async getActiveServiceByName(@Param('name') name: string) {
-  return this.serviceService.getServiceByNameForCustomer(name);
-}
+    return this.serviceService.getServiceByNameForCustomer(name);
+  }
 
   @Post('/')
   @Roles(AccountRole.ADMIN)
