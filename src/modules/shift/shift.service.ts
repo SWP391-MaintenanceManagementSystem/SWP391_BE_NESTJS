@@ -27,26 +27,6 @@ export class ShiftService {
       throw new BadRequestException('Start time must be before end time');
     }
 
-    // Validate dates if provided
-    if (shift.startDate && shift.endDate) {
-      const startDate = new Date(shift.startDate);
-      const endDate = new Date(shift.endDate);
-      if (startDate > endDate) {
-        throw new BadRequestException('Start date must be before end date');
-      }
-    }
-
-    // Validate repeatDays
-    if (shift.repeatDays && shift.repeatDays.length > 0) {
-      const validDays = shift.repeatDays.every(day => day >= 0 && day <= 6);
-      if (!validDays) {
-        throw new BadRequestException('Repeat days must be between 0 (Sunday) and 6 (Saturday)');
-      }
-
-      // Remove duplicates
-      shift.repeatDays = [...new Set(shift.repeatDays)];
-    }
-
     // Validate service center exists
     const existCenter = await this.prismaService.serviceCenter.findUnique({
       where: { id: shift.centerId },
@@ -73,11 +53,8 @@ export class ShiftService {
         name: shift.name,
         startTime: startTime,
         endTime: endTime,
-        startDate: shift.startDate ? new Date(shift.startDate) : null,
-        endDate: shift.endDate ? new Date(shift.endDate) : null,
         maximumSlot: shift.maximumSlot || 10,
         status: ShiftStatus.ACTIVE,
-        repeatDays: shift.repeatDays || [],
         centerId: shift.centerId,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -91,9 +68,6 @@ export class ShiftService {
             createdAt: true,
             updatedAt: true,
           },
-        },
-        _count: {
-          select: { workSchedules: true },
         },
       },
     });
@@ -125,9 +99,6 @@ export class ShiftService {
             },
           },
         },
-        _count: {
-          select: { workSchedules: true },
-        },
       },
     });
 
@@ -141,7 +112,7 @@ export class ShiftService {
   }
 
   async getShifts(filter: ShiftQueryDTO): Promise<PaginationResponse<ShiftDTO>> {
-    let { page = 1, pageSize = 10, sortBy = 'createdAt', orderBy = 'desc' } = filter;
+    let { page = 1, pageSize = 10, sortBy = 'createdAt' } = filter;
 
     page = Math.max(page, 1);
     pageSize = Math.max(pageSize, 1);
@@ -153,36 +124,26 @@ export class ShiftService {
     if (filter.centerId) where.centerId = { contains: filter.centerId, mode: 'insensitive' };
     if (filter.status !== undefined) where.status = filter.status;
     if (filter.name) where.name = { contains: filter.name, mode: 'insensitive' };
-    if (filter.startDate) where.startDate = { gte: filter.startDate };
-    if (filter.endDate) where.endDate = { lte: filter.endDate };
     if (filter.startTime) where.startTime = { gte: filter.startTime };
     if (filter.endTime) where.endTime = { lte: filter.endTime };
 
-    // Filter by repeat days
-    if (filter.repeatDays && filter.repeatDays.length > 0) {
-      where.OR = filter.repeatDays.map(day => ({
-        repeatDays: { has: day },
-      }));
-    }
-
     // Build orderBy clause
     const orderByClause: Prisma.ShiftOrderByWithRelationInput = {};
-    orderByClause[sortBy as keyof Prisma.ShiftOrderByWithRelationInput] = orderBy;
+    orderByClause[sortBy as keyof Prisma.ShiftOrderByWithRelationInput];
 
     const [shifts, total] = await this.prismaService.$transaction([
       this.prismaService.shift.findMany({
         where,
-        include: {
-          serviceCenter: {
-            select: {
-              name: true,
-              address: true,
-              status: true,
-            },
-          },
-          _count: {
-            select: { workSchedules: true },
-          },
+        select: {
+          id: true,
+          name: true,
+          startTime: true,
+          endTime: true,
+          maximumSlot: true,
+          status: true,
+          centerId: true,
+          createdAt: true,
+          updatedAt: true,
         },
         orderBy: orderByClause,
         skip: (page - 1) * pageSize,
@@ -216,22 +177,6 @@ export class ShiftService {
       const startTime = new Date(updateShiftDto.startTime);
       const endTime = new Date(updateShiftDto.endTime);
       if (startTime >= endTime) throw new BadRequestException('Start time must be before end time');
-    }
-
-    // Validate dates
-    if (updateShiftDto.startDate && updateShiftDto.endDate) {
-      const startDate = new Date(updateShiftDto.startDate);
-      const endDate = new Date(updateShiftDto.endDate);
-      if (startDate >= endDate) throw new BadRequestException('Start date must be before end date');
-    }
-
-    // Validate repeatDays
-    if (updateShiftDto.repeatDays && updateShiftDto.repeatDays.length > 0) {
-      const validDays = updateShiftDto.repeatDays.every(day => day >= 0 && day <= 6);
-      if (!validDays) {
-        throw new BadRequestException('Repeat days must be between 0 (Sunday) and 6 (Saturday)');
-      }
-      updateShiftDto.repeatDays = [...new Set(updateShiftDto.repeatDays)];
     }
 
     // Check duplicate name
@@ -274,35 +219,10 @@ export class ShiftService {
     }
 
     if (
-      updateShiftDto.startDate !== undefined &&
-      (existingShift.startDate
-        ? maybeDate(updateShiftDto.startDate)?.getTime() !== existingShift.startDate.getTime()
-        : updateShiftDto.startDate !== null)
-    ) {
-      updateData.startDate = maybeDate(updateShiftDto.startDate);
-    }
-
-    if (
-      updateShiftDto.endDate !== undefined &&
-      (existingShift.endDate
-        ? maybeDate(updateShiftDto.endDate)?.getTime() !== existingShift.endDate.getTime()
-        : updateShiftDto.endDate !== null)
-    ) {
-      updateData.endDate = maybeDate(updateShiftDto.endDate);
-    }
-
-    if (
       updateShiftDto.maximumSlot !== undefined &&
       updateShiftDto.maximumSlot !== existingShift.maximumSlot
     ) {
       updateData.maximumSlot = updateShiftDto.maximumSlot;
-    }
-
-    if (
-      updateShiftDto.repeatDays !== undefined &&
-      JSON.stringify(updateShiftDto.repeatDays) !== JSON.stringify(existingShift.repeatDays)
-    ) {
-      updateData.repeatDays = updateShiftDto.repeatDays;
     }
 
     if (updateShiftDto.status !== undefined && updateShiftDto.status !== existingShift.status) {
@@ -324,9 +244,6 @@ export class ShiftService {
             status: true,
           },
         },
-        _count: {
-          select: { workSchedules: true },
-        },
       },
     });
 
@@ -336,9 +253,6 @@ export class ShiftService {
   async deleteShift(id: string): Promise<void> {
     const existingShift = await this.prismaService.shift.findUnique({
       where: { id },
-      include: {
-        _count: { select: { workSchedules: true } },
-      },
     });
 
     if (!existingShift) {

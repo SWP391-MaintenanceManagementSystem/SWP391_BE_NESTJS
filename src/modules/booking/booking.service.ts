@@ -31,9 +31,6 @@ export class BookingService {
       where: {
         status: 'ACTIVE',
         centerId,
-        startDate: { lte: bookingDate },
-        endDate: { gte: bookingDate },
-        repeatDays: { has: getVNDayOfWeek(bookingDate) },
       },
     });
 

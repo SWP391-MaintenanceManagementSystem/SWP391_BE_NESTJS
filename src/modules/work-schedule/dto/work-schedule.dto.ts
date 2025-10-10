@@ -1,7 +1,6 @@
-import { $Enums } from '@prisma/client';
 import { Expose, Transform } from 'class-transformer';
 
-export class WorkScheduleDto {
+export class WorkScheduleDTO {
   @Expose()
   id: string;
 
@@ -26,29 +25,41 @@ export class WorkScheduleDto {
   updatedAt: Date;
 
   @Expose()
-  employee?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    account?: {
-      id: string;
-      email: string;
-    };
-  };
+  @Transform(({ obj }) => {
+    const employee = obj.employee;
+    const account = employee?.account;
 
-  @Expose()
-  shift?: {
-    id: string;
-    name: string;
-    startTime: string;
-    endTime: string;
-    startDate: string;
-    endDate: string;
-    maximumSlot: number;
-    serviceCenter?: {
-      id: string;
-      name: string;
-      status: $Enums.CenterStatus;
+    if (!employee || !account) return undefined;
+
+    return {
+      email: account.email,
+      phone: account.phone,
+      role: account.role,
+      status: account.status,
+      avatar: account.avatar,
+      createdAt: account.createdAt?.toISOString(),
+      updatedAt: account.updatedAt?.toISOString(),
+      profile: {
+        firstName: employee.firstName,
+        lastName: employee.lastName,
+        createdAt: employee.createdAt?.toISOString(),
+        updatedAt: employee.updatedAt?.toISOString(),
+      },
+    };
+  })
+  account?: {
+    email: string;
+    phone: string;
+    role: string;
+    status: string;
+    avatar: string | null;
+    createdAt: string;
+    updatedAt: string;
+    profile: {
+      firstName: string;
+      lastName: string;
+      createdAt: string;
+      updatedAt: string;
     };
   };
 }

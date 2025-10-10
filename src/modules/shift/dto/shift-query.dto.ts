@@ -30,44 +30,10 @@ export class ShiftQueryDTO {
   @Type(() => Date)
   endTime?: Date;
 
-  @ApiProperty({ required: false, description: 'Filter by start date' })
-  @IsOptional()
-  @Type(() => Date)
-  startDate?: Date;
-
-  @ApiProperty({ required: false, description: 'Filter by end date' })
-  @IsOptional()
-  @Type(() => Date)
-  endDate?: Date;
-
   @ApiProperty({ required: false, description: 'Filter by shift status', enum: ShiftStatus })
   @IsOptional()
   @IsEnum(ShiftStatus)
   status?: ShiftStatus;
-
-  @ApiProperty({
-    required: false,
-    description: 'Filter by repeated days (0=Sunday, 1=Monday, ..., 6=Saturday)',
-    example: [1, 3, 5],
-    type: [Number],
-  })
-  @IsOptional()
-  @IsArray()
-  @IsInt({ each: true })
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value.split(',').map(day => parseInt(day.trim()));
-    }
-    if (Array.isArray(value)) {
-      return value.map(day => parseInt(day));
-    }
-    return value;
-  })
-  repeatDays?: number[];
-
-  @ApiProperty({ required: false, description: 'Sort order' })
-  @IsOptional()
-  orderBy?: Order;
 
   @ApiProperty({ required: false, description: 'Field to sort by' })
   @IsOptional()
