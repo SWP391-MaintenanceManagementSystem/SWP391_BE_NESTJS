@@ -371,10 +371,7 @@ model Shift {
   name        String
   startTime   DateTime    @map("start_time") @db.Timestamptz
   endTime     DateTime    @map("end_time") @db.Timestamptz
-  startDate   DateTime?   @map("start_date") @db.Timestamptz
-  endDate     DateTime?   @map("end_date") @db.Timestamptz
   maximumSlot Int?        @map("maximum_slot")
-  repeatDays  Int[]       @map("repeat_days")
   status      ShiftStatus @default(ACTIVE)
   centerId    String      @map("center_id")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
