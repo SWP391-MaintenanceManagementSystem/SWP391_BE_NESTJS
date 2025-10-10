@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 import { CategoryDto } from 'src/modules/category/dto/category.dto';
 import ServicePartDto from 'src/modules/service-part/dto/service-part.dto';
+import { PartStatus } from './part-query.dto';
 
 @Exclude()
 export class PartDto {
@@ -23,6 +24,10 @@ export class PartDto {
 
   @ApiProperty({ description: 'Current stock quantity' })
   @Expose()
+  quantity: number;
+
+  @ApiProperty({ description: 'Current stock quantity'})
+  @Exclude()
   stock: number;
 
   @ApiProperty({ description: 'Minimum stock quantity before reordering' })
@@ -40,6 +45,10 @@ export class PartDto {
   @ApiProperty({ description: 'Last update date' })
   @Expose()
   updatedAt: Date;
+
+  @ApiProperty({ description: 'Computed stock status', enum: PartStatus })
+  @Expose()
+  status: PartStatus;
 
   @ApiProperty({ type: () => CategoryDto, description: 'Category of the part' })
   @Expose()

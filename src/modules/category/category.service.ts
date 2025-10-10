@@ -18,7 +18,6 @@ export class CategoryService {
 
   async getAllCategory(): Promise<CategoryDto[]> {
     const categories = await this.prisma.category.findMany({
-      include: { parts: true },
       orderBy: { createdAt: 'asc' },
     });
     return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });

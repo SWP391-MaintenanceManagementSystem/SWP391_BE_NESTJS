@@ -21,8 +21,12 @@ export class CategoryController {
   @Get()
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  findAll() {
-    return this.categoryService.getAllCategory();
+  async getAllCategories() {
+    const categories = await this.categoryService.getAllCategory();
+    return {
+      message: 'Categories retrieved successfully',
+      data: categories,
+    };
   }
 
   @Get(':id')
