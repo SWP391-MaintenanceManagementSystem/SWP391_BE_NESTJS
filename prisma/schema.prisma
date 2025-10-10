@@ -369,8 +369,8 @@ model ServiceCenter {
 model Shift {
   id          String      @id @default(uuid())
   name        String
-  startTime   DateTime    @map("start_time") @db.Timestamptz
-  endTime     DateTime    @map("end_time") @db.Timestamptz
+  startTime   DateTime    @map("start_time") @db.Time
+  endTime     DateTime    @map("end_time") @db.Time
   maximumSlot Int?        @map("maximum_slot")
   status      ShiftStatus @default(ACTIVE)
   centerId    String      @map("center_id")
