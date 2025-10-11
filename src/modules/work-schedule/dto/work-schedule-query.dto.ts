@@ -5,6 +5,11 @@ import { IsOptional, IsString, IsNumber, IsUUID, IsDateString } from 'class-vali
 import { Order } from 'src/common/sort/sort.config';
 
 export class WorkScheduleQueryDTO {
+  @ApiProperty({ required: false, description: 'Filter by work schedule ID' })
+  @IsOptional()
+  @IsUUID(4)
+  id?: string;
+
   @ApiProperty({ required: false, description: 'Filter by shift ID' })
   @IsOptional()
   @IsUUID(4)
