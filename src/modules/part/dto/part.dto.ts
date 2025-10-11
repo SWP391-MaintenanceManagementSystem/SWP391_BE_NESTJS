@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Exclude, Expose, Type } from 'class-transformer';
 import { CategoryDto } from 'src/modules/category/dto/category.dto';
 import ServicePartDto from 'src/modules/service-part/dto/service-part.dto';
-import { PartStatus } from './part-query.dto';
+import { PartStatus } from '@prisma/client';
 
 @Exclude()
 export class PartDto {
@@ -46,7 +46,7 @@ export class PartDto {
   @Expose()
   updatedAt: Date;
 
-  @ApiProperty({ description: 'Computed stock status', enum: PartStatus })
+  @ApiProperty({ description: 'Computed stock status' })
   @Expose()
   status: PartStatus;
 

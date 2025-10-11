@@ -2,12 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
-
-// Enum representing the stock status of a part
-export enum PartStatus {
-  INSTOCK = 'INSTOCK',
-  LOWSTOCK = 'LOWSTOCK',
-}
+import { PartStatus } from '@prisma/client'
 
 export class PartQueryDto {
   @IsOptional()
@@ -24,7 +19,7 @@ export class PartQueryDto {
   @IsEnum(PartStatus)
   @ApiProperty({
     required: false,
-    description: 'Filter by stock status (IN STOCK or LOW STOCK)',
+    description: 'Filter by part status (AVAILABLE, OUT_OF_STOCK, DISCONTINUED)',
     enum: PartStatus,
   })
   status?: PartStatus;
