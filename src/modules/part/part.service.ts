@@ -26,79 +26,92 @@ export class PartService {
   }
 
   async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
-    let {
-      page = 1,
-      pageSize = 10,
-      sortBy = 'createdAt',
-      orderBy = 'desc',
-      name,
-      categoryName,
-      status,
-    } = filter;
+  let {
+    page = 1,
+    pageSize = 10,
+    sortBy = 'createdAt',
+    orderBy = 'desc',
+    name,
+    status, // INSTOCK | LOWSTOCK | undefined
+  } = filter;
 
-    if (page < 1) page = 1;
-    if (pageSize < 1) pageSize = 10;
+  if (page < 1) page = 1;
+  if (pageSize < 1) pageSize = 10;
+  if (sortBy === 'quantity') sortBy = 'stock';
 
-    if (sortBy === 'quantity') sortBy = 'stock';
+  // ✅ Tìm theo tên part hoặc tên category (chỉ còn 1 trường name)
+  const baseWhere: Prisma.PartWhereInput = name
+    ? {
+        OR: [
+          { name: { contains: name, mode: 'insensitive' } },
+          { category: { name: { contains: name, mode: 'insensitive' } } },
+        ],
+      }
+    : {};
 
-    const where: Prisma.PartWhereInput = {
-      AND: [
-        name
-          ? {
-              OR: [
-                { name: { contains: name, mode: 'insensitive' } },
-                { description: { contains: name, mode: 'insensitive' } },
-              ],
-            }
-          : {},
-        categoryName
-          ? {
-              category: {
-                name: { contains: categoryName, mode: 'insensitive' },
-              },
-            }
-          : {},
-      ],
-    };
+  let where: Prisma.PartWhereInput = { ...baseWhere };
 
-    const [parts, total] = await this.prisma.$transaction([
-      this.prisma.part.findMany({
-        where,
-        include: {
-          category: true,
-          ServicePart: true,
-        },
-        orderBy: ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
-          ? { [sortBy]: orderBy }
-          : { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      this.prisma.part.count({ where }),
-    ]);
+  // ✅ Lọc theo status (LOWSTOCK hoặc INSTOCK)
+  if (status) {
+    const sql =
+      status === 'LOWSTOCK'
+        ? `SELECT id FROM "parts" WHERE stock <= "min_stock"`
+        : `SELECT id FROM "parts" WHERE stock > "min_stock"`;
 
-    let mappedParts = parts.map(p => ({
-      ...p,
-      quantity: p.stock,
-      status: p.stock <= p.minStock ? PartStatus.LOWSTOCK : PartStatus.INSTOCK,
-    }));
+    const rows: { id: string }[] = await this.prisma.$queryRawUnsafe(sql);
+    const ids = rows.map((r) => r.id);
 
-    if (status) {
-      mappedParts = mappedParts.filter(p => p.status === status);
+    if (ids.length === 0) {
+      return {
+        data: [],
+        total: 0,
+        page,
+        pageSize,
+        totalPages: 0,
+      };
     }
 
-    const paginatedData = plainToInstance(PartDto, mappedParts, {
-      excludeExtraneousValues: true,
-    });
-
-    return {
-      data: paginatedData,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
+    where = {
+      ...where,
+      id: { in: ids },
     };
   }
+
+  const [parts, total] = await this.prisma.$transaction([
+    this.prisma.part.findMany({
+      where,
+      include: {
+        category: true,
+        ServicePart: true,
+      },
+      orderBy: ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
+        ? { [sortBy]: orderBy }
+        : { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    this.prisma.part.count({ where }),
+  ]);
+
+  // ✅ Map status & quantity
+  const mappedParts = parts.map((p) => ({
+    ...p,
+    quantity: p.stock,
+    status: p.stock <= p.minStock ? PartStatus.LOWSTOCK : PartStatus.INSTOCK,
+  }));
+
+  const paginatedData = plainToInstance(PartDto, mappedParts, {
+    excludeExtraneousValues: true,
+  });
+
+  return {
+    data: paginatedData,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
 
   async getPartByID(id: string): Promise<PartDto> {
     const part = await this.prisma.part.findUnique({

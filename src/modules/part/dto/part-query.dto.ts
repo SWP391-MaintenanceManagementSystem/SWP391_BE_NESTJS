@@ -14,17 +14,11 @@ export class PartQueryDto {
   @IsString()
   @ApiProperty({
     required: false,
-    description: 'Search by part name or description',
+    description: 'Search by part name or category name',
   })
   name?: string;
 
-  @IsOptional()
-  @IsString()
-  @ApiProperty({
-  required: false,
-  description: 'Filter by category name',
-  })
-  categoryName?: string;
+
 
   @IsOptional()
   @IsEnum(PartStatus)
