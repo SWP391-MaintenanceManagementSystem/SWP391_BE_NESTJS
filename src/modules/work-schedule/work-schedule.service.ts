@@ -6,47 +6,58 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateWorkScheduleDTO } from './dto/create-work-schedule.dto';
-import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
+import { CreateCyclicWorkScheduleDTO } from './dto/create-cyclic-work-schedule.dto';
+import { UpdateCyclicWorkScheduleDTO } from './dto/update-cyclic-work-schedule.dto';
 import { WorkScheduleQueryDTO } from './dto/work-schedule-query.dto';
 import { WorkScheduleDTO } from './dto/work-schedule.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma } from '@prisma/client';
+import { dateToTimeString } from 'src/common/time/time.util';
 
 @Injectable()
 export class WorkScheduleService {
   constructor(private prismaService: PrismaService) {}
 
-  async createWorkSchedule(
-    createWorkScheduleDto: CreateWorkScheduleDTO,
-    userRole: AccountRole,
-    currentUser?: string
+  private formatShiftTime(ws: any) {
+    return {
+      ...ws,
+      shift: ws.shift
+        ? {
+            ...ws.shift,
+            startTime: dateToTimeString(ws.shift.startTime),
+            endTime: dateToTimeString(ws.shift.endTime),
+          }
+        : null,
+    };
+  }
+  private normalizeDate(dateStr: string): Date {
+    const d = new Date(dateStr);
+    d.setUTCHours(0, 0, 0, 0);
+    return d;
+  }
+
+  async createCyclicWorkSchedule(
+    createCyclicDto: CreateCyclicWorkScheduleDTO,
+    userRole: AccountRole
   ): Promise<WorkScheduleDTO[]> {
     if (userRole !== AccountRole.ADMIN) {
-      throw new ForbiddenException('Only ADMIN can create work schedule assignments');
+      throw new ForbiddenException('Only ADMIN can create cyclic work schedule assignments');
     }
+
+    const { employeeId, shiftId, startDate, endDate, repeatDays } = createCyclicDto;
 
     const shift = await this.prismaService.shift.findUnique({
-      where: { id: createWorkScheduleDto.shiftId },
+      where: { id: shiftId },
       include: { serviceCenter: true },
     });
+    if (!shift) throw new NotFoundException(`Shift with ID ${shiftId} not found`);
 
-    if (!shift) {
-      throw new NotFoundException(`Shift with ID ${createWorkScheduleDto.shiftId} not found`);
-    }
-
-    const targetDate = new Date(createWorkScheduleDto.date);
-
-    // Validate employee
     const employee = await this.prismaService.employee.findUnique({
-      where: { accountId: createWorkScheduleDto.employeeId },
+      where: { accountId: employeeId },
       include: { account: true },
     });
-
-    if (!employee || !employee.account) {
-      throw new BadRequestException('Employee not found');
-    }
+    if (!employee || !employee.account) throw new BadRequestException('Employee not found');
 
     if (
       employee.account.role !== AccountRole.TECHNICIAN &&
@@ -55,41 +66,65 @@ export class WorkScheduleService {
       throw new BadRequestException('Only STAFF and TECHNICIAN employees can be assigned');
     }
 
-    // Check capacity
-    const existingCount = await this.prismaService.workSchedule.count({
-      where: {
-        shiftId: createWorkScheduleDto.shiftId,
-        date: targetDate,
-      },
-    });
+    const start = this.normalizeDate(startDate);
+    const end = this.normalizeDate(endDate);
+    if (start > end)
+      throw new BadRequestException('Start date must be before or equal to end date');
 
-    if (shift.maximumSlot && existingCount >= shift.maximumSlot) {
-      throw new ConflictException(
-        `Shift capacity exceeded on ${targetDate.toDateString()}. Max: ${shift.maximumSlot}, Current: ${existingCount}`
-      );
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    const scheduleDates: Date[] = [];
+
+    for (let t = start.getTime(); t <= end.getTime(); t += ONE_DAY) {
+      const d = new Date(t);
+      if (repeatDays.includes(d.getUTCDay())) scheduleDates.push(d);
     }
 
-    // Check duplicate assignment
-    const existingSchedule = await this.prismaService.workSchedule.findFirst({
+    if (scheduleDates.length === 0)
+      throw new BadRequestException('No valid repeat days within range');
+
+    const existingSchedules = await this.prismaService.workSchedule.findMany({
       where: {
-        shiftId: createWorkScheduleDto.shiftId,
-        date: targetDate,
-        employeeId: createWorkScheduleDto.employeeId,
+        employeeId,
+        shiftId,
+        date: { in: scheduleDates },
       },
+      select: { date: true },
     });
 
-    if (existingSchedule) {
-      throw new ConflictException(
-        `Employee is already assigned to this shift on ${targetDate.toDateString()}`
-      );
-    }
+    const existingDates = new Set(existingSchedules.map(e => e.date.toISOString().slice(0, 10)));
 
-    // Create schedule
-    const workSchedule = await this.prismaService.workSchedule.create({
-      data: {
-        employeeId: createWorkScheduleDto.employeeId,
-        shiftId: createWorkScheduleDto.shiftId,
-        date: targetDate,
+    const counts = await this.prismaService.workSchedule.groupBy({
+      by: ['date'],
+      where: { shiftId },
+      _count: { date: true },
+    });
+
+    const countMap = new Map<string, number>();
+    counts.forEach(c => countMap.set(c.date.toISOString().slice(0, 10), c._count.date));
+
+    const toCreate = scheduleDates.filter(d => {
+      const key = d.toISOString().slice(0, 10);
+      if (existingDates.has(key)) return false;
+      const currentCount = countMap.get(key) || 0;
+      return !shift.maximumSlot || currentCount < shift.maximumSlot;
+    });
+
+    if (toCreate.length === 0)
+      throw new ConflictException('No new schedules can be created (all full or exist)');
+
+    await this.prismaService.workSchedule.createMany({
+      data: toCreate.map(date => ({
+        employeeId,
+        shiftId,
+        date,
+      })),
+    });
+
+    const created = await this.prismaService.workSchedule.findMany({
+      where: {
+        employeeId,
+        shiftId,
+        date: { in: toCreate },
       },
       include: {
         employee: {
@@ -103,24 +138,32 @@ export class WorkScheduleService {
                 createdAt: true,
                 updatedAt: true,
                 employee: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    createdAt: true,
-                    updatedAt: true,
-                  },
+                  select: { firstName: true, lastName: true },
                 },
               },
             },
           },
         },
         shift: {
-          include: { serviceCenter: true },
+          select: {
+            centerId: true,
+            name: true,
+            startTime: true,
+            endTime: true,
+            maximumSlot: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         },
       },
     });
 
-    return [plainToInstance(WorkScheduleDTO, workSchedule, { excludeExtraneousValues: true })];
+    return created.map(ws =>
+      plainToInstance(WorkScheduleDTO, this.formatShiftTime(ws), {
+        excludeExtraneousValues: true,
+      })
+    );
   }
 
   async getWorkSchedules(
@@ -133,7 +176,7 @@ export class WorkScheduleService {
     if (pageSize < 1) pageSize = 10;
 
     const where: Prisma.WorkScheduleWhereInput = {};
-
+    if (filter.id) where.id = filter.id;
     if (filter.shiftId) where.shiftId = filter.shiftId;
     if (filter.employeeId) where.employeeId = filter.employeeId;
     if (filter.centerId) {
@@ -162,7 +205,7 @@ export class WorkScheduleService {
               workCenters: {
                 some: {
                   employeeId,
-                  endDate: { gte: new Date() },
+                  OR: [{ endDate: null }, { startDate: { gte: new Date() } }],
                 },
               },
             },
@@ -206,7 +249,18 @@ export class WorkScheduleService {
               },
             },
           },
-          shift: { include: { serviceCenter: true } },
+          shift: {
+            select: {
+              centerId: true,
+              name: true,
+              startTime: true,
+              endTime: true,
+              maximumSlot: true,
+              status: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+          },
         },
         orderBy: orderByClause,
         skip: (page - 1) * pageSize,
@@ -217,7 +271,9 @@ export class WorkScheduleService {
 
     return {
       data: workSchedules.map(ws =>
-        plainToInstance(WorkScheduleDTO, ws, { excludeExtraneousValues: true })
+        plainToInstance(WorkScheduleDTO, this.formatShiftTime(ws), {
+          excludeExtraneousValues: true,
+        })
       ),
       page,
       pageSize,
@@ -256,7 +312,18 @@ export class WorkScheduleService {
             },
           },
         },
-        shift: { include: { serviceCenter: true } },
+        shift: {
+          select: {
+            centerId: true,
+            name: true,
+            startTime: true,
+            endTime: true,
+            maximumSlot: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
 
@@ -272,7 +339,7 @@ export class WorkScheduleService {
           where: {
             employeeId,
             centerId: workSchedule.shift.centerId,
-            endDate: { gte: new Date() },
+            OR: [{ endDate: null }, { startDate: { gte: new Date() } }],
           },
         });
         if (!isAssignedCenter) {
@@ -281,96 +348,205 @@ export class WorkScheduleService {
       }
     }
 
-    return plainToInstance(WorkScheduleDTO, workSchedule, {
+    return plainToInstance(WorkScheduleDTO, this.formatShiftTime(workSchedule), {
       excludeExtraneousValues: true,
     });
   }
 
-  async updateWorkSchedule(
+  private inferRepeatDaysFromSchedules(schedules: any[]): number[] {
+    const daySet = new Set<number>();
+    schedules.forEach(schedule => {
+      daySet.add(schedule.date.getDay());
+    });
+    return Array.from(daySet).sort();
+  }
+
+  async updateCyclicWorkSchedule(
+    employeeId: string,
     shiftId: string,
-    date: string,
-    updateDto: UpdateWorkScheduleDTO,
+    updateCyclicDto: UpdateCyclicWorkScheduleDTO,
     userRole: AccountRole
   ): Promise<WorkScheduleDTO[]> {
     if (userRole !== AccountRole.ADMIN) {
-      throw new ForbiddenException('Only ADMIN can update work schedule assignments');
+      throw new ForbiddenException('Only ADMIN can update cyclic work schedule assignments');
     }
 
-    const targetDate = new Date(date);
-
+    // Get current schedules for this employee-shift combination
     const existingSchedules = await this.prismaService.workSchedule.findMany({
-      where: { shiftId, date: targetDate },
-      include: {
-        employee: { include: { account: true } },
-        shift: { include: { serviceCenter: true } },
+      where: {
+        employeeId,
+        shiftId,
+        date: { gte: new Date() }, // Only future schedules
       },
+      orderBy: { date: 'asc' },
     });
 
     if (existingSchedules.length === 0) {
-      throw new NotFoundException(`No work schedules found for shift ${shiftId} on ${date}`);
+      throw new NotFoundException(
+        'No future work schedules found for this employee-shift combination'
+      );
     }
 
-    if (updateDto.employeeId) {
-      const newEmployee = await this.prismaService.employee.findUnique({
-        where: { accountId: updateDto.employeeId },
-        include: { account: true },
+    // If no changes, return existing
+    if (!updateCyclicDto.startDate && !updateCyclicDto.endDate && !updateCyclicDto.repeatDays) {
+      return existingSchedules.map(ws =>
+        plainToInstance(WorkScheduleDTO, ws, { excludeExtraneousValues: true })
+      );
+    }
+
+    // Determine new date range and repeat days
+    const newStartDate = updateCyclicDto.startDate
+      ? new Date(updateCyclicDto.startDate)
+      : existingSchedules[0].date;
+    const newEndDate = updateCyclicDto.endDate
+      ? new Date(updateCyclicDto.endDate)
+      : existingSchedules[existingSchedules.length - 1].date;
+    const newRepeatDays =
+      updateCyclicDto.repeatDays || this.inferRepeatDaysFromSchedules(existingSchedules);
+
+    if (newStartDate >= newEndDate) {
+      throw new BadRequestException('Start date must be before end date');
+    }
+
+    // Delete all existing future schedules for this employee-shift
+    await this.prismaService.workSchedule.deleteMany({
+      where: {
+        employeeId,
+        shiftId,
+        date: { gte: new Date() },
+      },
+    });
+
+    // Generate new schedule dates
+    const scheduleDates: Date[] = [];
+    const currentDate = new Date(Math.max(new Date().getTime(), newStartDate.getTime()));
+
+    while (currentDate <= newEndDate) {
+      const dayOfWeek = currentDate.getDay();
+
+      if (newRepeatDays.includes(dayOfWeek)) {
+        scheduleDates.push(new Date(currentDate));
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    if (scheduleDates.length === 0) {
+      throw new BadRequestException('No valid dates found for the specified repeat days');
+    }
+
+    // Validate shift and capacity
+    const shift = await this.prismaService.shift.findUnique({
+      where: { id: shiftId },
+    });
+
+    if (!shift) {
+      throw new NotFoundException(`Shift with ID ${shiftId} not found`);
+    }
+
+    // Check capacity for each new date
+    for (const date of scheduleDates) {
+      const existingCount = await this.prismaService.workSchedule.count({
+        where: {
+          shiftId,
+          employeeId: { not: employeeId }, // Exclude current employee
+          date: {
+            gte: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+            lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1),
+          },
+        },
       });
 
-      if (!newEmployee || !newEmployee.account) {
-        throw new BadRequestException('New employee not found');
+      if (shift.maximumSlot && existingCount >= shift.maximumSlot) {
+        throw new ConflictException(
+          `Shift capacity exceeded on ${date.toDateString()}. Max: ${shift.maximumSlot}, Current: ${existingCount}`
+        );
       }
-
-      if (
-        newEmployee.account.role !== AccountRole.TECHNICIAN &&
-        newEmployee.account.role !== AccountRole.STAFF
-      ) {
-        throw new BadRequestException('Only STAFF and TECHNICIAN employees can be assigned');
-      }
-
-      await this.prismaService.$transaction([
-        this.prismaService.workSchedule.deleteMany({
-          where: { shiftId, date: targetDate },
-        }),
-        this.prismaService.workSchedule.create({
-          data: {
-            employeeId: updateDto.employeeId,
-            shiftId,
-            date: targetDate,
-          },
-        }),
-      ]);
     }
 
+    // Create new schedules
+    const scheduleData = scheduleDates.map(date => ({
+      employeeId,
+      shiftId,
+      date,
+    }));
+
+    await this.prismaService.workSchedule.createMany({
+      data: scheduleData,
+    });
+
+    // Fetch created schedules with relations
     const updatedSchedules = await this.prismaService.workSchedule.findMany({
-      where: { shiftId, date: targetDate },
+      where: {
+        employeeId,
+        shiftId,
+        date: { in: scheduleDates },
+      },
       include: {
-        employee: { include: { account: true } },
-        shift: { include: { serviceCenter: true } },
+        employee: {
+          include: {
+            account: {
+              select: {
+                email: true,
+                role: true,
+                phone: true,
+                avatar: true,
+                createdAt: true,
+                updatedAt: true,
+                employee: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        shift: {
+          select: {
+            centerId: true,
+            name: true,
+            startTime: true,
+            endTime: true,
+            maximumSlot: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
       },
     });
 
     return updatedSchedules.map(ws =>
-      plainToInstance(WorkScheduleDTO, ws, { excludeExtraneousValues: true })
+      plainToInstance(WorkScheduleDTO, this.formatShiftTime(ws), { excludeExtraneousValues: true })
     );
   }
 
-  async deleteWorkSchedule(id: string, userRole: AccountRole): Promise<void> {
+  async deleteWorkSchedule(
+    employeeId: string,
+    userRole: AccountRole
+  ): Promise<{ deletedCount: number }> {
     if (userRole !== AccountRole.ADMIN) {
-      throw new ForbiddenException('Only ADMIN can delete work schedule assignments');
+      throw new ForbiddenException('Only ADMIN can delete work schedules');
     }
 
-    const workSchedule = await this.prismaService.workSchedule.findUnique({
-      where: { id },
-      include: {
-        shift: { include: { serviceCenter: true } },
-        employee: { include: { account: true } },
-      },
+    const employee = await this.prismaService.employee.findUnique({
+      where: { accountId: employeeId },
+    });
+    if (!employee) {
+      throw new NotFoundException(`Employee with ID ${employeeId} not found`);
+    }
+
+    const result = await this.prismaService.workSchedule.deleteMany({
+      where: { employeeId },
     });
 
-    if (!workSchedule) {
-      throw new NotFoundException(`Work schedule with ID ${id} not found`);
+    if (result.count === 0) {
+      throw new NotFoundException('No work schedules found for this employee');
     }
 
-    await this.prismaService.workSchedule.delete({ where: { id } });
+    return { deletedCount: result.count };
   }
 }
