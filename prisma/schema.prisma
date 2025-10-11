@@ -104,6 +104,12 @@ enum BookingDetailStatus {
   COMPLETED
 }
 
+enum PartStatus {
+  OUT_OF_STOCK
+  AVAILABLE
+  DISCONTINUED
+}
+
 /**
  * ================= MODELS =================
  */
@@ -339,14 +345,15 @@ model Category {
 }
 
 model ServicePart {
-  id        String   @id @default(uuid())
-  serviceId String   @map("service_id")
-  partId    String   @map("part_id")
+  id        String     @id @default(uuid())
+  serviceId String     @map("service_id")
+  partId    String     @map("part_id")
   quantity  Int
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
-  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
+  status    PartStatus @default(AVAILABLE)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  part      Part       @relation(fields: [partId], references: [id], onDelete: Cascade)
 
   @@map("service_parts")
 }
@@ -369,8 +376,8 @@ model ServiceCenter {
 model Shift {
   id          String      @id @default(uuid())
   name        String
-  startTime   DateTime    @map("start_time") @db.Timestamptz
-  endTime     DateTime    @map("end_time") @db.Timestamptz
+  startTime   DateTime    @map("start_time") @db.Time
+  endTime     DateTime    @map("end_time") @db.Time
   maximumSlot Int?        @map("maximum_slot")
   status      ShiftStatus @default(ACTIVE)
   centerId    String      @map("center_id")
