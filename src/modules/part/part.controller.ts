@@ -58,6 +58,7 @@ export class PartController {
     }
   }
 
+
   @Get(':id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')

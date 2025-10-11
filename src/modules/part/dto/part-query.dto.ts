@@ -13,6 +13,13 @@ export class PartQueryDto {
   })
   name?: string;
 
+ @IsOptional()
+  @IsString()
+  @ApiProperty({
+    required: false,
+    description: 'Filter by category name',
+  })
+  categoryName?: string;
 
 
   @IsOptional()
