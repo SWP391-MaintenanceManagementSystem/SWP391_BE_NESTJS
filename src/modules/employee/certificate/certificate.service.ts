@@ -11,18 +11,20 @@ export class CertificateService {
   constructor(private prisma: PrismaService) {}
 
   async createCertificate(
-    createCertificateDto: CreateCertificateDTO
-  ): Promise<EmployeeCertificate> {
-    const certificate = await this.prisma.employeeCertificate.create({
-      data: {
-        name: createCertificateDto.name,
-        employeeId: createCertificateDto.employeeId,
-        issuedAt: createCertificateDto.issuedAt,
-        expiresAt: createCertificateDto.expiresAt,
-      },
-    });
-    return plainToInstance(CertificateDTO, certificate);
-  }
+  employeeId: string,
+  createCertificateDto: CreateCertificateDTO
+): Promise<EmployeeCertificate> {
+  const certificate = await this.prisma.employeeCertificate.create({
+    data: {
+      employeeId,
+      name: createCertificateDto.name,
+      issuedAt: new Date(createCertificateDto.issuedAt),
+      expiresAt: new Date(createCertificateDto.expiresAt),
+    },
+  });
+
+  return plainToInstance(CertificateDTO, certificate);
+}
 
   async getCertificateByEmployeeId(employeeId: string): Promise<CertificateDTO[] | null> {
     const certificates = await this.prisma.employeeCertificate.findMany({

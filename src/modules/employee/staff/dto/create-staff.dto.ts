@@ -7,7 +7,10 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { CreateCertificateDTO } from '../../certificate/dto/create-certificate.dto';
+import { Type } from 'class-transformer';
 export class CreateStaffDto {
   @ApiProperty({
     example: 'Nguyen',
@@ -49,4 +52,13 @@ export class CreateStaffDto {
     message: 'Phone number is invalid. It must start with +84 or 0 and contain 10 digits',
   })
   phone?: string;
+
+ @ApiPropertyOptional({
+    type: [CreateCertificateDTO],
+    description: 'List of certificates belonging to the staff (optional)',
+  })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => CreateCertificateDTO)
+  certificates?: CreateCertificateDTO[];
 }

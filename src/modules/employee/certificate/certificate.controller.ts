@@ -13,11 +13,11 @@ import { AccountRole } from '@prisma/client';
 export class CertificateController {
   constructor(private readonly certificateService: CertificateService) {}
 
-  @Post('/')
+  @Post('/:employeeId')
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateCertificateDTO })
-  async createCertificate(@Body() createCertificateDto: CreateCertificateDTO) {
-    await this.certificateService.createCertificate(createCertificateDto);
+  async createCertificate(@Param('employeeId') employeeId:string,@Body() createCertificateDto: CreateCertificateDTO,) {
+    await this.certificateService.createCertificate(employeeId,createCertificateDto);
     return { message: 'Certificate created successfully' };
   }
 

@@ -19,6 +19,7 @@ import { ConfigService } from '@nestjs/config';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
 import { EmployeeService } from '../employee.service';
+import { CertificateService } from '../certificate/certificate.service';
 
 @Injectable()
 export class StaffService {
@@ -26,7 +27,8 @@ export class StaffService {
     private prisma: PrismaService,
     private readonly accountService: AccountService,
     private readonly configService: ConfigService,
-    private readonly employeeService: EmployeeService
+    private readonly employeeService: EmployeeService,
+    private readonly certificateService: CertificateService
   ) {}
 
   async getStaffs(filter: EmployeeQueryDTO): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
@@ -42,36 +44,54 @@ export class StaffService {
   }
 
   async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
-    const existingAccount = await this.prisma.account.findUnique({
-      where: { email: dto.email },
-    });
-
-    if (existingAccount) {
-      throw new BadRequestException('Email is already in use');
-    }
-
-    const defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
-
-    const staffAccount = await this.prisma.account.create({
-      data: {
-        email: dto.email,
-        password: await hashPassword(defaultPassword),
-        phone: dto.phone,
-        role: AccountRole.STAFF,
-        status: 'VERIFIED',
-      },
-    });
-
-    const employee = await this.prisma.employee.create({
-      data: {
-        accountId: staffAccount.id,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-      },
-    });
-
-    return employee;
+  // 1️⃣ Kiểm tra email trùng
+  const existingAccount = await this.prisma.account.findUnique({
+    where: { email: dto.email },
+  });
+  if (existingAccount) {
+    throw new BadRequestException('Email is already in use');
   }
+
+  // 2️⃣ Tạo account mặc định cho staff
+  const defaultPassword =
+    this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
+
+  const staffAccount = await this.prisma.account.create({
+    data: {
+      email: dto.email,
+      password: await hashPassword(defaultPassword),
+      phone: dto.phone,
+      role: AccountRole.STAFF,
+      status: 'VERIFIED',
+    },
+  });
+
+  // 3️⃣ Tạo employee gắn với account vừa tạo
+  const employee = await this.prisma.employee.create({
+    data: {
+      accountId: staffAccount.id,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+    },
+  });
+
+  // 4️⃣ Nếu có certificates thì tạo qua CertificateService (không cần nhập employeeId)
+  if (dto.certificates?.length) {
+    await Promise.all(
+      dto.certificates.map((cert) =>
+        this.certificateService.createCertificate(staffAccount.id, cert)
+      )
+    );
+  }
+
+  // 5️⃣ Trả về employee kèm certificates (nếu có)
+  const result = await this.prisma.employee.findUnique({
+    where: { accountId: employee.accountId },
+    include: { certificates: true },
+  });
+
+  return result;
+}
 
   async updateStaff(
     accountId: string,
