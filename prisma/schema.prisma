@@ -105,8 +105,8 @@ enum BookingDetailStatus {
 }
 
 enum PartStatus {
-  OUT_OF_STOCK
   AVAILABLE
+  OUT_OF_STOCK
   DISCONTINUED
 }
 
@@ -326,6 +326,7 @@ model Part {
   name        String
   stock       Int
   minStock    Int           @map("min_stock")
+  status      PartStatus    @default(AVAILABLE)
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
   category    Category      @relation(fields: [catergoryId], references: [id], onDelete: Cascade)
@@ -345,15 +346,14 @@ model Category {
 }
 
 model ServicePart {
-  id        String     @id @default(uuid())
-  serviceId String     @map("service_id")
-  partId    String     @map("part_id")
+  id        String   @id @default(uuid())
+  serviceId String   @map("service_id")
+  partId    String   @map("part_id")
   quantity  Int
-  status    PartStatus @default(AVAILABLE)
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz
-  service   Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  part      Part       @relation(fields: [partId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
 
   @@map("service_parts")
 }
