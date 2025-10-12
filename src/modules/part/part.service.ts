@@ -5,7 +5,7 @@ import { PartDto } from './dto/part.dto';
 import { Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
-import { PartQueryDto, PartStatus } from './dto/part-query.dto';
+import { PartQueryDto } from './dto/part-query.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 @Injectable()
 export class PartService {
@@ -26,79 +26,70 @@ export class PartService {
   }
 
   async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
-    let {
-      page = 1,
-      pageSize = 10,
-      sortBy = 'createdAt',
-      orderBy = 'desc',
-      name,
-      categoryName,
-      status,
-    } = filter;
+  let {
+    page = 1,
+    pageSize = 10,
+    sortBy = 'createdAt',
+    orderBy = 'desc',
+    name,
+    status, // AVAILABLE | OUT_OF_STOCK | DISCONTINUED
+  } = filter;
 
-    if (page < 1) page = 1;
-    if (pageSize < 1) pageSize = 10;
+  if (page < 1) page = 1;
+  if (pageSize < 1) pageSize = 10;
+  if (sortBy === 'quantity') sortBy = 'stock';
 
-    if (sortBy === 'quantity') sortBy = 'stock';
+  // 🔍 Tìm theo tên part hoặc tên category
+  const baseWhere: Prisma.PartWhereInput = name
+    ? {
+        OR: [
+          { name: { contains: name, mode: 'insensitive' } },
+          { category: { name: { contains: name, mode: 'insensitive' } } },
+        ],
+      }
+    : {};
 
-    const where: Prisma.PartWhereInput = {
-      AND: [
-        name
-          ? {
-              OR: [
-                { name: { contains: name, mode: 'insensitive' } },
-                { description: { contains: name, mode: 'insensitive' } },
-              ],
-            }
-          : {},
-        categoryName
-          ? {
-              category: {
-                name: { contains: categoryName, mode: 'insensitive' },
-              },
-            }
-          : {},
-      ],
-    };
 
-    const [parts, total] = await this.prisma.$transaction([
-      this.prisma.part.findMany({
-        where,
-        include: {
-          category: true,
-          ServicePart: true,
-        },
-        orderBy: ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
-          ? { [sortBy]: orderBy }
-          : { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      this.prisma.part.count({ where }),
-    ]);
+  const where: Prisma.PartWhereInput = {
+    ...baseWhere,
+    ...(status ? { status } : {}),
+  };
 
-    let mappedParts = parts.map(p => ({
-      ...p,
-      quantity: p.stock,
-      status: p.stock <= p.minStock ? PartStatus.LOWSTOCK : PartStatus.INSTOCK,
-    }));
 
-    if (status) {
-      mappedParts = mappedParts.filter(p => p.status === status);
-    }
+  const [parts, total] = await this.prisma.$transaction([
+    this.prisma.part.findMany({
+      where,
+      include: {
+        category: true,
+        ServicePart: true,
+      },
+      orderBy: ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
+        ? { [sortBy]: orderBy }
+        : { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    this.prisma.part.count({ where }),
+  ]);
 
-    const paginatedData = plainToInstance(PartDto, mappedParts, {
-      excludeExtraneousValues: true,
-    });
 
-    return {
-      data: paginatedData,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    };
-  }
+  const mappedParts = parts.map((p) => ({
+    ...p,
+    quantity: p.stock,
+  }));
+
+  const paginatedData = plainToInstance(PartDto, mappedParts, {
+    excludeExtraneousValues: true,
+  });
+
+  return {
+    data: paginatedData,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
 
   async getPartByID(id: string): Promise<PartDto> {
     const part = await this.prisma.part.findUnique({
@@ -119,12 +110,19 @@ export class PartService {
       throw new NotFoundException(`Part with ID ${id} not found`);
     }
 
-    const { categoryId, ...rest } = updatePartDto;
+    const { categoryId, status ,...rest } = updatePartDto;
+
+    let newStatus = status ?? existingPart.status;
+
+    if(!status && typeof rest.stock === 'number') {
+      newStatus = rest.stock === 0 ? 'OUT_OF_STOCK' : 'AVAILABLE';
+    }
 
     const updatedPart = await this.prisma.part.update({
       where: { id },
       data: {
         ...rest,
+        status: newStatus,
         ...(categoryId && { category: { connect: { id: categoryId } } }),
       },
       include: { category: true },
@@ -134,16 +132,18 @@ export class PartService {
   }
 
   async deletePart(id: string): Promise<{ message: string }> {
-    try {
-      await this.prisma.part.delete({ where: { id } });
-      return { message: `Part with ID ${id} has been deleted successfully` };
-    } catch (error) {
-      if (error.code === 'P2025') {
-        // Prisma error code for "Record not found"
-        throw new NotFoundException(`Part with ID ${id} not found`);
-      }
-      throw error; // Re-throw other unexpected errors
-    }
+    const part = await this.prisma.part.findUnique({ where: { id } });
+  if (!part) {
+    throw new NotFoundException(`Part with ID ${id} not found`);
+  }
+
+
+  await this.prisma.part.update({
+    where: { id },
+    data: { status: 'DISCONTINUED' },
+  });
+
+  return { message: `Part with ID ${id} has been marked as DISCONTINUED` };
   }
 
   async getPartStatistics() {

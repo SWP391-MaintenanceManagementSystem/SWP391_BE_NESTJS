@@ -76,6 +76,13 @@ export class EmployeeService {
               lastName: true,
               createdAt: true,
               updatedAt: true,
+              certificates: {
+                select: {
+                  name: true,
+                  issuedAt: true,
+                  expiresAt: true
+                }
+              },
               workCenters: {
                 select: {
                   serviceCenter: { select: { id: true, name: true } },
@@ -110,6 +117,12 @@ export class EmployeeService {
             lastName: emp.employee.lastName,
             createdAt: emp.employee.createdAt,
             updatedAt: emp.employee.updatedAt,
+            certificates:
+            emp.employee?.certificates?.map(c => ({
+            name: c.name,
+            issuedAt: c.issuedAt,
+            expiresAt: c.expiresAt
+             })) ?? [],
           }
         : null,
       workCenters:
@@ -117,6 +130,8 @@ export class EmployeeService {
           id: wc.serviceCenter.id,
           name: wc.serviceCenter.name,
         })) ?? [],
+
+
     }));
 
     return {
