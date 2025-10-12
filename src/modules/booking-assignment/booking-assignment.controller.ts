@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { BookingAssignmentService } from './booking-assignment.service';
 import { CreateBookingAssignmentsDTO } from './dto/create-booking-assignments.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
@@ -61,5 +61,16 @@ export class BookingAssignmentController {
           message: 'Assignments retrieved successfully',
         };
     }
+  }
+
+  @Delete('/:assignmentId')
+  async removeAssignmentsForBooking(
+    @Param('assignmentId') assignmentId: string,
+    @CurrentUser() user: JWT_Payload
+  ) {
+    const { message } = await this.bookingAssignmentService.deleteAssignment(assignmentId, user);
+    return {
+      message,
+    };
   }
 }

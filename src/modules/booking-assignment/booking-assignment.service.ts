@@ -264,4 +264,39 @@ export class BookingAssignmentService {
 
     return plainToInstance(TechnicianBookingAssignmentDTO, technicianAssignments);
   }
+
+  async deleteAssignment(assignmentId: string, staff: JWT_Payload) {
+    const existingStaff = await this.prismaService.employee.findUnique({
+      where: { accountId: staff.sub },
+      select: {
+        accountId: true,
+        workCenters: { select: { centerId: true, endDate: true } },
+      },
+    });
+
+    if (!existingStaff) {
+      throw new ForbiddenException('You are not allowed to delete this assignment.');
+    }
+
+    const activeCenterIds = existingStaff.workCenters
+      .filter(wc => wc.endDate === null)
+      .map(wc => wc.centerId);
+
+    const assignment = await this.prismaService.bookingAssignment.findFirst({
+      where: {
+        id: assignmentId,
+        booking: { centerId: { in: activeCenterIds } },
+      },
+    });
+
+    if (!assignment) {
+      throw new BadRequestException('Assignment not found or not in your center.');
+    }
+
+    await this.prismaService.bookingAssignment.delete({
+      where: { id: assignmentId },
+    });
+
+    return { message: 'Technician assignment deleted successfully.' };
+  }
 }
