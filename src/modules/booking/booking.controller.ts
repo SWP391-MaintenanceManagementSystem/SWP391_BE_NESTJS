@@ -44,9 +44,10 @@ export class BookingController {
 
   @Post('/')
   async createBooking(@Body() bookingData: CreateBookingDTO, @CurrentUser() user: JWT_Payload) {
-    const data = await this.bookingService.createBooking(bookingData, user.sub);
+    const { booking, warning } = await this.bookingService.createBooking(bookingData, user.sub);
     return {
-      data,
+      data: booking,
+      warning,
       message: 'Booking created successfully',
     };
   }

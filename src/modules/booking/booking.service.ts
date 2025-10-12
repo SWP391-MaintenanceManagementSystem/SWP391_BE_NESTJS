@@ -27,7 +27,10 @@ export class BookingService {
     private readonly adminBookingService: AdminBookingService,
     private readonly staffBookingService: StaffBookingService
   ) {}
-  async createBooking(bookingData: CreateBookingDTO, customerId: string): Promise<BookingDTO> {
+  async createBooking(
+    bookingData: CreateBookingDTO,
+    customerId: string
+  ): Promise<{ booking: BookingDTO; warning?: string }> {
     const {
       bookingDate,
       centerId,
@@ -39,10 +42,7 @@ export class BookingService {
 
     const workSchedule = await this.prismaService.workSchedule.findFirst({
       where: {
-        date: {
-          gte: dateFns.startOfDay(bookingDate),
-          lt: dateFns.endOfDay(bookingDate),
-        },
+        date: { gte: dateFns.startOfDay(bookingDate), lt: dateFns.endOfDay(bookingDate) },
         shift: {
           centerId,
           status: 'ACTIVE',
@@ -52,9 +52,8 @@ export class BookingService {
       },
       include: { shift: true },
     });
-    if (!workSchedule) {
-      throw new BadRequestException('No matching shift for this booking date');
-    }
+
+    if (!workSchedule) throw new BadRequestException('No matching shift for this booking date');
 
     const existingBooking = await this.prismaService.booking.findFirst({
       where: {
@@ -64,25 +63,17 @@ export class BookingService {
         status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
       },
     });
-
-    if (existingBooking) {
+    if (existingBooking)
       throw new BadRequestException('You already have a booking for this vehicle at this time');
-    }
 
-    if (serviceIds.length === 0 && packageIds.length === 0) {
+    if (serviceIds.length === 0 && packageIds.length === 0)
       throw new BadRequestException('At least one service or package must be selected');
-    }
 
     const services: Service[] = serviceIds.length
-      ? await this.prismaService.service.findMany({
-          where: { id: { in: serviceIds } },
-        })
+      ? await this.prismaService.service.findMany({ where: { id: { in: serviceIds } } })
       : [];
-
     const packages: Package[] = packageIds.length
-      ? await this.prismaService.package.findMany({
-          where: { id: { in: packageIds } },
-        })
+      ? await this.prismaService.package.findMany({ where: { id: { in: packageIds } } })
       : [];
 
     if (services.length !== serviceIds.length) {
@@ -96,6 +87,19 @@ export class BookingService {
 
     const totalCost =
       services.reduce((sum, s) => sum + s.price, 0) + packages.reduce((sum, p) => sum + p.price, 0);
+
+    let warning: string | undefined = undefined;
+    if (workSchedule.shift.maximumSlot) {
+      const currentBookingCount = await this.prismaService.booking.count({
+        where: {
+          shiftId: workSchedule.shiftId,
+          status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+        },
+      });
+      if (currentBookingCount >= workSchedule.shift.maximumSlot) {
+        warning = 'This shift is currently busy; you may experience some delays';
+      }
+    }
 
     const createdBooking = await this.prismaService.booking.create({
       data: {
@@ -123,12 +127,14 @@ export class BookingService {
         quantity: 1,
       })),
     ];
-
     if (bookingDetailsData.length > 0) {
       await this.bookingDetailService.createManyBookingDetails(bookingDetailsData);
     }
 
-    return plainToInstance(BookingDTO, createdBooking);
+    return {
+      booking: plainToInstance(BookingDTO, createdBooking),
+      warning,
+    };
   }
 
   async getBookingById(bookingId: string): Promise<BookingDTO | null> {
