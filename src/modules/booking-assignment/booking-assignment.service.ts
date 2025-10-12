@@ -1,9 +1,13 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccountRole, BookingStatus } from '@prisma/client';
 import { CreateBookingAssignmentsDTO } from './dto/create-booking-assignments.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingAssignmentsDTO } from './dto/booking-assignments.dto';
+import { CustomerBookingAssignmentsDTO } from './dto/customer-booking-assigments.dto';
+import { StaffBookingAssignmentDTO } from './dto/staff-booking-assignments.dto';
+import { JWT_Payload } from 'src/common/types';
+import { TechnicianBookingAssignmentDTO } from './dto/technician-booking-assignments.dto';
 
 @Injectable()
 export class BookingAssignmentService {
@@ -97,6 +101,167 @@ export class BookingAssignmentService {
       },
     });
 
-    return plainToInstance(BookingAssignmentsDTO, assignments);
+    const bookingAssignments = assignments.map(a => ({
+      id: a.id,
+      booking: a.booking,
+      employee: {
+        id: a.employee.accountId,
+        role: a.employee.account.role,
+        firstName: a.employee.firstName,
+        lastName: a.employee.lastName,
+        email: a.employee.account.email,
+        phoneNumber: a.employee.account.phone,
+        avatar: a.employee.account.avatar,
+      },
+      assigner: a.assigner
+        ? {
+            id: a.assigner.accountId,
+            role: a.assigner.account.role,
+            firstName: a.assigner.firstName,
+            lastName: a.assigner.lastName,
+            email: a.assigner.account.email,
+            phoneNumber: a.assigner.account.phone,
+            avatar: a.assigner.account.avatar,
+          }
+        : null,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+    }));
+
+    return plainToInstance(BookingAssignmentsDTO, bookingAssignments);
+  }
+
+  async getAssignmentsForCustomer(
+    bookingId: string,
+    customerId: string
+  ): Promise<CustomerBookingAssignmentsDTO[]> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      select: { id: true, customerId: true },
+    });
+
+    if (!booking) {
+      throw new BadRequestException('Booking not found.');
+    }
+
+    if (booking.customerId !== customerId) {
+      throw new ForbiddenException('You are not allowed to view this booking.');
+    }
+
+    const assignments = await this.prismaService.bookingAssignment.findMany({
+      where: { bookingId },
+      include: {
+        employee: { include: { account: true } },
+        assigner: { include: { account: true } },
+        booking: true,
+      },
+    });
+
+    const customerAssignments = assignments.map(a => ({
+      id: a.id,
+      booking: a.booking,
+      employee: {
+        id: a.employee.accountId,
+        role: a.employee.account.role,
+        firstName: a.employee.firstName,
+        lastName: a.employee.lastName,
+        email: a.employee.account.email,
+        phoneNumber: a.employee.account.phone,
+        avatar: a.employee.account.avatar,
+      },
+    }));
+
+    return plainToInstance(CustomerBookingAssignmentsDTO, customerAssignments);
+  }
+
+  async getAssignmentsForStaff(
+    bookingId: string,
+    staff: JWT_Payload
+  ): Promise<StaffBookingAssignmentDTO[]> {
+    const existedStaff = await this.prismaService.employee.findUnique({
+      where: { accountId: staff.sub },
+      select: {
+        accountId: true,
+        workCenters: {
+          where: { endDate: null },
+          select: { centerId: true },
+        },
+      },
+    });
+
+    if (!existedStaff) {
+      throw new ForbiddenException('You are not allowed to view this booking.');
+    }
+
+    if (existedStaff.workCenters.length === 0) {
+      throw new ForbiddenException('You are not currently assigned to any center.');
+    }
+
+    const assignments = await this.prismaService.bookingAssignment.findMany({
+      where: {
+        bookingId,
+        booking: {
+          centerId: { in: existedStaff.workCenters.map(wc => wc.centerId) },
+        },
+      },
+      include: {
+        employee: { include: { account: true } },
+        assigner: { include: { account: true } },
+        booking: true,
+      },
+    });
+    const staffAssignments = assignments.map(a => ({
+      id: a.id,
+      booking: a.booking,
+      employee: {
+        id: a.employee.accountId,
+        firstName: a.employee.firstName,
+        lastName: a.employee.lastName,
+        email: a.employee.account.email,
+        phoneNumber: a.employee.account.phone,
+        avatar: a.employee.account.avatar,
+      },
+      assignedBy: a.assigner ? `${a.assigner.firstName} ${a.assigner.lastName}` : null,
+    }));
+
+    return plainToInstance(StaffBookingAssignmentDTO, staffAssignments);
+  }
+
+  async getAssignmentsForTechnician(bookingId: string, technicianId: string) {
+    const assignments = await this.prismaService.bookingAssignment.findMany({
+      where: {
+        bookingId,
+        employeeId: technicianId,
+        booking: {
+          status: {
+            notIn: ['CANCELLED', 'COMPLETED'],
+          },
+        },
+      },
+      include: {
+        employee: { include: { account: true } },
+        assigner: { include: { account: true } },
+        booking: true,
+      },
+    });
+
+    if (assignments.length === 0) {
+      throw new BadRequestException('No active assignments found for this booking.');
+    }
+
+    const technicianAssignments = assignments.map(a => ({
+      booking: a.booking,
+      employee: {
+        id: a.employee.accountId,
+        firstName: a.employee.firstName,
+        lastName: a.employee.lastName,
+        email: a.employee.account.email,
+        phoneNumber: a.employee.account.phone,
+        avatar: a.employee.account.avatar,
+      },
+      assignedBy: a.assigner ? `${a.assigner.firstName} ${a.assigner.lastName}` : null,
+    }));
+
+    return plainToInstance(TechnicianBookingAssignmentDTO, technicianAssignments);
   }
 }
