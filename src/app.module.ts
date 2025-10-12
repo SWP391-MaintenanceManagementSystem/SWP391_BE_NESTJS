@@ -20,8 +20,23 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { UploadModule } from './modules/upload/upload.module';
 import { StaffModule } from './modules/employee/staff/staff.module';
 import { TechnicianModule } from './modules/employee/technician/technician.module';
+import { ServiceModule } from './modules/service/service.module';
+import { CategoryModule } from './modules/category/category.module';
+import { PartModule } from './modules/part/part.module';
 import { MembershipModule } from './modules/membership/membership.module';
-
+import { StripeModule } from './modules/stripe/stripe.module';
+import { SubscriptionModule } from './modules/subscription/subscription.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { ServicePartModule } from './modules/service-part/service-part.module';
+import { PackageModule } from './modules/package/package.module';
+import { PackageDetailModule } from './modules/package-detail/package-detail.module';
+import { CertificateModule } from './modules/employee/certificate/certificate.module';
+import { EmployeeModule } from './modules/employee/employee.module';
+import { ShiftModule } from './modules/shift/shift.module';
+import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module';
+import { WorkCenterModule } from './modules/work-center/work-center.module';
+import { BookingModule } from './modules/booking/booking.module';
+import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
 
 @Module({
   imports: [
@@ -64,9 +79,26 @@ import { MembershipModule } from './modules/membership/membership.module';
     RedisModule,
     CustomerModule,
     TechnicianModule,
+    CertificateModule,
     VehicleModule,
+    ServiceModule,
+    CategoryModule,
+    PartModule,
     StaffModule,
     MembershipModule,
+    StripeModule.forRoot(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-09-30.clover' }),
+    SubscriptionModule,
+    PaymentModule,
+    ServicePartModule,
+    PackageModule,
+    PackageDetailModule,
+    WorkScheduleModule,
+    ShiftModule,
+    EmployeeModule,
+    WorkCenterModule,
+    ServiceModule,
+    BookingModule,
+    BookingDetailModule,
   ],
   controllers: [AppController],
   providers: [
@@ -89,4 +121,4 @@ import { MembershipModule } from './modules/membership/membership.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

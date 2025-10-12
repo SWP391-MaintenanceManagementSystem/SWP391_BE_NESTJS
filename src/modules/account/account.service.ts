@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
-import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
+import { Account, AccountRole, AccountStatus, Prisma, SubscriptionStatus } from '@prisma/client';
 import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
@@ -10,12 +15,13 @@ import { EmployeeDTO } from '../employee/dto/employee.dto';
 import { plainToInstance } from 'class-transformer';
 import { CloudinaryService } from '../upload/cloudinary.service';
 import { buildAccountOrderBy } from 'src/common/sort/sort.util';
+import { SubscriptionDTO } from '../subscription/dto/subscription.dto';
 @Injectable()
 export class AccountService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService
-  ) { }
+  ) {}
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -56,6 +62,20 @@ export class AccountService {
     const existingAccount = await this.getAccountByEmail(oauthUser.email);
 
     if (existingAccount) {
+      if (existingAccount.status === AccountStatus.DISABLED) {
+        throw new ForbiddenException({
+          message: 'User is banned. Please contact support.',
+          accountStatus: existingAccount.status,
+        });
+      }
+
+      if (existingAccount.status === AccountStatus.BANNED) {
+        throw new ForbiddenException({
+          message: 'User is banned. Please contact support.',
+          accountStatus: existingAccount.status,
+        });
+      }
+
       if (!existingAccount.provider.includes(oauthUser.provider)) {
         const updatedProviders = [...existingAccount.provider, oauthUser.provider];
         await this.prisma.account.update({
@@ -188,7 +208,7 @@ export class AccountService {
   ): Promise<AccountWithProfileDTO> {
     const exists = await this.prisma.account.findUnique({
       where: { id },
-      include: { customer: true, employee: true, admin: true },
+      include: { customer: true, employee: true },
     });
     if (!exists) throw new NotFoundException(`Account with id ${id} not found`);
 
@@ -225,7 +245,7 @@ export class AccountService {
     const updated = await this.prisma.account.update({
       where: { id },
       data: accountData,
-      include: { customer: true, employee: true, admin: true },
+      include: { customer: true, employee: true },
     });
 
     return this.mapAccountToDTO(updated);
@@ -272,5 +292,25 @@ export class AccountService {
       where: { id: accountId },
       data: { password: newPassword },
     });
+  }
+
+  async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO | null> {
+    const customer = await this.getAccountById(customerId);
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        customerId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+      include: {
+        membership: true,
+      },
+    });
+    if (!subscription) {
+      return null;
+    }
+    return plainToInstance(SubscriptionDTO, subscription);
   }
 }

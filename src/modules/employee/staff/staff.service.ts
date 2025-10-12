@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
 import { CreateStaffDto } from './dto/create-staff.dto';
@@ -12,73 +17,88 @@ import { plainToClass, plainToInstance } from 'class-transformer';
 import { hashPassword } from 'src/utils';
 import { ConfigService } from '@nestjs/config';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
+import { EmployeeService } from '../employee.service';
+import { CertificateService } from '../certificate/certificate.service';
 
 @Injectable()
 export class StaffService {
   constructor(
     private prisma: PrismaService,
     private readonly accountService: AccountService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly employeeService: EmployeeService,
+    private readonly certificateService: CertificateService
   ) {}
 
-  async getStaffs(options: EmployeeQueryDTO): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = options;
-    page < 1 && (page = 1);
-    pageSize < 1 && (pageSize = 10);
-
-    const where: Prisma.AccountWhereInput = {
-      employee: {
-        firstName: options?.firstName,
-        lastName: options?.lastName,
-      },
-      email: options?.email,
-      phone: options?.phone,
-      status: options?.status,
-      role: AccountRole.STAFF,
-    };
-
-    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+  async getStaffs(filter: EmployeeQueryDTO): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
+    return this.employeeService.getEmployees(filter, AccountRole.STAFF);
   }
 
-  async getStaffById(accountId: string): Promise<StaffDTO | null> {
-    const staff = await this.prisma.employee.findUnique({
-      where: { accountId },
-      include: { account: true },
-    });
-    if (!staff || staff.account.role !== AccountRole.STAFF) {
-      return null;
+  async getStaffById(accountId: string): Promise<AccountWithProfileDTO | null> {
+    const staff = await this.accountService.getAccountById(accountId);
+    if (!staff || staff.role !== AccountRole.STAFF) {
+      throw new NotFoundException(`Staff with ID ${accountId} not found`);
     }
-    return plainToInstance(StaffDTO, staff);
+    return plainToInstance(AccountWithProfileDTO, staff);
   }
 
   async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
-    const defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
-    const staffAccount = await this.prisma.account.create({
-      data: {
-        email: dto.email,
-        password: await hashPassword(defaultPassword),
-        phone: dto.phone,
-        role: AccountRole.STAFF,
-        status: 'VERIFIED',
-      },
-    });
-
-    const employee = await this.prisma.employee.create({
-      data: {
-        accountId: staffAccount.id,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-      },
-    });
-
-    return employee;
+  // 1️⃣ Kiểm tra email trùng
+  const existingAccount = await this.prisma.account.findUnique({
+    where: { email: dto.email },
+  });
+  if (existingAccount) {
+    throw new BadRequestException('Email is already in use');
   }
+
+  // 2️⃣ Tạo account mặc định cho staff
+  const defaultPassword =
+    this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
+
+  const staffAccount = await this.prisma.account.create({
+    data: {
+      email: dto.email,
+      password: await hashPassword(defaultPassword),
+      phone: dto.phone,
+      role: AccountRole.STAFF,
+      status: 'VERIFIED',
+    },
+  });
+
+  // 3️⃣ Tạo employee gắn với account vừa tạo
+  const employee = await this.prisma.employee.create({
+    data: {
+      accountId: staffAccount.id,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+    },
+  });
+
+  // 4️⃣ Nếu có certificates thì tạo qua CertificateService (không cần nhập employeeId)
+  if (dto.certificates?.length) {
+    await Promise.all(
+      dto.certificates.map((cert) =>
+        this.certificateService.createCertificate(staffAccount.id, cert)
+      )
+    );
+  }
+
+  // 5️⃣ Trả về employee kèm certificates (nếu có)
+  const result = await this.prisma.employee.findUnique({
+    where: { accountId: employee.accountId },
+    include: { certificates: true },
+  });
+
+  return result;
+}
 
   async updateStaff(
     accountId: string,
     updateStaffDto: UpdateStaffDto
   ): Promise<AccountWithProfileDTO> {
     const updatedStaff = await this.accountService.updateAccount(accountId, updateStaffDto);
+
     return plainToInstance(AccountWithProfileDTO, updatedStaff);
   }
 
@@ -118,5 +138,51 @@ export class StaffService {
     });
 
     return { message: "Staff's password reset successfully" };
+  }
+
+  async getStaffStatistics() {
+    const [verified, notVerified, banned, disabled, total] = await Promise.all([
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.VERIFIED },
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.NOT_VERIFY },
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.BANNED },
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.STAFF, status: AccountStatus.DISABLED },
+      }),
+      this.prisma.account.count({ where: { role: AccountRole.STAFF } }),
+    ]);
+
+    const data = [
+      {
+        status: 'VERIFIED',
+        count: verified,
+        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'NOT_VERIFY',
+        count: notVerified,
+        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'BANNED',
+        count: banned,
+        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'DISABLED',
+        count: disabled,
+        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0,
+      },
+    ].filter(item => item.count > 0);
+
+    return {
+      total,
+      data,
+    };
   }
 }

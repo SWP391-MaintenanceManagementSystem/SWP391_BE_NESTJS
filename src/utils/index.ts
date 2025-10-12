@@ -1,7 +1,9 @@
 import * as bcrypt from 'bcryptjs';
 import {} from 'date-fns';
 import * as ms from 'ms';
-import { PaginationResponseDTO } from 'src/common/dto/pagination-response.dto';
+import * as dateFns from 'date-fns';
+import { PeriodType } from '@prisma/client';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 
 const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(12);
@@ -21,4 +23,43 @@ function isEmpty(obj: object) {
   return obj && Object.keys(obj).length === 0 && obj.constructor === Object;
 }
 
-export { hashPassword, comparePassword, convertMStoDate, isEmpty };
+export function convertToPeriod(
+  type: PeriodType,
+  duration: number,
+  currentDate: Date = new Date()
+): Date {
+  switch (type) {
+    case PeriodType.DAY:
+      return dateFns.addDays(currentDate, duration);
+    case PeriodType.MONTH:
+      return dateFns.addMonths(currentDate, duration);
+    case PeriodType.YEAR:
+      return dateFns.addYears(currentDate, duration);
+    default:
+      throw new Error('Invalid period type');
+  }
+}
+
+const getVNDayOfWeek = (date: Date) => {
+  const vnTime = toZonedTime(date, 'Asia/Ho_Chi_Minh');
+  return vnTime.getDay();
+};
+
+const utcToVNDate = (date: Date) => {
+  return toZonedTime(date, 'Asia/Ho_Chi_Minh');
+};
+
+const vnToUtcDate = (date: Date) => {
+  const utcDate = fromZonedTime(date, 'Asia/Ho_Chi_Minh');
+  return utcDate;
+};
+
+export {
+  hashPassword,
+  comparePassword,
+  convertMStoDate,
+  isEmpty,
+  getVNDayOfWeek,
+  utcToVNDate,
+  vnToUtcDate,
+};

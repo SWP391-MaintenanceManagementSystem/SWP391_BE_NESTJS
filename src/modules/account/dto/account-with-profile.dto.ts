@@ -1,5 +1,5 @@
 import { IsNotEmpty, IsEmail, IsString, IsOptional } from 'class-validator';
-import { Expose, Exclude, Transform } from 'class-transformer';
+import { Expose, Exclude, Transform, Type } from 'class-transformer';
 import { AccountStatus, AuthProvider, AccountRole } from '@prisma/client';
 import { CustomerDTO } from 'src/modules/customer/dto/customer.dto';
 import { EmployeeDTO } from 'src/modules/employee/dto/employee.dto';
@@ -55,5 +55,15 @@ export class AccountWithProfileDTO {
   provider: AuthProvider[];
 
   @Expose()
+  @Type(() => CustomerDTO, {
+    discriminator: {
+      property: 'role',
+      subTypes: [
+        { value: CustomerDTO, name: 'CUSTOMER' },
+        { value: EmployeeDTO, name: 'EMPLOYEE' },
+      ],
+    },
+    keepDiscriminatorProperty: false,
+  })
   profile: Profile | null;
 }

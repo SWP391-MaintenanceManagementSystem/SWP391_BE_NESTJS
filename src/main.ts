@@ -12,6 +12,8 @@ async function bootstrap() {
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     allowedHeaders: 'Content-Type, Authorization',
   });
+  app.use('/api/payment/webhook', require('body-parser').raw({ type: 'application/json' }));
+
   const config = new DocumentBuilder()
     .setTitle('SWP391 API')
     .setDescription('The SWP391 API description')
@@ -45,6 +47,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      errorHttpStatusCode: 400,
     })
   );
   await app.listen(process.env.PORT ?? 3000, process.env.HOST ?? '0.0.0.0', () => {

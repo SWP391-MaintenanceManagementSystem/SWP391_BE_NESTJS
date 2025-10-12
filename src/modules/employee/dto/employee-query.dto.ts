@@ -1,54 +1,85 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, Min, IsIn, IsBoolean, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AccountStatus } from '@prisma/client';
+import { Order } from 'src/common/sort/sort.config';
+import { AccountRole } from '@prisma/client';
 
 export class EmployeeQueryDTO {
-  @ApiPropertyOptional({ description: 'Customer first name' })
+  @ApiPropertyOptional({ required: false, description: 'Employee ID' })
+  @IsOptional()
+  @IsString()
+  employeeId?: string;
+
+  @ApiPropertyOptional({ required: false, description: 'Employee first name' })
   @IsOptional()
   @IsString()
   firstName?: string;
 
-  @ApiPropertyOptional({ description: 'Customer last name' })
+  @ApiPropertyOptional({ required: false, description: 'Employee last name' })
   @IsOptional()
   @IsString()
   lastName?: string;
 
   @ApiPropertyOptional({
+    required: false,
     enum: AccountStatus,
+    description: 'Account status',
   })
   @IsOptional()
   @IsEnum(AccountStatus)
   status?: AccountStatus;
 
-  @ApiPropertyOptional({ description: 'Customer email' })
+  @ApiPropertyOptional({ required: false, description: 'Customer email' })
   @IsOptional()
   @IsString()
   email?: string;
 
-  @ApiPropertyOptional({ description: 'Customer phone number' })
+  @ApiPropertyOptional({ required: false, description: 'Customer phone number' })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'Sort order example: "createdAt" ', type: String })
+  @ApiPropertyOptional({ required: false, description: 'Employee role', enum: AccountRole })
+  @IsOptional()
+  @IsEnum(AccountRole)
+  role?: AccountRole;
+
+  @ApiPropertyOptional({ required: false, description: 'Service center ID' })
+  @IsOptional()
+  @IsString()
+  centerId?: string;
+
+  @ApiPropertyOptional({ required: false, description: 'Service center name' })
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @ApiPropertyOptional({
+    required: false,
+    description: 'Sort order example: "createdAt" ',
+    type: String,
+  })
   @IsOptional()
   @IsString()
   sortBy?: string;
 
-  @ApiPropertyOptional({ description: 'Sort order example: "asc" or "desc"', type: String })
+  @ApiPropertyOptional({
+    required: false,
+    description: 'Sort order example: "asc"',
+    type: String,
+  })
   @IsOptional()
   @IsString()
-  @IsIn(['asc', 'desc'])
-  orderBy?: 'asc' | 'desc';
+  orderBy?: Order;
 
-  @ApiPropertyOptional({ description: 'Page number', example: 1 })
+  @ApiPropertyOptional({ required: false, description: 'Page number', example: 1 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   page?: number;
 
-  @ApiPropertyOptional({ description: 'Page size', example: 10 })
+  @ApiPropertyOptional({ required: false, description: 'Page size', example: 10 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { CreateTechnicianDto } from './dto/create-technician.dto';
-import { UpdateTechnicianDto } from './dto/update-technician.dto';
+import { CreateTechnicianDTO } from './dto/create-technician.dto';
+import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { Employee, AccountRole, Prisma } from '@prisma/client';
+import { Employee, AccountRole } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
@@ -11,20 +11,34 @@ import { hashPassword } from 'src/utils';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
+import { AccountStatus } from '@prisma/client';
+import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
+import { EmployeeService } from '../employee.service';
 
 @Injectable()
 export class TechnicianService {
   constructor(
     private prisma: PrismaService,
     private readonly accountService: AccountService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly employeeService: EmployeeService
   ) {}
 
-  async createTechnician(createTechnicianDto: CreateTechnicianDto): Promise<Employee | null> {
+  async createTechnician(createTechnicianDto: CreateTechnicianDTO): Promise<Employee | null> {
     const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
     if (!defaultPassword) {
       throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
     }
+
+    if (createTechnicianDto.email) {
+      const existingAccount = await this.prisma.account.findUnique({
+        where: { email: createTechnicianDto.email },
+      });
+      if (existingAccount) {
+        throw new ConflictException('Email is already exists');
+      }
+    }
+
     const technicianAccount = await this.prisma.account.create({
       data: {
         email: createTechnicianDto.email,
@@ -55,35 +69,20 @@ export class TechnicianService {
   }
 
   async getTechnicians(
-    options: EmployeeQueryDTO
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = options;
-    page < 1 && (page = 1);
-    pageSize < 1 && (pageSize = 10);
-
-    const where: Prisma.AccountWhereInput = {
-      employee: {
-        firstName: { contains: options?.firstName, mode: 'insensitive' },
-        lastName: { contains: options?.lastName, mode: 'insensitive' },
-      },
-      email: { contains: options?.email, mode: 'insensitive' },
-      phone: options?.phone,
-      status: options?.status,
-      role: AccountRole.TECHNICIAN,
-    };
-
-    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+    filter: EmployeeQueryDTO
+  ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
+    return this.employeeService.getEmployees(filter, AccountRole.TECHNICIAN);
   }
 
   async updateTechnician(
     accountId: string,
-    updateTechnicianDto: UpdateTechnicianDto
+    updateTechnicianDto: UpdateTechnicianDTO
   ): Promise<AccountWithProfileDTO> {
     const updatedTechnician = await this.accountService.updateAccount(
       accountId,
       updateTechnicianDto
     );
-    return plainToInstance(AccountWithProfileDTO, updatedTechnician);
+    return updatedTechnician;
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
@@ -116,5 +115,61 @@ export class TechnicianService {
       where: { id: accountId },
       data: { password: await hashPassword(defaultPassword) },
     });
+  }
+
+  async getTechnicianStatistics() {
+    const [verified, notVerified, banned, disabled, total] = await Promise.all([
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.VERIFIED,
+        },
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.NOT_VERIFY,
+        },
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.BANNED,
+        },
+      }),
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.TECHNICIAN,
+          status: AccountStatus.DISABLED,
+        },
+      }),
+      this.prisma.account.count({
+        where: { role: AccountRole.TECHNICIAN },
+      }),
+    ]);
+
+    const data = [
+      {
+        status: 'VERIFIED',
+        count: verified,
+        percentage: total > 0 ? Math.round((verified / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'NOT_VERIFY',
+        count: notVerified,
+        percentage: total > 0 ? Math.round((notVerified / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'BANNED',
+        count: banned,
+        percentage: total > 0 ? Math.round((banned / total) * 10000) / 100 : 0,
+      },
+      {
+        status: 'DISABLED',
+        count: disabled,
+        percentage: total > 0 ? Math.round((disabled / total) * 10000) / 100 : 0,
+      },
+    ].filter(item => item.count > 0);
+    return { data, total };
   }
 }
