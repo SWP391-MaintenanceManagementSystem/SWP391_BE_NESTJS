@@ -33,7 +33,11 @@ export class ServiceService {
       this.prisma.service.findMany({
         where,
         include: {
-          ServicePart: { include: { part: true } },
+          ServicePart: {
+            include: {
+              part: true,
+            },
+          },
         },
         orderBy: { [query.sortBy ?? 'createdAt']: query.orderBy ?? 'asc' },
         skip: (page - 1) * pageSize,
@@ -44,7 +48,13 @@ export class ServiceService {
 
     const mappedData = data.map(service => ({
       ...service,
-      parts: service.ServicePart.map(sp => sp.part),
+      // ❗️Lọc part có status hợp lệ
+      parts: service.ServicePart
+        .map(sp => sp.part)
+        .filter(
+          part =>
+            part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+        ),
       serviceParts: undefined,
     }));
 
@@ -91,7 +101,13 @@ export class ServiceService {
 
     const mappedData = data.map(service => ({
       ...service,
-      parts: service.ServicePart.map(sp => sp.part),
+      // ❗️Lọc part hợp lệ (AVAILABLE / OUT_OF_STOCK)
+      parts: service.ServicePart
+        .map(sp => sp.part)
+        .filter(
+          part =>
+            part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+        ),
       serviceParts: undefined,
     }));
 
@@ -137,10 +153,7 @@ export class ServiceService {
   async getServiceByNameForCustomer(name: string): Promise<ServiceDto[]> {
     const services = await this.prisma.service.findMany({
       where: {
-        name: {
-          contains: name,
-          mode: 'insensitive',
-        },
+        name: { contains: name, mode: 'insensitive' },
         status: ServiceStatus.ACTIVE,
       },
       include: { ServicePart: { include: { part: true } } },
@@ -150,10 +163,14 @@ export class ServiceService {
       throw new NotFoundException(`No active services found with name containing "${name}"`);
     }
 
-    // Map lại giống findAll
     const mappedData = services.map(service => ({
       ...service,
-      parts: service.ServicePart.map(sp => sp.part),
+      parts: service.ServicePart
+        .map(sp => sp.part)
+        .filter(
+          part =>
+            part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+        ),
       serviceParts: undefined,
     }));
 
@@ -163,10 +180,7 @@ export class ServiceService {
   async getServiceByNameForAdmin(name: string): Promise<ServiceDto[]> {
     const services = await this.prisma.service.findMany({
       where: {
-        name: {
-          contains: name,
-          mode: 'insensitive',
-        },
+        name: { contains: name, mode: 'insensitive' },
       },
       include: { ServicePart: { include: { part: true } } },
     });
@@ -177,7 +191,12 @@ export class ServiceService {
 
     const mappedData = services.map(service => ({
       ...service,
-      parts: service.ServicePart.map(sp => sp.part),
+      parts: service.ServicePart
+        .map(sp => sp.part)
+        .filter(
+          part =>
+            part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+        ),
       serviceParts: undefined,
     }));
 
@@ -196,7 +215,19 @@ export class ServiceService {
       data: updateServiceDto,
       include: { ServicePart: { include: { part: true } } },
     });
-    return plainToInstance(ServiceDto, updatedService, { excludeExtraneousValues: true });
+
+    const filteredParts = updatedService.ServicePart
+      .map(sp => sp.part)
+      .filter(
+        part =>
+          part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+      );
+
+    return plainToInstance(
+      ServiceDto,
+      { ...updatedService, parts: filteredParts },
+      { excludeExtraneousValues: true },
+    );
   }
 
   async deleteService(id: string) {
