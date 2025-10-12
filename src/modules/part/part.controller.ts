@@ -25,17 +25,9 @@ export class PartController {
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getAllParts(@Query() query: PartQueryDto) {
-    const {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages,
-    } = await this.partService.getAllParts(query);
+    const { data, page, pageSize, total, totalPages } = await this.partService.getAllParts(query);
 
-    const parts = data.map(part =>
-      plainToInstance(PartDto, part),
-    );
+    const parts = data.map(part => plainToInstance(PartDto, part));
 
     return {
       message: 'Parts retrieved successfully',
@@ -47,7 +39,7 @@ export class PartController {
     };
   }
 
-  @Get("statistics")
+  @Get('statistics')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getStatistics() {
@@ -55,7 +47,7 @@ export class PartController {
     return {
       message: 'Part statistics retrieved successfully',
       data: stats,
-    }
+    };
   }
 
   @Get(':id')
