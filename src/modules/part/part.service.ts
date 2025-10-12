@@ -19,6 +19,7 @@ export class PartService {
         price: createPartDto.price,
         stock: createPartDto.stock,
         minStock: createPartDto.minStock,
+        status: createPartDto.stock === 0 || createPartDto.stock < createPartDto.minStock ? 'OUT_OF_STOCK' : 'AVAILABLE',
         catergoryId: createPartDto.categoryId,
       },
     });
@@ -32,6 +33,7 @@ export class PartService {
     sortBy = 'createdAt',
     orderBy = 'desc',
     name,
+    categoryName,
     status, // AVAILABLE | OUT_OF_STOCK | DISCONTINUED
   } = filter;
 
@@ -40,14 +42,13 @@ export class PartService {
   if (sortBy === 'quantity') sortBy = 'stock';
 
   // 🔍 Tìm theo tên part hoặc tên category
-  const baseWhere: Prisma.PartWhereInput = name
-    ? {
-        OR: [
-          { name: { contains: name, mode: 'insensitive' } },
-          { category: { name: { contains: name, mode: 'insensitive' } } },
-        ],
-      }
-    : {};
+  const baseWhere: Prisma.PartWhereInput = { AND:
+    [ name ? {
+      OR: [
+        { name: { contains: name, mode: 'insensitive' } },
+        { category: { name: { contains: name, mode: 'insensitive' } } }, ], } : {},
+        categoryName ? { category: { name: { contains: categoryName, mode: 'insensitive' } },
+      } : {}, ], };
 
 
   const where: Prisma.PartWhereInput = {
@@ -115,7 +116,7 @@ export class PartService {
     let newStatus = status ?? existingPart.status;
 
     if(!status && typeof rest.stock === 'number') {
-      newStatus = rest.stock === 0 ? 'OUT_OF_STOCK' : 'AVAILABLE';
+      newStatus = rest.stock === 0 || rest.stock < existingPart.minStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
     }
 
     const updatedPart = await this.prisma.part.update({
@@ -172,4 +173,6 @@ export class PartService {
       categories,
     };
   }
+
+
 }
