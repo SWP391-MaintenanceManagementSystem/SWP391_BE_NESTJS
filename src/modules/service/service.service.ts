@@ -13,7 +13,6 @@ import { ServiceQueryCustomerDTO } from './dto/service-query-customer.dto';
 export class ServiceService {
   constructor(private readonly prisma: PrismaService) {}
 
-
   async findAllForAdmin(query: ServiceQueryDTO): Promise<PaginationResponse<ServiceDto>> {
     const { page = 1, pageSize = 10, status } = query;
 

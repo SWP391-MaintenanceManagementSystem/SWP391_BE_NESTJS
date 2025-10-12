@@ -3,19 +3,29 @@ import { CreateBookingDTO } from './dto/create-booking.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { BookingDTO } from './dto/booking.dto';
+import { BookingWithDetailsDTO } from './dto/booking-with-details.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingQueryDTO } from './dto/booking-query.dto';
-import { Package, Prisma, Service } from '@prisma/client';
+import { AccountRole, Booking, BookingStatus, Package, Prisma, Service } from '@prisma/client';
 import * as dateFns from 'date-fns';
 import { buildBookingSearch } from 'src/common/search/search.util';
 import { buildBookingOrderBy } from 'src/common/sort/sort.util';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
-import { getVNDayOfWeek } from 'src/utils';
+import { JWT_Payload } from 'src/common/types';
+import { CustomerUpdateBookingDTO } from './dto/customer-update-booking.dto';
+import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
+import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
+import { CustomerBookingService } from './customer-booking.service';
+import { AdminBookingService } from './admin-booking.service';
+import { StaffBookingService } from './staff-booking.service';
 @Injectable()
 export class BookingService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly bookingDetailService: BookingDetailService
+    private readonly bookingDetailService: BookingDetailService,
+    private readonly customerBookingService: CustomerBookingService,
+    private readonly adminBookingService: AdminBookingService,
+    private readonly staffBookingService: StaffBookingService
   ) {}
   async createBooking(bookingData: CreateBookingDTO, customerId: string): Promise<BookingDTO> {
     const {
@@ -27,14 +37,22 @@ export class BookingService {
       packageIds = [],
     } = bookingData;
 
-    const matchedShift = await this.prismaService.shift.findFirst({
+    const workSchedule = await this.prismaService.workSchedule.findFirst({
       where: {
-        status: 'ACTIVE',
-        centerId,
+        date: {
+          gte: dateFns.startOfDay(bookingDate),
+          lt: dateFns.endOfDay(bookingDate),
+        },
+        shift: {
+          centerId,
+          status: 'ACTIVE',
+          startTime: { lte: bookingDate },
+          endTime: { gt: bookingDate },
+        },
       },
+      include: { shift: true },
     });
-
-    if (!matchedShift) {
+    if (!workSchedule) {
       throw new BadRequestException('No matching shift for this booking date');
     }
 
@@ -42,21 +60,13 @@ export class BookingService {
       where: {
         customerId,
         vehicleId,
-        shiftId: matchedShift.id,
+        shiftId: workSchedule.shiftId,
         status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
       },
     });
 
     if (existingBooking) {
       throw new BadRequestException('You already have a booking for this vehicle at this time');
-    }
-
-    const bookingHour = bookingDate.getHours();
-    const startHour = matchedShift.startTime.getHours();
-    const endHour = matchedShift.endTime.getHours();
-
-    if (bookingHour < startHour || bookingHour >= endHour) {
-      throw new BadRequestException('Booking time is outside of shift hours');
     }
 
     if (serviceIds.length === 0 && packageIds.length === 0) {
@@ -90,7 +100,7 @@ export class BookingService {
     const createdBooking = await this.prismaService.booking.create({
       data: {
         bookingDate,
-        shiftId: matchedShift.id,
+        shiftId: workSchedule.shiftId,
         customerId,
         totalCost,
         note,
@@ -124,11 +134,68 @@ export class BookingService {
   async getBookingById(bookingId: string): Promise<BookingDTO | null> {
     const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
+      include: {
+        customer: {
+          include: { account: true },
+        },
+        vehicle: {
+          include: {
+            vehicleModel: { include: { brand: true } },
+          },
+        },
+        serviceCenter: true,
+        shift: true,
+        bookingDetails: true,
+      },
     });
-    return booking ? plainToInstance(BookingDTO, booking) : null;
+
+    if (!booking) return null;
+
+    const { customer, vehicle, serviceCenter, ...rest } = booking;
+
+    const account = customer?.account
+      ? {
+          ...customer.account,
+          profile: {
+            ...customer,
+            account: undefined,
+          },
+        }
+      : null;
+
+    const formattedVehicle = vehicle
+      ? {
+          id: vehicle.id,
+          vin: vehicle.vin,
+          licensePlate: vehicle.licensePlate,
+          model: vehicle.vehicleModel?.name ?? null,
+          brand: vehicle.vehicleModel?.brand?.name ?? null,
+        }
+      : null;
+
+    const formattedServiceCenter = serviceCenter
+      ? {
+          id: serviceCenter.id,
+          name: serviceCenter.name,
+        }
+      : null;
+
+    const modifiedBooking = {
+      ...rest,
+      account,
+      vehicle: formattedVehicle,
+      serviceCenter: formattedServiceCenter,
+    };
+
+    return plainToInstance(BookingWithDetailsDTO, modifiedBooking, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  async getBookings(filterOptions: BookingQueryDTO): Promise<PaginationResponse<BookingDTO>> {
+  async getBookings(
+    filterOptions: BookingQueryDTO,
+    user: JWT_Payload
+  ): Promise<PaginationResponse<BookingDTO>> {
     const {
       search,
       status,
@@ -154,6 +221,22 @@ export class BookingService {
       ...buildBookingSearch(search),
     };
 
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        where.customer = {
+          accountId: user.sub,
+        };
+        break;
+      case AccountRole.STAFF:
+        if (centerId) {
+          where.centerId = centerId;
+        }
+        break;
+      case AccountRole.ADMIN:
+      default:
+        break;
+    }
+
     const [totalItems, bookings] = await this.prismaService.$transaction([
       this.prismaService.booking.count({ where }),
       this.prismaService.booking.findMany({
@@ -165,20 +248,99 @@ export class BookingService {
           customer: {
             include: { account: true },
           },
-          vehicle: true,
+          vehicle: {
+            include: { vehicleModel: { include: { brand: true } } },
+          },
           serviceCenter: true,
           shift: true,
+          bookingDetails: true,
         },
       }),
     ]);
 
+    // const modifiedBookings = bookings.map(b => {
+    //   const { customer, ...rest } = b;
+    //   const account = customer?.account
+    //     ? { ...customer.account, profile: { ...customer, account: undefined } }
+    //     : null;
+
+    //   const vehicle = b.vehicle
+    //     ? {
+    //         id: b.vehicle.id,
+    //         vin: b.vehicle.vin,
+    //         licensePlate: b.vehicle.licensePlate,
+    //         model: b.vehicle.vehicleModel?.name,
+    //         brand: b.vehicle.vehicleModel?.brand?.name,
+    //       }
+    //     : null;
+
+    //   const serviceCenter = b.serviceCenter
+    //     ? {
+    //         id: b.serviceCenter.id,
+    //         name: b.serviceCenter.name,
+    //       }
+    //     : null;
+
+    //   return {
+    //     ...rest,
+    //     account,
+    //     vehicle,
+    //     serviceCenter,
+    //   };
+    // });
+
     const totalPages = Math.ceil(totalItems / pageSize);
+
     return {
-      data: bookings.map(booking => plainToInstance(BookingDTO, booking)),
+      data: bookings.map(booking =>
+        plainToInstance(BookingDTO, booking, { excludeExtraneousValues: true })
+      ),
       page,
       pageSize,
       total: totalItems,
       totalPages,
     };
+  }
+
+  async cancelBooking(bookingId: string, user: JWT_Payload): Promise<BookingDTO> {
+    const booking = await this.prismaService.booking.findUniqueOrThrow({
+      where: { id: bookingId },
+    });
+
+    if (booking.status === BookingStatus.CANCELLED)
+      throw new BadRequestException('Booking is already cancelled');
+
+    if (booking.status !== BookingStatus.PENDING)
+      throw new BadRequestException('Only pending bookings can be cancelled');
+
+    if (user.role === AccountRole.CUSTOMER && booking.customerId !== user.sub)
+      throw new BadRequestException('You can only cancel your own bookings');
+
+    const updatedBooking = await this.prismaService.booking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.CANCELLED },
+    });
+
+    return plainToInstance(BookingDTO, updatedBooking, { excludeExtraneousValues: true });
+  }
+
+  async updateBooking(
+    bookingId: string,
+    body: CustomerUpdateBookingDTO | StaffUpdateBookingDTO | AdminUpdateBookingDTO,
+    user: JWT_Payload
+  ) {
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        const updatedBody = plainToInstance(CustomerUpdateBookingDTO, body);
+        return this.customerBookingService.updateBooking(bookingId, user.sub, updatedBody);
+      case AccountRole.STAFF:
+        const staffBody = plainToInstance(StaffUpdateBookingDTO, body);
+        return this.staffBookingService.updateBooking(bookingId, staffBody);
+      case AccountRole.ADMIN:
+        const updatedAdminBody = plainToInstance(AdminUpdateBookingDTO, body);
+        return this.adminBookingService.updateBooking(bookingId, updatedAdminBody);
+      default:
+        throw new BadRequestException('Invalid user role');
+    }
   }
 }
