@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePartDto } from './dto/create-part.dto';
 import { UpdatePartDto } from './dto/update-part.dto';
 import { PartDto } from './dto/part.dto';
-import { Prisma } from '@prisma/client';
+import { PartStatus, Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartQueryDto } from './dto/part-query.dto';
@@ -23,7 +23,9 @@ export class PartService {
         catergoryId: createPartDto.categoryId,
       },
     });
-    return plainToInstance(PartDto, newPart, { excludeExtraneousValues: true });
+
+    const partWithQuantity = {...newPart, quantity: newPart.stock}
+    return plainToInstance(PartDto, partWithQuantity, { excludeExtraneousValues: true });
   }
 
   async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
@@ -34,32 +36,39 @@ export class PartService {
     orderBy = 'desc',
     name,
     categoryName,
-    status, // AVAILABLE | OUT_OF_STOCK | DISCONTINUED
+    status, // AVAILABLE | OUT_OF_STOCK
   } = filter;
 
   if (page < 1) page = 1;
   if (pageSize < 1) pageSize = 10;
   if (sortBy === 'quantity') sortBy = 'stock';
 
-  // 🔍 Tìm theo tên part hoặc tên category
-  const baseWhere: Prisma.PartWhereInput = { AND:
-    [ name ? {
-      OR: [
-        { name: { contains: name, mode: 'insensitive' } },
-        { category: { name: { contains: name, mode: 'insensitive' } } }, ], } : {},
-        categoryName ? { category: { name: { contains: categoryName, mode: 'insensitive' } },
-      } : {}, ], };
+
+  const statusFilter: Prisma.PartWhereInput = status
+    ? { status }
+    : { status: { in: [PartStatus.AVAILABLE, PartStatus.OUT_OF_STOCK] } };
 
 
-  const where: Prisma.PartWhereInput = {
-    ...baseWhere,
-    ...(status ? { status } : {}),
+  const baseWhere: Prisma.PartWhereInput = {
+    AND: [
+      name
+        ? {
+            OR: [
+              { name: { contains: name, mode: 'insensitive' } },
+              { category: { name: { contains: name, mode: 'insensitive' } } },
+            ],
+          }
+        : {},
+      categoryName
+        ? { category: { name: { contains: categoryName, mode: 'insensitive' } } }
+        : {},
+      statusFilter,
+    ],
   };
-
 
   const [parts, total] = await this.prisma.$transaction([
     this.prisma.part.findMany({
-      where,
+      where: baseWhere,
       include: {
         category: true,
         ServicePart: true,
@@ -70,9 +79,8 @@ export class PartService {
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
-    this.prisma.part.count({ where }),
+    this.prisma.part.count({ where: baseWhere }),
   ]);
-
 
   const mappedParts = parts.map((p) => ({
     ...p,
