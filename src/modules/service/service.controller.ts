@@ -9,7 +9,7 @@ import { AccountRole } from '@prisma/client';
 import { ServiceQueryCustomerDTO } from './dto/service-query-customer.dto';
 
 @ApiTags('Service')
-@Controller('api/service')
+@Controller('api/services')
 export class ServiceController {
   constructor(private readonly serviceService: ServiceService) {}
 

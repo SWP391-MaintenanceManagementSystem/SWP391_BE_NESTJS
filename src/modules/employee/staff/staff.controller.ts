@@ -10,7 +10,7 @@ import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
 @ApiTags('Staff')
-@Controller('api/staff')
+@Controller('api/staffs')
 export class StaffController {
   constructor(private readonly staffService: StaffService) {}
 
