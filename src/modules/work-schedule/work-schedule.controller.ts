@@ -19,6 +19,8 @@ import { RoleGuard } from 'src/common/guard/role.guard';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
+import { CreateCyclicWorkScheduleDTO } from './dto/create-cyclic-work-schedule.dto';
+import { UpdateCyclicWorkScheduleDTO } from './dto/update-cyclic-work-schedule.dto';
 
 @ApiTags('Work Schedule')
 @Controller('api/work-schedule')
@@ -29,12 +31,19 @@ export class WorkScheduleController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: CreateWorkScheduleDTO })
-  async createWorkSchedule(@Body() createDto: CreateWorkScheduleDTO, @CurrentUser() user: any) {
-    const data = await this.workScheduleService.createWorkSchedule(createDto, user.role, user.sub);
+  @ApiBody({ type: CreateCyclicWorkScheduleDTO })
+  async createWorkSchedule(
+    @Body() createCyclicDto: CreateCyclicWorkScheduleDTO,
+    @CurrentUser() user: any
+  ) {
+    const data = await this.workScheduleService.createCyclicWorkSchedule(
+      createCyclicDto,
+      user.role
+    );
     return {
       message: 'Work schedules created successfully',
       data,
+      count: data.length,
     };
   }
 
@@ -64,18 +73,18 @@ export class WorkScheduleController {
     };
   }
 
-  @Patch('shift/:shiftId/date/:date')
+  @Patch(':employeeId/:shiftId')
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: UpdateWorkScheduleDTO })
+  @ApiBody({ type: UpdateCyclicWorkScheduleDTO })
   async updateWorkSchedule(
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
     @Param('shiftId', ParseUUIDPipe) shiftId: string,
-    @Param('date') date: string,
-    @Body() updateDto: UpdateWorkScheduleDTO,
+    @Body() updateDto: UpdateCyclicWorkScheduleDTO,
     @CurrentUser() user: any
   ) {
-    const data = await this.workScheduleService.updateWorkSchedule(
+    const data = await this.workScheduleService.updateCyclicWorkSchedule(
+      employeeId,
       shiftId,
-      date,
       updateDto,
       user.role
     );
@@ -86,10 +95,13 @@ export class WorkScheduleController {
     };
   }
 
-  @Delete(':id')
+  @Delete(':employeeId')
   @Roles(AccountRole.ADMIN)
-  async deleteWorkSchedule(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    const data = await this.workScheduleService.deleteWorkSchedule(id, user.role);
+  async deleteWorkSchedule(
+    @Param('employeeId', ParseUUIDPipe) employeeId: string,
+    @CurrentUser() user: any
+  ) {
+    const data = await this.workScheduleService.deleteWorkSchedule(employeeId, user.role);
     return {
       message: 'Work schedule deleted successfully',
       data,
