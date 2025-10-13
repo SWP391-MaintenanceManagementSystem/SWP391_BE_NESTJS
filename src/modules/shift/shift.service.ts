@@ -172,7 +172,9 @@ export class ShiftService {
     const updated = await this.prismaService.shift.update({
       where: { id },
       data,
-      include: { serviceCenter: { select: { name: true, address: true, status: true } } },
+      include: {
+        serviceCenter: { select: { name: true, address: true, status: true } },
+      },
     });
 
     return plainToInstance(

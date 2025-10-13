@@ -371,13 +371,11 @@ export class WorkScheduleService {
       throw new ForbiddenException('Only ADMIN can update cyclic work schedule assignments');
     }
 
-    // Get current schedules for this employee-shift combination
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const existingSchedules = await this.prismaService.workSchedule.findMany({
-      where: {
-        employeeId,
-        shiftId,
-        date: { gte: new Date() }, // Only future schedules
-      },
+      where: { employeeId, shiftId, date: { gte: today } },
       orderBy: { date: 'asc' },
     });
 
@@ -387,99 +385,76 @@ export class WorkScheduleService {
       );
     }
 
-    // If no changes, return existing
-    if (!updateCyclicDto.startDate && !updateCyclicDto.endDate && !updateCyclicDto.repeatDays) {
-      return existingSchedules.map(ws =>
-        plainToInstance(WorkScheduleDTO, ws, { excludeExtraneousValues: true })
-      );
-    }
+    const newEmployeeId = updateCyclicDto.employeeId || employeeId;
+    const newShiftId = updateCyclicDto.shiftId || shiftId;
 
-    // Determine new date range and repeat days
     const newStartDate = updateCyclicDto.startDate
       ? new Date(updateCyclicDto.startDate)
       : existingSchedules[0].date;
+
     const newEndDate = updateCyclicDto.endDate
       ? new Date(updateCyclicDto.endDate)
-      : existingSchedules[existingSchedules.length - 1].date;
+      : (existingSchedules.at(-1)?.date ?? new Date());
+
     const newRepeatDays =
       updateCyclicDto.repeatDays || this.inferRepeatDaysFromSchedules(existingSchedules);
+
+    newStartDate.setHours(0, 0, 0, 0);
+    newEndDate.setHours(0, 0, 0, 0);
 
     if (newStartDate >= newEndDate) {
       throw new BadRequestException('Start date must be before end date');
     }
-
-    // Delete all existing future schedules for this employee-shift
-    await this.prismaService.workSchedule.deleteMany({
-      where: {
-        employeeId,
-        shiftId,
-        date: { gte: new Date() },
-      },
-    });
-
-    // Generate new schedule dates
-    const scheduleDates: Date[] = [];
-    const currentDate = new Date(Math.max(new Date().getTime(), newStartDate.getTime()));
-
-    while (currentDate <= newEndDate) {
-      const dayOfWeek = currentDate.getDay();
-
-      if (newRepeatDays.includes(dayOfWeek)) {
-        scheduleDates.push(new Date(currentDate));
+    const targetDates: Date[] = [];
+    for (let d = new Date(newStartDate); d <= newEndDate; d.setDate(d.getDate() + 1)) {
+      if (newRepeatDays.includes(d.getDay())) {
+        const normalized = new Date(d);
+        normalized.setHours(0, 0, 0, 0);
+        targetDates.push(normalized);
       }
-      currentDate.setDate(currentDate.getDate() + 1);
     }
 
-    if (scheduleDates.length === 0) {
+    if (targetDates.length === 0) {
       throw new BadRequestException('No valid dates found for the specified repeat days');
     }
 
-    // Validate shift and capacity
     const shift = await this.prismaService.shift.findUnique({
-      where: { id: shiftId },
+      where: { id: newShiftId },
     });
+    if (!shift) throw new NotFoundException(`Shift with ID ${newShiftId} not found`);
 
-    if (!shift) {
-      throw new NotFoundException(`Shift with ID ${shiftId} not found`);
-    }
+    const UpdatePattern =
+      !!updateCyclicDto.startDate ||
+      !!updateCyclicDto.endDate ||
+      (Array.isArray(updateCyclicDto.repeatDays) && updateCyclicDto.repeatDays.length > 0);
 
-    // Check capacity for each new date
-    for (const date of scheduleDates) {
-      const existingCount = await this.prismaService.workSchedule.count({
-        where: {
-          shiftId,
-          employeeId: { not: employeeId }, // Exclude current employee
-          date: {
-            gte: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-            lt: new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1),
-          },
+    if (!UpdatePattern && (updateCyclicDto.employeeId || updateCyclicDto.shiftId)) {
+      await this.prismaService.workSchedule.updateMany({
+        where: { employeeId, shiftId, date: { gte: today } },
+        data: {
+          ...(updateCyclicDto.employeeId && { employeeId: updateCyclicDto.employeeId }),
+          ...(updateCyclicDto.shiftId && { shiftId: updateCyclicDto.shiftId }),
         },
       });
+    } else {
+      await this.prismaService.workSchedule.deleteMany({
+        where: { employeeId, shiftId, date: { in: targetDates } },
+      });
 
-      if (shift.maximumSlot && existingCount >= shift.maximumSlot) {
-        throw new ConflictException(
-          `Shift capacity exceeded on ${date.toDateString()}. Max: ${shift.maximumSlot}, Current: ${existingCount}`
-        );
-      }
+      await this.prismaService.workSchedule.createMany({
+        data: targetDates.map(date => ({
+          employeeId: newEmployeeId,
+          shiftId: newShiftId,
+          date,
+        })),
+      });
     }
 
-    // Create new schedules
-    const scheduleData = scheduleDates.map(date => ({
-      employeeId,
-      shiftId,
-      date,
-    }));
-
-    await this.prismaService.workSchedule.createMany({
-      data: scheduleData,
-    });
-
-    // Fetch created schedules with relations
     const updatedSchedules = await this.prismaService.workSchedule.findMany({
       where: {
-        employeeId,
-        shiftId,
-        date: { in: scheduleDates },
+        employeeId: newEmployeeId,
+        shiftId: newShiftId,
+        date: { in: targetDates },
       },
       include: {
         employee: {
@@ -520,7 +495,9 @@ export class WorkScheduleService {
     });
 
     return updatedSchedules.map(ws =>
-      plainToInstance(WorkScheduleDTO, this.formatShiftTime(ws), { excludeExtraneousValues: true })
+      plainToInstance(WorkScheduleDTO, this.formatShiftTime(ws), {
+        excludeExtraneousValues: true,
+      })
     );
   }
 
