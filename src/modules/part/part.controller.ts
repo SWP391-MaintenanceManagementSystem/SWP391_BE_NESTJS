@@ -10,7 +10,7 @@ import { PartDto } from './dto/part.dto';
 import { plainToInstance } from 'class-transformer';
 
 @ApiTags('Part')
-@Controller('api/part')
+@Controller('api/parts')
 export class PartController {
   constructor(private readonly partService: PartService) {}
 
@@ -70,8 +70,16 @@ export class PartController {
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   update(@Param('id') id: string, @Body() updatePartDto: UpdatePartDto) {
-    return this.partService.updatePart(id, updatePartDto);
+    return this.partService.updatePartInfo(id, updatePartDto);
   }
+
+  // @Patch(':id/toggle-availability')
+  // @Roles(AccountRole.ADMIN)
+  // @ApiBearerAuth('jwt-auth')
+  // toggleAvailability(@Param('id') id: string) {
+  //   return this.partService.togglePartAvailability(id);
+  // }
+
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
