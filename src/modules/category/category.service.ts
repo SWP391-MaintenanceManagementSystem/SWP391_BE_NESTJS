@@ -11,12 +11,15 @@ export class CategoryService {
 
   async createCategory(createCategoryDto: CreateCategoryDto): Promise<CategoryDto> {
     const existingCategory = await this.prisma.category.findFirst({
-    where: { name: createCategoryDto.name },
+    where: { name: {
+      equals: createCategoryDto.name,
+      mode: 'insensitive'
+    } },
   });
 
   if (existingCategory) {
     throw new BadRequestException(
-      `Category with name "${createCategoryDto.name}" already exists`
+      `Category with name ${createCategoryDto.name} already exists`
     );
   }
 
