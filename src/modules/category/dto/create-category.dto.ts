@@ -10,4 +10,5 @@ export class CreateCategoryDto {
   @IsString({ message: 'Category name must be a string' })
   @MaxLength(100, { message: 'Category name must not exceed 100 characters' })
   name: string;
+
 }
