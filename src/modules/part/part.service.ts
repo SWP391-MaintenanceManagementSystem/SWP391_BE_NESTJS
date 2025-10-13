@@ -35,15 +35,15 @@ export class PartService {
   if (existingPart) {
     if (existingPart.status === 'DISCONTINUED') {
       throw new BadRequestException({
-        message: `Part "${name}" already existed in this category but is discontinued. You may recover it.`,
+        message: `Part ${name} already existed in this category but is discontinued. You may recover it.`,
       });
     } else {
       throw new BadRequestException({
         errors: {
-          name: `Part "${name}" already exists in this category`,
-          price: `Price must be adjusted`,
-          stock: `Quantity must be adjusted`,
-          minStock: `Minimum Stock must be adjusted`,
+          name: `Part ${name} already exists in this category`,
+          price: `Price must be at least 1`,
+          stock: `Quantity must be at least 1`,
+          minStock: `Minimum Stock must be at least 1`,
         },
       });
     }
@@ -185,15 +185,15 @@ export class PartService {
     if (duplicate) {
       if (duplicate.status === 'DISCONTINUED') {
         throw new BadRequestException({
-          message: `Part "${duplicate.name}" already existed in category "${duplicate.category.name}" but is discontinued. You may recover this part.`,
+          message: `Part ${duplicate.name} already existed in category ${duplicate.category.name} but is discontinued. You may recover this part.`,
         });
       } else {
         throw new BadRequestException({
           errors: {
-            name: `Part "${duplicate.name}" already exists in this category`,
-            price: `Price must be adjusted`,
-            stock: `Quantity must be adjusted`,
-            minStock: `Minimum Stock must be adjusted`,
+            name: `Part ${duplicate.name} already exists in this category`,
+            price: `Price must be at least 1`,
+            stock: `Quantity must be at least 1`,
+            minStock: `Minimum Stock must be at least 1`,
           },
         });
       }

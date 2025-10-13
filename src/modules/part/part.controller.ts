@@ -72,6 +72,15 @@ export class PartController {
   //   return this.partService.togglePartAvailability(id);
   // }
 
+  @Patch(':id/refill')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  refill(
+    @Param('id') id: string,
+    @Body('refillAmount') refillAmount: number,
+  ) {
+    return this.partService.refillOutOfStockPart(id, refillAmount);
+  }
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
