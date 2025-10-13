@@ -12,44 +12,54 @@ export class PartService {
   constructor(private readonly prisma: PrismaService) {}
 
  async createPart(createPartDto: CreatePartDto): Promise<PartDto> {
-    const existingPart = await this.prisma.part.findFirst({
-    where: {
-      name: createPartDto.name,
-      catergoryId: createPartDto.categoryId,
-    },
+  const { name, categoryId, price, stock, minStock, description } = createPartDto;
+
+  const errors: Record<string, string> = {};
+
+
+  if (!name) errors.name = 'Item name is required';
+  if (!categoryId) errors.categoryId = 'Category is required';
+  if (price == null || price < 1) errors.price = 'Price must be at least 1';
+  if (stock == null || stock < 1) errors.stock = 'Stock must be at least 1';
+  if (minStock == null || minStock < 1) errors.minStock = 'MinStock must be at least 1';
+
+  if (Object.keys(errors).length > 0) {
+    throw new BadRequestException({ errors });
+  }
+
+
+  const existingPart = await this.prisma.part.findFirst({
+    where: { name, catergoryId: categoryId },
   });
 
   if (existingPart) {
     if (existingPart.status === 'DISCONTINUED') {
-      throw new BadRequestException(
-        `Part with name "${createPartDto.name}" in this category has been discontinued`
-      );
+      throw new BadRequestException({
+        message: `Part "${name}" already existed in this category but is discontinued. You may recover it.`,
+      });
     } else {
-      throw new BadRequestException(
-        `Part with name "${createPartDto.name}" already exists in this category`
-      );
+      throw new BadRequestException({
+        errors: {
+          name: `Part "${name}" already exists in this category`,
+          price: `Price must be adjusted`,
+          stock: `Stock must be adjusted`,
+          minStock: `MinStock must be adjusted`,
+        },
+      });
     }
   }
 
+
+  const status = stock < minStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
   const newPart = await this.prisma.part.create({
-    data: {
-      name: createPartDto.name,
-      description: createPartDto.description,
-      price: createPartDto.price,
-      stock: createPartDto.stock,
-      minStock: createPartDto.minStock,
-      status:
-        createPartDto.stock < createPartDto.minStock
-          ? 'OUT_OF_STOCK'
-          : 'AVAILABLE',
-      catergoryId: createPartDto.categoryId,
-    },
+    data: { name, description, price, stock, minStock, status, catergoryId: categoryId },
+    include: { category: true },
   });
 
-  const partWithQuantity = { ...newPart, quantity: newPart.stock };
-
-  return plainToInstance(PartDto, partWithQuantity, { excludeExtraneousValues: true });
-  }
+  return plainToInstance(PartDto, { ...newPart, quantity: newPart.stock }, {
+    excludeExtraneousValues: true,
+  });
+}
 
   async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   let {
@@ -59,7 +69,7 @@ export class PartService {
     orderBy = 'asc',
     name,
     categoryName,
-    status, // AVAILABLE | OUT_OF_STOCK
+    status, // AVAILABLE | OUT_OF_STOCK | DISCONTINUED
   } = filter;
 
   if (page < 1) page = 1;
@@ -137,7 +147,6 @@ export class PartService {
   }
 
   async updatePartInfo(id: string, updatePartDto: UpdatePartDto): Promise<PartDto> {
-
   const existingPart = await this.prisma.part.findUnique({
     where: { id },
     include: { category: true },
@@ -147,38 +156,71 @@ export class PartService {
     throw new NotFoundException(`Part with ID ${id} not found`);
   }
 
-  const { categoryId, ...rest } = updatePartDto;
+  const { name, categoryId, price, stock, minStock, description } = updatePartDto;
 
+  const errors: Record<string, string> = {};
 
-  const newStock = rest.stock ?? existingPart.stock;
-  const newMinStock = rest.minStock ?? existingPart.minStock;
+  // 1️⃣ Validate required fields
+  if (name != null && name.trim() === '') errors.name = 'Item name is required';
+  if (categoryId != null && categoryId.trim() === '') errors.categoryId = 'Category is required';
+  if (price != null && price < 1) errors.price = 'Price must be at least 1';
+  if (stock != null && stock < 1) errors.stock = 'Stock must be at least 1';
+  if (minStock != null && minStock < 1) errors.minStock = 'MinStock must be at least 1';
 
+  if (Object.keys(errors).length > 0) {
+    throw new BadRequestException({ errors });
+  }
 
-  const newStatus =
-    newStock === 0 || newStock < newMinStock
-      ? 'OUT_OF_STOCK'
-      : 'AVAILABLE';
+  // 2️⃣ Check duplicate if name or categoryId changed
+  if ((name && name !== existingPart.name) || (categoryId && categoryId !== existingPart.catergoryId)) {
+    const duplicate = await this.prisma.part.findFirst({
+      where: {
+        name: name ?? existingPart.name,
+        catergoryId: categoryId ?? existingPart.catergoryId,
+        NOT: { id },
+      },
+      include: { category: true },
+    });
 
+    if (duplicate) {
+      if (duplicate.status === 'DISCONTINUED') {
+        throw new BadRequestException({
+          message: `Part "${duplicate.name}" already existed in category "${duplicate.category.name}" but is discontinued. You may recover this part.`,
+        });
+      } else {
+        throw new BadRequestException({
+          errors: {
+            name: `Part "${duplicate.name}" already exists in this category`,
+            price: `Price must be adjusted`,
+            stock: `Stock must be adjusted`,
+            minStock: `MinStock must be adjusted`,
+          },
+        });
+      }
+    }
+  }
 
+  // 3️⃣ Compute new status
+  const newStock = stock ?? existingPart.stock;
+  const newMinStock = minStock ?? existingPart.minStock;
+  const newStatus = newStock === 0 || newStock < newMinStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
+
+  // 4️⃣ Update part (giữ nguyên logic cũ)
   const updatedPart = await this.prisma.part.update({
     where: { id },
     data: {
-      ...rest,
+      ...updatePartDto,
       status: newStatus,
       ...(categoryId && { category: { connect: { id: categoryId } } }),
     },
     include: { category: true },
   });
 
-
-  const partWithQuantity = {
-    ...updatedPart,
-    quantity: updatedPart.stock,
-  };
-
-  return plainToInstance(PartDto, partWithQuantity, {
-    excludeExtraneousValues: true,
-  });
+  return plainToInstance(
+    PartDto,
+    { ...updatedPart, quantity: updatedPart.stock },
+    { excludeExtraneousValues: true },
+  );
 }
 
   async refillOutOfStockPart(

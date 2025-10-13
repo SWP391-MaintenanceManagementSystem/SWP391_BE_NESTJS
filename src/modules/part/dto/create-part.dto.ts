@@ -3,7 +3,6 @@ import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator
 
 export class CreatePartDto {
   @ApiProperty({ description: 'Name of the part' })
-  @IsNotEmpty()
   @IsString()
   name: string;
 
@@ -15,7 +14,7 @@ export class CreatePartDto {
   @ApiProperty({ description: 'Price of the part' })
   @IsNotEmpty()
   @IsNumber()
-  @Min(10000)
+  @Min(1)
   price: number;
 
   @ApiProperty({ description: 'Current stock quantity' })
@@ -31,7 +30,6 @@ export class CreatePartDto {
   minStock: number;
 
   @ApiProperty({ description: 'ID of the category this part belongs to' })
-  @IsNotEmpty()
   @IsString()
   categoryId: string;
 }
