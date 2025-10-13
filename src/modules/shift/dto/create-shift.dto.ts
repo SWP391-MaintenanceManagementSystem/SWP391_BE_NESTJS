@@ -1,40 +1,22 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsNotEmpty,
-  IsString,
-  IsDateString,
-  IsOptional,
-  IsNumber,
-  Min,
-  Max,
-  IsUUID,
-  IsArray,
-  ArrayMinSize,
-  ArrayMaxSize,
-  IsInt,
-} from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { IsUUID, IsNotEmpty, Matches, IsOptional, IsNumber, Min, Max } from 'class-validator';
 
 export class CreateShiftDTO {
-  @IsString({ message: 'Name must be a string' })
-  @IsNotEmpty({ message: 'Name is required' })
-  @ApiProperty({
-    example: 'Morning Shift',
-    description: 'Shift name',
-  })
+  @ApiProperty({ example: 'Morning Shift' })
+  @IsNotEmpty()
   name: string;
 
-  @IsDateString({}, { message: 'Start time must be a valid date string' })
-  @ApiProperty({
-    example: '2025-11-01T08:00:00.000Z',
-    description: 'Shift start time',
+  @ApiProperty({ example: '08:00:00', description: 'Start Time (HH:mm:ss)' })
+  @IsNotEmpty()
+  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'startTime must be in format HH:mm:ss',
   })
   startTime: string;
 
-  @IsDateString({}, { message: 'End time must be a valid date string' })
-  @ApiProperty({
-    example: '2025-11-01T17:00:00.000Z',
-    description: 'Shift end time',
+  @ApiProperty({ example: '12:00:00', description: 'End Time (HH:mm:ss)' })
+  @IsNotEmpty()
+  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'endTime must be in format HH:mm:ss',
   })
   endTime: string;
 

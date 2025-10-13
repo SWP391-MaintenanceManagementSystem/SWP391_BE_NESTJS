@@ -7,7 +7,7 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Category')
-@Controller('api/category')
+@Controller('api/categories')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
@@ -39,8 +39,12 @@ export class CategoryController {
   @Get('search/:name')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  findByName(@Param('name') name: string) {
-    return this.categoryService.getCategoryByName(name);
+  async findByName(@Param('name') name: string) {
+    const categories = await this.categoryService.getCategoryByName(name);
+    return {
+      message: 'Successfully',
+      data: categories
+    }
   }
 
   @Patch(':id')
