@@ -13,39 +13,42 @@ export class PartService {
 
  async createPart(createPartDto: CreatePartDto): Promise<PartDto> {
     const existingPart = await this.prisma.part.findFirst({
-      where: {
-        name: createPartDto.name,
-        catergoryId: createPartDto.categoryId,
-        status: { not: 'DISCONTINUED' },
-      },
-    });
+    where: {
+      name: createPartDto.name,
+      catergoryId: createPartDto.categoryId,
+    },
+  });
 
-    if (existingPart) {
+  if (existingPart) {
+    if (existingPart.status === 'DISCONTINUED') {
+      throw new BadRequestException(
+        `Part with name "${createPartDto.name}" in this category has been discontinued`
+      );
+    } else {
       throw new BadRequestException(
         `Part with name "${createPartDto.name}" already exists in this category`
       );
     }
+  }
 
+  const newPart = await this.prisma.part.create({
+    data: {
+      name: createPartDto.name,
+      description: createPartDto.description,
+      price: createPartDto.price,
+      stock: createPartDto.stock,
+      minStock: createPartDto.minStock,
+      status:
+        createPartDto.stock < createPartDto.minStock
+          ? 'OUT_OF_STOCK'
+          : 'AVAILABLE',
+      catergoryId: createPartDto.categoryId,
+    },
+  });
 
-    const newPart = await this.prisma.part.create({
-      data: {
-        name: createPartDto.name,
-        description: createPartDto.description,
-        price: createPartDto.price,
-        stock: createPartDto.stock,
-        minStock: createPartDto.minStock,
-        status:
-          createPartDto.stock === 0 || createPartDto.stock < createPartDto.minStock
-            ? 'OUT_OF_STOCK'
-            : 'AVAILABLE',
-        catergoryId: createPartDto.categoryId,
-      },
-    });
+  const partWithQuantity = { ...newPart, quantity: newPart.stock };
 
-
-    const partWithQuantity = { ...newPart, quantity: newPart.stock };
-
-    return plainToInstance(PartDto, partWithQuantity, { excludeExtraneousValues: true });
+  return plainToInstance(PartDto, partWithQuantity, { excludeExtraneousValues: true });
   }
 
   async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
@@ -66,7 +69,7 @@ export class PartService {
 
   const statusFilter: Prisma.PartWhereInput = status
     ? { status }
-    : { status: { in: [PartStatus.AVAILABLE, PartStatus.OUT_OF_STOCK] } };
+    : { status: { in: [PartStatus.AVAILABLE, PartStatus.OUT_OF_STOCK, PartStatus.DISCONTINUED] } };
 
 
   const baseWhere: Prisma.PartWhereInput = {
@@ -133,39 +136,102 @@ export class PartService {
     return plainToInstance(PartDto, part, { excludeExtraneousValues: true });
   }
 
-  async updatePart(id: string, updatePartDto: UpdatePartDto): Promise<PartDto> {
-    const existingPart = await this.prisma.part.findUnique({ where: { id } });
-    if (!existingPart) {
-      throw new NotFoundException(`Part with ID ${id} not found`);
-    }
+  async updatePartInfo(id: string, updatePartDto: UpdatePartDto): Promise<PartDto> {
 
-    const { categoryId, status ,...rest } = updatePartDto;
+  const existingPart = await this.prisma.part.findUnique({
+    where: { id },
+    include: { category: true },
+  });
 
-    let newStatus = status ?? existingPart.status;
+  if (!existingPart) {
+    throw new NotFoundException(`Part with ID ${id} not found`);
+  }
 
-    if(!status && typeof rest.stock === 'number') {
-      newStatus = rest.stock === 0 || rest.stock < existingPart.minStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
-    }
+  const { categoryId, ...rest } = updatePartDto;
 
-    const updatedPart = await this.prisma.part.update({
-      where: { id },
-      data: {
-        ...rest,
-        status: newStatus,
-        ...(categoryId && { category: { connect: { id: categoryId } } }),
-      },
-      include: { category: true },
-    });
 
-    const partWithQuantity = {
+  const newStock = rest.stock ?? existingPart.stock;
+  const newMinStock = rest.minStock ?? existingPart.minStock;
+
+
+  const newStatus =
+    newStock === 0 || newStock < newMinStock
+      ? 'OUT_OF_STOCK'
+      : 'AVAILABLE';
+
+
+  const updatedPart = await this.prisma.part.update({
+    where: { id },
+    data: {
+      ...rest,
+      status: newStatus,
+      ...(categoryId && { category: { connect: { id: categoryId } } }),
+    },
+    include: { category: true },
+  });
+
+
+  const partWithQuantity = {
     ...updatedPart,
     quantity: updatedPart.stock,
   };
 
-    return plainToInstance(PartDto, partWithQuantity, { excludeExtraneousValues: true });
+  return plainToInstance(PartDto, partWithQuantity, {
+    excludeExtraneousValues: true,
+  });
+}
+
+  async refillOutOfStockPart(
+  id: string,
+  refillAmount: number
+): Promise<PartDto> {
+  if (refillAmount <= 0) {
+    throw new BadRequestException(`Refill amount must be greater than 0.`);
   }
 
-  async deletePart(id: string): Promise<{ message: string }> {
+
+  const part = await this.prisma.part.findUnique({
+    where: { id },
+    include: { category: true },
+  });
+
+  if (!part) {
+    throw new NotFoundException(`Part with ID ${id} not found`);
+  }
+
+
+  if (part.status !== 'OUT_OF_STOCK') {
+    throw new BadRequestException(
+      `Cannot refill part with status "${part.status}". Only parts that are OUT_OF_STOCK can be refilled.`
+    );
+  }
+
+
+  const newStock = part.stock + refillAmount;
+
+
+  const newStatus =
+    newStock >= part.minStock ? 'AVAILABLE' : 'OUT_OF_STOCK';
+
+
+  const updatedPart = await this.prisma.part.update({
+    where: { id },
+    data: {
+      stock: newStock,
+      status: newStatus,
+    },
+    include: { category: true },
+  });
+
+
+  return plainToInstance(
+    PartDto,
+    { ...updatedPart, quantity: updatedPart.stock },
+    { excludeExtraneousValues: true }
+  );
+}
+
+async deletePart(id: string): Promise<{ message: string }> {
     const part = await this.prisma.part.findUnique({ where: { id } });
   if (!part) {
     throw new NotFoundException(`Part with ID ${id} not found`);
@@ -174,7 +240,11 @@ export class PartService {
 
   await this.prisma.part.update({
     where: { id },
-    data: { status: 'DISCONTINUED' },
+    data: { status: 'DISCONTINUED',
+      stock: 0,
+      price: 0,
+      minStock: 0
+    },
   });
 
   return { message: `Part with ID ${id} has been marked as DISCONTINUED` };
