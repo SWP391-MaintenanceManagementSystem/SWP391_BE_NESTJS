@@ -13,20 +13,14 @@ export class CreatePartDto {
 
   @ApiProperty({ description: 'Price of the part' })
   @IsNotEmpty()
-  @IsNumber()
-  @Min(1)
   price: number;
 
   @ApiProperty({ description: 'Current stock quantity' })
   @IsNotEmpty()
-  @IsNumber()
-  @Min(1)
   stock: number;
 
   @ApiProperty({ description: 'Minimum stock quantity before reordering' })
   @IsNotEmpty()
-  @IsNumber()
-  @Min(1)
   minStock: number;
 
   @ApiProperty({ description: 'ID of the category this part belongs to' })

@@ -20,8 +20,8 @@ export class PartService {
   if (!name) errors.name = 'Item name is required';
   if (!categoryId) errors.categoryId = 'Category is required';
   if (price == null || price < 1) errors.price = 'Price must be at least 1';
-  if (stock == null || stock < 1) errors.stock = 'Stock must be at least 1';
-  if (minStock == null || minStock < 1) errors.minStock = 'MinStock must be at least 1';
+  if (stock == null || stock < 1) errors.stock = 'Quantity must be at least 1';
+  if (minStock == null || minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
 
   if (Object.keys(errors).length > 0) {
     throw new BadRequestException({ errors });
@@ -42,8 +42,8 @@ export class PartService {
         errors: {
           name: `Part "${name}" already exists in this category`,
           price: `Price must be adjusted`,
-          stock: `Stock must be adjusted`,
-          minStock: `MinStock must be adjusted`,
+          stock: `Quantity must be adjusted`,
+          minStock: `Minimum Stock must be adjusted`,
         },
       });
     }
@@ -164,8 +164,8 @@ export class PartService {
   if (name != null && name.trim() === '') errors.name = 'Item name is required';
   if (categoryId != null && categoryId.trim() === '') errors.categoryId = 'Category is required';
   if (price != null && price < 1) errors.price = 'Price must be at least 1';
-  if (stock != null && stock < 1) errors.stock = 'Stock must be at least 1';
-  if (minStock != null && minStock < 1) errors.minStock = 'MinStock must be at least 1';
+  if (stock != null && stock < 1) errors.stock = 'Quantity must be at least 1';
+  if (minStock != null && minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
 
   if (Object.keys(errors).length > 0) {
     throw new BadRequestException({ errors });
@@ -192,8 +192,8 @@ export class PartService {
           errors: {
             name: `Part "${duplicate.name}" already exists in this category`,
             price: `Price must be adjusted`,
-            stock: `Stock must be adjusted`,
-            minStock: `MinStock must be adjusted`,
+            stock: `Quantity must be adjusted`,
+            minStock: `Minimum Stock must be adjusted`,
           },
         });
       }
