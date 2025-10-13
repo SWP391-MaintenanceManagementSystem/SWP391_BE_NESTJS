@@ -56,7 +56,7 @@ export class PartService {
     page = 1,
     pageSize = 10,
     sortBy = 'createdAt',
-    orderBy = 'desc',
+    orderBy = 'asc',
     name,
     categoryName,
     status, // AVAILABLE | OUT_OF_STOCK
