@@ -25,5 +25,5 @@ export class CreatePartDto {
 
   @ApiProperty({ description: 'ID of the category this part belongs to' })
   @IsString()
-  catergoryId: string;
+  categoryId: string;
 }
