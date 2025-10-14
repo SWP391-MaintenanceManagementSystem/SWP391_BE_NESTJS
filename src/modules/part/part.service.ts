@@ -12,13 +12,13 @@ export class PartService {
   constructor(private readonly prisma: PrismaService) {}
 
  async createPart(createPartDto: CreatePartDto): Promise<PartDto> {
-  const { name, catergoryId, price, stock, minStock, description } = createPartDto;
+  const { name, categoryId, price, stock, minStock, description } = createPartDto;
 
   const errors: Record<string, string> = {};
 
 
   if (!name) errors.name = 'Item name is required';
-  if (!catergoryId) errors.categoryId = 'Category is required';
+  if (!categoryId) errors.categoryId = 'Category is required';
   if (price == null || price < 1) errors.price = 'Price must be at least 1';
   if (stock == null || stock < 1) errors.stock = 'Quantity must be at least 1';
   if (minStock == null || minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
@@ -29,7 +29,7 @@ export class PartService {
 
 
   const existingPart = await this.prisma.part.findFirst({
-    where: { name, catergoryId: catergoryId },
+    where: { name, categoryId: categoryId },
   });
 
   if (existingPart) {
@@ -52,7 +52,7 @@ export class PartService {
 
   const status = stock < minStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
   const newPart = await this.prisma.part.create({
-    data: { name, description, price, stock, minStock, status, catergoryId: catergoryId },
+    data: { name, description, price, stock, minStock, status, categoryId: categoryId },
     include: { category: true },
   });
 
@@ -251,13 +251,13 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     throw new NotFoundException(`Part with ID ${id} not found`);
   }
 
-  const { name, catergoryId, price, stock, minStock, description } = updatePartDto;
+  const { name, categoryId, price, stock, minStock, description } = updatePartDto;
 
   const errors: Record<string, string> = {};
 
   // 1️⃣ Validate required fields
   if (name != null && name.trim() === '') errors.name = 'Item name is required';
-  if (catergoryId != null && catergoryId.trim() === '') errors.catergoryId = 'Category is required';
+  if (categoryId != null && categoryId.trim() === '') errors.categoryId = 'Category is required';
   if (price != null && price < 1) errors.price = 'Price must be at least 1';
   if (stock != null && stock < 1) errors.stock = 'Quantity must be at least 1';
   if (minStock != null && minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
@@ -267,11 +267,11 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   }
 
   // 2️⃣ Check duplicate if name or categoryId changed
-  if ((name && name !== existingPart.name) || (catergoryId && catergoryId !== existingPart.catergoryId)) {
+  if ((name && name !== existingPart.name) || (categoryId && categoryId !== existingPart.categoryId)) {
     const duplicate = await this.prisma.part.findFirst({
       where: {
         name: name ?? existingPart.name,
-        catergoryId: catergoryId ?? existingPart.catergoryId,
+        categoryId: categoryId ?? existingPart.categoryId,
         NOT: { id },
       },
       include: { category: true },
@@ -306,7 +306,7 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   data: {
     ...updatePartDto,
     status: newStatus,
-    ...(catergoryId && { catergoryId: catergoryId }),
+    ...(categoryId && { categoryId: categoryId }),
   },
   include: { category: true },
 });
