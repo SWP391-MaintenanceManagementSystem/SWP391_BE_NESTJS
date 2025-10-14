@@ -19,9 +19,9 @@ import { AccountRole } from '@prisma/client';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 
-@ApiTags('Service Center')
+@ApiTags('Service Centers')
 @ApiBearerAuth('jwt-auth')
-@Controller('api/service-center')
+@Controller('api/service-centers')
 export class ServiceCenterController {
   constructor(private readonly serviceCenterService: ServiceCenterService) {}
 

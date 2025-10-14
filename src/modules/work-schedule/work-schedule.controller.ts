@@ -12,8 +12,6 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { WorkScheduleService } from './work-schedule.service';
-import { CreateWorkScheduleDTO } from './dto/create-work-schedule.dto';
-import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
 import { WorkScheduleQueryDTO } from './dto/work-schedule-query.dto';
 import { RoleGuard } from 'src/common/guard/role.guard';
 import { Roles } from 'src/common/decorator/role.decorator';
@@ -22,8 +20,8 @@ import { AccountRole } from '@prisma/client';
 import { CreateCyclicWorkScheduleDTO } from './dto/create-cyclic-work-schedule.dto';
 import { UpdateCyclicWorkScheduleDTO } from './dto/update-cyclic-work-schedule.dto';
 
-@ApiTags('Work Schedule')
-@Controller('api/work-schedule')
+@ApiTags('Work Schedules')
+@Controller('api/work-schedules')
 @UseGuards(RoleGuard)
 @ApiBearerAuth('jwt-auth')
 export class WorkScheduleController {
