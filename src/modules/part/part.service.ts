@@ -251,22 +251,18 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     throw new NotFoundException(`Part with ID ${id} not found`);
   }
 
-  const { name, categoryId, price, stock, minStock, description } = updatePartDto;
+  const { name, categoryId, price, stock, minStock, description, status } = updatePartDto;
 
+  // 1️⃣ Basic validation (collect, don't throw yet)
   const errors: Record<string, string> = {};
-
-  // 1️⃣ Validate required fields
   if (name != null && name.trim() === '') errors.name = 'Item name is required';
   if (categoryId != null && categoryId.trim() === '') errors.categoryId = 'Category is required';
   if (price != null && price < 1) errors.price = 'Price must be at least 1';
   if (stock != null && stock < 1) errors.stock = 'Quantity must be at least 1';
   if (minStock != null && minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
 
-  if (Object.keys(errors).length > 0) {
-    throw new BadRequestException({ errors });
-  }
-
-  // 2️⃣ Check duplicate if name or categoryId changed
+  // 2️⃣ Duplicate check (if name or category changed) — run even if there are validation errors,
+  // so FE can see both kinds of errors at once.
   if ((name && name !== existingPart.name) || (categoryId && categoryId !== existingPart.categoryId)) {
     const duplicate = await this.prisma.part.findFirst({
       where: {
@@ -278,38 +274,63 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     });
 
     if (duplicate) {
+      // if discontinued duplicate, give informative message (not field error)
       if (duplicate.status === 'DISCONTINUED') {
-        throw new BadRequestException({
-          message: `Part ${duplicate.name} already existed in category ${duplicate.category.name} but is discontinued. You may recover this part.`,
-        });
+        // provide duplicate info as a top-level message and also set errors.name
+        errors.name = `Part ${duplicate.name} already existed in category ${duplicate.category.name} but is discontinued. You may recover this part.`;
       } else {
-        throw new BadRequestException({
-          errors: {
-            name: `Part ${duplicate.name} already exists in this category`,
-            price: `Price must be at least 1`,
-            stock: `Quantity must be at least 1`,
-            minStock: `Minimum Stock must be at least 1`,
-          },
-        });
+        errors.name = `Part ${duplicate.name} already exists in category ${duplicate.category.name}.`;
       }
     }
   }
 
-  // 3️⃣ Compute new status
+  // 3️⃣ If any errors collected, throw once with all errors
+  if (Object.keys(errors).length > 0) {
+    throw new BadRequestException({ errors });
+  }
+
+  // 4️⃣ Logic xử lý status
   const newStock = stock ?? existingPart.stock;
   const newMinStock = minStock ?? existingPart.minStock;
-  const newStatus = newStock === 0 || newStock < newMinStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
+  let newStatus = existingPart.status;
 
-  // 4️⃣ Update part (giữ nguyên logic cũ)
+  if (existingPart.status === 'DISCONTINUED') {
+    // If admin wants to reopen -> must set AVAILABLE and stock >= minStock
+    if (status === 'AVAILABLE') {
+      if (newStock < newMinStock) {
+        throw new BadRequestException({
+          message: `Cannot set status to AVAILABLE because Quantity < Minimum Stock.`,
+        });
+      }
+      newStatus = 'AVAILABLE';
+    } else {
+      // status is DISCONTINUED or not provided -> keep as is, do not update anything
+      return plainToInstance(
+        PartDto,
+        { ...existingPart, quantity: existingPart.stock },
+        { excludeExtraneousValues: true },
+      );
+    }
+  } else {
+    // For non-discontinued parts, status is auto-computed from stock vs minStock
+    newStatus = newStock < newMinStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
+  }
+
+  // 5️⃣ Perform update
   const updatedPart = await this.prisma.part.update({
-  where: { id },
-  data: {
-    ...updatePartDto,
-    status: newStatus,
-    ...(categoryId && { categoryId: categoryId }),
-  },
-  include: { category: true },
-});
+    where: { id },
+    data: {
+      // only update provided fields (so undefined fields won't overwrite db)
+      ...(name !== undefined && { name }),
+      ...(description !== undefined && { description }),
+      ...(price !== undefined && { price }),
+      ...(stock !== undefined && { stock }),
+      ...(minStock !== undefined && { minStock }),
+      ...(categoryId !== undefined && { category: { connect: { id: categoryId } } }),
+      status: newStatus,
+    },
+    include: { category: true },
+  });
 
   return plainToInstance(
     PartDto,
@@ -339,7 +360,7 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
 
   if (part.status !== 'OUT_OF_STOCK') {
     throw new BadRequestException(
-      `Cannot refill part with status "${part.status}". Only parts that are OUT_OF_STOCK can be refilled.`
+      `Cannot refill part with status ${part.status}. Only parts that are OUT_OF_STOCK can be refilled.`
     );
   }
 
