@@ -13,8 +13,10 @@ export class WorkCenterDTO {
 
 export class EmployeeWithCenterDTO extends AccountWithProfileDTO {
   @Expose()
-  @Type(() => WorkCenterDTO)
-  workCenters: WorkCenterDTO[];
+  workCenter: {
+    id: string;
+    name: string;
+  } | null;
 
   @ApiProperty({ type: () => [CertificateDTO] })
   @Expose()
