@@ -1,5 +1,6 @@
 import { IsString, IsOptional, IsUUID, IsDateString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class UpdateWorkCenterDTO {
   @IsOptional()
@@ -30,9 +31,15 @@ export class UpdateWorkCenterDTO {
 
   @IsOptional()
   @IsDateString({}, { message: 'End Date must be a valid date string' })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) {
+      return undefined;
+    }
+    return value;
+  })
   @ApiPropertyOptional({
     example: '2024-01-25T08:00:00.000Z',
-    description: 'End date of the work center assignment (optional)',
+    description: 'End date of the work center assignment. Set to current date for soft delete.',
   })
   endDate?: string;
 }

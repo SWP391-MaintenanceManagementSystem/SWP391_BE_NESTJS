@@ -13,10 +13,61 @@ import { WorkCenterDTO } from './dto/work-center.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma } from '@prisma/client';
+import { create } from 'domain';
 
 @Injectable()
 export class WorkCenterService {
   constructor(private readonly prismaService: PrismaService) {}
+
+  private async checkEmployeeOverlap(
+    employeeId: string,
+    startDate: Date,
+    endDate: Date | null,
+    excludeId?: string
+  ): Promise<void> {
+    const overlapping = await this.prismaService.workCenter.findFirst({
+      where: {
+        employeeId,
+        ...(excludeId && { id: { not: excludeId } }),
+        OR: [
+          {
+            AND: [
+              { startDate: { lte: endDate || new Date('2099-12-31') } },
+              {
+                OR: [
+                  { endDate: null }, // Permanent assignment
+                  { endDate: { gte: startDate } }, // Active assignment overlaps
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      include: {
+        serviceCenter: { select: { name: true } },
+        employee: {
+          include: {
+            account: {
+              select: {
+                employee: {
+                  select: { firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (overlapping) {
+      const employeeName = `${overlapping.employee.account?.employee?.firstName} ${overlapping.employee.account?.employee?.lastName}`;
+      const centerName = overlapping.serviceCenter?.name || 'another center';
+
+      throw new ConflictException(
+        `Employee ${employeeName} already has an active assignment at ${centerName} from ${overlapping.startDate.toDateString()} to ${overlapping.endDate?.toDateString() || 'permanent'}`
+      );
+    }
+  }
 
   async createWorkCenter(
     createWorkCenterDto: CreateWorkCenterDTO,
@@ -57,20 +108,27 @@ export class WorkCenterService {
     }
 
     const startDate = new Date(createWorkCenterDto.startDate);
-    const endDate = new Date(createWorkCenterDto.endDate);
+    const endDate = createWorkCenterDto.endDate ? new Date(createWorkCenterDto.endDate) : null;
 
     if (endDate && startDate >= endDate) {
       throw new BadRequestException('Start date must be before end date');
     }
 
+    await this.checkEmployeeOverlap(createWorkCenterDto.employeeId, startDate, endDate);
     // Check for overlapping assignments
     const overlapping = await this.prismaService.workCenter.findFirst({
       where: {
         employeeId: createWorkCenterDto.employeeId,
-        centerId: createWorkCenterDto.centerId,
         OR: [
           {
-            AND: [{ startDate: { lte: endDate } }, { endDate: { gte: startDate } }],
+            AND: [
+              { startDate: { lte: endDate || new Date('2099-12-31') } },
+              { endDate: endDate ? { gte: startDate } : null },
+            ],
+          },
+          // ✅ Handle permanent assignments (endDate is null)
+          {
+            AND: [{ endDate: null }, { startDate: { lte: endDate || new Date('2099-12-31') } }],
           },
         ],
       },
@@ -94,6 +152,7 @@ export class WorkCenterService {
           include: {
             account: {
               select: {
+                id: true,
                 email: true,
                 phone: true,
                 role: true,
@@ -173,7 +232,10 @@ export class WorkCenterService {
     const [workCenters, total] = await this.prismaService.$transaction([
       this.prismaService.workCenter.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
           employee: {
             include: {
               account: {
@@ -234,7 +296,10 @@ export class WorkCenterService {
   ): Promise<WorkCenterDTO> {
     const workCenter = await this.prismaService.workCenter.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
         employee: {
           include: {
             account: {
@@ -275,7 +340,7 @@ export class WorkCenterService {
     }
 
     if ((role === AccountRole.STAFF || role === AccountRole.TECHNICIAN) && currentUserId) {
-      if (workCenter.employeeId !== currentUserId) {
+      if (workCenter.employee.accountId !== currentUserId) {
         throw new ForbiddenException('You can only view your own work center assignments');
       }
     }
@@ -303,9 +368,11 @@ export class WorkCenterService {
 
     const targetCenterId = updateWorkCenterDto.centerId || existingWorkCenter.centerId;
     const targetEmployeeId = updateWorkCenterDto.employeeId || existingWorkCenter.employeeId;
+
     const targetStartDate = updateWorkCenterDto.startDate
       ? new Date(updateWorkCenterDto.startDate)
       : existingWorkCenter.startDate;
+
     const targetEndDate =
       updateWorkCenterDto.endDate !== undefined
         ? updateWorkCenterDto.endDate
@@ -367,7 +434,13 @@ export class WorkCenterService {
             {
               AND: [
                 { startDate: { lte: targetEndDate || new Date('2099-12-31') } },
-                { endDate: { gte: targetStartDate } },
+                { endDate: targetEndDate ? { gte: targetStartDate } : null },
+              ],
+            },
+            {
+              AND: [
+                { endDate: null },
+                { startDate: { lte: targetEndDate || new Date('2099-12-31') } },
               ],
             },
           ],
@@ -381,13 +454,27 @@ export class WorkCenterService {
       }
     }
 
+    if (
+      updateWorkCenterDto.employeeId ||
+      updateWorkCenterDto.startDate ||
+      updateWorkCenterDto.endDate !== undefined ||
+      updateWorkCenterDto.centerId
+    ) {
+      await this.checkEmployeeOverlap(
+        targetEmployeeId,
+        targetStartDate,
+        targetEndDate,
+        id // exclude current record
+      );
+    }
+
     const updatedWorkCenter = await this.prismaService.workCenter.update({
       where: { id },
       data: {
         employeeId: targetEmployeeId,
         centerId: targetCenterId,
         startDate: targetStartDate,
-        endDate: targetEndDate || new Date('2099-12-31'),
+        endDate: targetEndDate,
       },
       include: {
         employee: {

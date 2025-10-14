@@ -1,5 +1,6 @@
 import { IsString, IsNotEmpty, IsUUID, IsOptional, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class CreateWorkCenterDTO {
   @IsString({ message: 'Employee ID must be a string' })
@@ -30,9 +31,15 @@ export class CreateWorkCenterDTO {
 
   @IsOptional()
   @IsDateString({}, { message: 'End Date must be a valid date string' })
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) {
+      return undefined;
+    }
+    return value;
+  })
   @ApiPropertyOptional({
     example: '2029-11-25T17:00:00.000Z',
-    description: 'End date of the work center assignment (optional)',
+    description: 'End date of the work center assignment. Leave empty for permanent assignment.',
   })
-  endDate: string;
+  endDate?: string;
 }
