@@ -258,8 +258,8 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   if (name != null && name.trim() === '') errors.name = 'Item name is required';
   if (categoryId != null && categoryId.trim() === '') errors.categoryId = 'Category is required';
   if (price != null && price < 1) errors.price = 'Price must be at least 1';
-  if (stock != null && stock < 0) errors.stock = 'Quantity cannot be negative';
-  if (minStock != null && minStock < 0) errors.minStock = 'Minimum Stock cannot be negative';
+  if (stock != null && stock < 1) errors.stock = 'Quantity must be at least 1';
+  if (minStock != null && minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
 
   // 2️⃣ Duplicate check (if name or category changed) — run even if there are validation errors,
   // so FE can see both kinds of errors at once.
@@ -313,7 +313,7 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     }
   } else {
     // For non-discontinued parts, status is auto-computed from stock vs minStock
-    newStatus = newStock === 0 || newStock < newMinStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
+    newStatus = newStock < newMinStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
   }
 
   // 5️⃣ Perform update
