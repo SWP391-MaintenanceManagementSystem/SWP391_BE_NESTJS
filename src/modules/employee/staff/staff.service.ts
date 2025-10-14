@@ -44,7 +44,7 @@ export class StaffService {
   }
 
   async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
-  // 1️⃣ Kiểm tra email trùng
+
   const existingAccount = await this.prisma.account.findUnique({
     where: { email: dto.email },
   });
@@ -52,7 +52,7 @@ export class StaffService {
     throw new BadRequestException('Email is already in use');
   }
 
-  // 2️⃣ Tạo account mặc định cho staff
+
   const defaultPassword =
     this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
 
@@ -66,7 +66,7 @@ export class StaffService {
     },
   });
 
-  // 3️⃣ Tạo employee gắn với account vừa tạo
+
   const employee = await this.prisma.employee.create({
     data: {
       accountId: staffAccount.id,
@@ -75,7 +75,7 @@ export class StaffService {
     },
   });
 
-  // 4️⃣ Nếu có certificates thì tạo qua CertificateService (không cần nhập employeeId)
+
   if (dto.certificates?.length) {
     await Promise.all(
       dto.certificates.map((cert) =>
@@ -84,7 +84,7 @@ export class StaffService {
     );
   }
 
-  // 5️⃣ Trả về employee kèm certificates (nếu có)
+
   const result = await this.prisma.employee.findUnique({
     where: { accountId: employee.accountId },
     include: { certificates: true },

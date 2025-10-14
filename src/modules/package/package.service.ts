@@ -12,7 +12,7 @@ export class PackageService {
   async createPackage(createPackageDto: CreatePackageDto): Promise<PackageDto> {
     const { name, price, discountRate, serviceIds } = createPackageDto;
 
-    // Tạo package và đồng thời tạo packageDetails
+
     const packageData = await this.prisma.package.create({
       data: {
         name,
@@ -22,7 +22,7 @@ export class PackageService {
           create:
             serviceIds?.map(serviceId => ({
               serviceId,
-              quantity: 1, // default quantity, có thể lấy từ DTO nếu cần
+              quantity: 1,
             })) || [],
         },
       },
@@ -33,7 +33,7 @@ export class PackageService {
       },
     });
 
-    // Gán totalPrice từ input admin nếu có
+
     const result = { ...packageData, totalPrice: createPackageDto.totalPrice };
 
     return plainToInstance(PackageDto, result, { excludeExtraneousValues: true });
@@ -96,7 +96,7 @@ export class PackageService {
       include: { packageDetails: { include: { service: true } } },
     });
 
-    // Gán totalPrice từ input admin nếu có
+
     const result = { ...updatedPackage, totalPrice: updatePackageDto.totalPrice };
 
     return plainToInstance(PackageDto, result, { excludeExtraneousValues: true });
