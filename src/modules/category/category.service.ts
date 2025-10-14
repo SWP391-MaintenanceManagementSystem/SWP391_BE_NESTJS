@@ -104,12 +104,37 @@ export class CategoryService {
   });
 }
 
-  async removeCategory(id: string): Promise<void> {
-    const category = await this.prisma.category.findUnique({ where: { id } });
-    if (!category) {
-      throw new NotFoundException(`Category with ID ${id} not found`);
-    }
+  async removeCategory(id: string) {
+  // 1️⃣ Kiểm tra category tồn tại
+  const category = await this.prisma.category.findUnique({
+    where: { id },
+    include: { parts: true },
+  });
 
-    await this.prisma.category.delete({ where: { id } });
+  if (!category) {
+    throw new NotFoundException(`Category with ID ${id} not found`);
   }
+
+  try {
+    // 2️⃣ Xóa category (và parts liên quan nếu có onDelete: Cascade)
+    await this.prisma.category.delete({
+      where: { id },
+    });
+
+    // 3️⃣ Trả response chuẩn
+    return {
+      message: `Category '${category.name}' and related parts deleted successfully`,
+      data: null,
+    };
+  } catch (error) {
+    // 4️⃣ Bắt lỗi cụ thể (ví dụ: foreign key chưa cascade)
+    if (error.code === 'P2003') {
+      // Prisma Foreign key constraint error
+      throw new BadRequestException(
+        `Cannot delete category '${category.name}' because it has related parts.`,
+      );
+    }
+    throw new BadRequestException(`Failed to delete category: ${error.message}`);
+  }
+}
 }
