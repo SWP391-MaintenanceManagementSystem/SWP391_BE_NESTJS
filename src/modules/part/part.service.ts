@@ -17,48 +17,60 @@ export class PartService {
   const errors: Record<string, string> = {};
 
 
-  if (!name) errors.name = 'Item name is required';
-  if (!categoryId) errors.categoryId = 'Category is required';
+  if (!name || name.trim() === '') errors.name = 'Item name is required';
+  if (!categoryId || categoryId.trim() === '') errors.categoryId = 'Category is required';
   if (price == null || price < 1) errors.price = 'Price must be at least 1';
   if (stock == null || stock < 1) errors.stock = 'Quantity must be at least 1';
   if (minStock == null || minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
+
+
+  if (name && categoryId) {
+    const existingPart = await this.prisma.part.findFirst({
+      where: { name, categoryId },
+      include: { category: true },
+    });
+
+    if (existingPart) {
+      if (existingPart.status === 'DISCONTINUED') {
+
+        throw new BadRequestException({
+          message: `Part ${name} already existed in category ${existingPart.category.name} but is discontinued. You may recover it.`,
+        });
+      } else {
+        errors.name = `Part ${name} already exists in category ${existingPart.category.name}.`;
+      }
+    }
+  }
+
 
   if (Object.keys(errors).length > 0) {
     throw new BadRequestException({ errors });
   }
 
 
-  const existingPart = await this.prisma.part.findFirst({
-    where: { name, categoryId: categoryId },
-  });
-
-  if (existingPart) {
-    if (existingPart.status === 'DISCONTINUED') {
-      throw new BadRequestException({
-        message: `Part ${name} already existed in this category but is discontinued. You may recover it.`,
-      });
-    } else {
-      throw new BadRequestException({
-        errors: {
-          name: `Part ${name} already exists in this category`,
-          price: `Price must be at least 1`,
-          stock: `Quantity must be at least 1`,
-          minStock: `Minimum Stock must be at least 1`,
-        },
-      });
-    }
-  }
+  const computedStatus =
+    stock <= minStock ? PartStatus.OUT_OF_STOCK : PartStatus.AVAILABLE;
 
 
-  const status = stock <= minStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
   const newPart = await this.prisma.part.create({
-    data: { name, description, price, stock, minStock, status, categoryId: categoryId },
+    data: {
+      name,
+      category: { connect: { id: categoryId } },
+      price,
+      stock,
+      minStock,
+      description,
+      status: computedStatus,
+    },
     include: { category: true },
   });
 
-  return plainToInstance(PartDto, { ...newPart, quantity: newPart.stock }, {
-    excludeExtraneousValues: true,
-  });
+
+  return plainToInstance(
+    PartDto,
+    { ...newPart, quantity: newPart.stock },
+    { excludeExtraneousValues: true },
+  );
 }
 
 
@@ -133,11 +145,11 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   if (['name', 'price', 'stock', 'createdAt'].includes(sortBy)) {
     orderByArray.push({ [sortBy]: orderBy });
   } else {
-    orderByArray.push({ createdAt: 'desc' });
+    orderByArray.push({ createdAt: 'asc' });
   }
 
 
-  orderByArray.push({ createdAt: 'desc' });
+  orderByArray.push({ createdAt: 'asc' });
   orderByArray.push({ id: 'asc' });
 
 
@@ -198,13 +210,14 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   }
 
   const { name, categoryId, price, stock, minStock, description, status } = updatePartDto;
-
   const errors: Record<string, string> = {};
-  if (name != null && name.trim() === '') errors.name = 'Item name is required';
-  if (categoryId != null && categoryId.trim() === '') errors.categoryId = 'Category is required';
-  if (price != null && price < 1) errors.price = 'Price must be at least 1';
-  if (stock != null && stock < 1) errors.stock = 'Quantity must be at least 1';
-  if (minStock != null && minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
+
+
+  if (name !== undefined && name.trim() === '') errors.name = 'Item name is required';
+  if (categoryId !== undefined && categoryId.trim() === '') errors.categoryId = 'Category is required';
+  if (price !== undefined && price < 1) errors.price = 'Price must be at least 1';
+  if (stock !== undefined && stock < 1) errors.stock = 'Quantity must be at least 1';
+  if (minStock !== undefined && minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
 
 
   if ((name && name !== existingPart.name) || (categoryId && categoryId !== existingPart.categoryId)) {
@@ -219,12 +232,15 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
 
     if (duplicate) {
       if (duplicate.status === 'DISCONTINUED') {
-        errors.name = `Part ${duplicate.name} already existed in category ${duplicate.category.name} but is discontinued. You may recover this part.`;
+        throw new BadRequestException({
+          message: `Part ${duplicate.name} already existed in category ${duplicate.category.name} but is discontinued. You may recover this part.`,
+        });
       } else {
         errors.name = `Part ${duplicate.name} already exists in category ${duplicate.category.name}.`;
       }
     }
   }
+
 
   if (Object.keys(errors).length > 0) {
     throw new BadRequestException({ errors });
@@ -236,8 +252,8 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   let newStatus = existingPart.status;
 
   if (existingPart.status === 'DISCONTINUED') {
-    if (status === 'AVAILABLE') {
 
+    if (status === 'AVAILABLE') {
       if (newStock < newMinStock) {
         throw new BadRequestException({
           message: `Cannot set status to AVAILABLE because Quantity < Minimum Stock.`,
@@ -245,7 +261,6 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
       }
       newStatus = 'AVAILABLE';
     } else {
-
       throw new BadRequestException({
         message: `This part is currently discontinued. Reactivate it (set to Available) to edit.`,
       });
@@ -269,6 +284,7 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     },
     include: { category: true },
   });
+
 
   return plainToInstance(
     PartDto,
