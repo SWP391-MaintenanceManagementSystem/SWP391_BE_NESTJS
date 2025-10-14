@@ -37,6 +37,7 @@ import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module
 import { WorkCenterModule } from './modules/work-center/work-center.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
+import { BookingAssignmentModule } from './modules/booking-assignment/booking-assignment.module';
 
 @Module({
   imports: [
@@ -99,6 +100,7 @@ import { BookingDetailModule } from './modules/booking-detail/booking-detail.mod
     ServiceModule,
     BookingModule,
     BookingDetailModule,
+    BookingAssignmentModule,
   ],
   controllers: [AppController],
   providers: [
