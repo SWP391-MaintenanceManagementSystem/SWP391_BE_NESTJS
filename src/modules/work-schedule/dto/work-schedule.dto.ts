@@ -62,4 +62,31 @@ export class WorkScheduleDTO {
       updatedAt: string;
     };
   };
+
+  @Expose()
+  @Transform(({ obj }) => {
+    const shift = obj.shift;
+    const serviceCenter = shift?.serviceCenter;
+
+    if (!shift) return undefined;
+
+    return {
+      name: shift.name,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      maximumSlot: shift.maximumSlot,
+      status: shift.status,
+      createdAt: shift.createdAt?.toISOString(),
+      updatedAt: shift.updatedAt?.toISOString(),
+    };
+  })
+  shift?: {
+    name: string;
+    startTime: string;
+    endTime: string;
+    maximumSlot: number | null;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  };
 }

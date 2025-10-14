@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
-import { PartStatus } from '@prisma/client'
+import { PartStatus } from '@prisma/client';
 
 export class PartQueryDto {
   @IsOptional()
@@ -13,14 +13,13 @@ export class PartQueryDto {
   })
   name?: string;
 
- @IsOptional()
+  @IsOptional()
   @IsString()
   @ApiProperty({
     required: false,
     description: 'Filter by category name',
   })
   categoryName?: string;
-
 
   @IsOptional()
   @IsEnum(PartStatus)

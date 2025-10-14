@@ -26,7 +26,7 @@ export class PartDto {
   @Expose()
   quantity: number;
 
-  @ApiProperty({ description: 'Current stock quantity'})
+  @ApiProperty({ description: 'Current stock quantity' })
   @Exclude()
   stock: number;
 

@@ -257,14 +257,16 @@ export class VehicleService {
     }));
   }
 
-  async getVehicles(filter: VehicleQueryDTO): Promise<PaginationResponse<VehicleDTO>> {
-    let { page = 1, pageSize = 10, sortBy = 'createdAt', orderBy = 'desc' } = filter;
-    if (page < 1) page = 1;
-    if (pageSize < 1) pageSize = 10;
+  async getVehicles(
+    filter: VehicleQueryDTO,
+    customerId?: string
+  ): Promise<PaginationResponse<VehicleDTO>> {
+    const { page = 1, pageSize = 10, sortBy = 'createdAt', orderBy = 'desc' } = filter;
 
     const where: Prisma.VehicleWhereInput = {
       status: filter.status,
       modelId: filter.modelId,
+      ...(customerId && { customerId }),
       vin: filter.vin ? { contains: filter.vin, mode: 'insensitive' } : undefined,
       licensePlate: filter.licensePlate
         ? { contains: filter.licensePlate, mode: 'insensitive' }

@@ -320,7 +320,7 @@ model PackageDetail {
 
 model Part {
   id          String        @id @default(uuid())
-  catergoryId String        @map("category_id")
+  categoryId  String        @map("category_id")
   description String?
   price       Float
   name        String
@@ -329,7 +329,7 @@ model Part {
   status      PartStatus    @default(AVAILABLE)
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
-  category    Category      @relation(fields: [catergoryId], references: [id], onDelete: Cascade)
+  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   ServicePart ServicePart[]
 
   @@map("parts")

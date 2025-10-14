@@ -1,11 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDTO } from './dto/create-booking.dto';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiExtraModels, ApiTags, getSchemaPath } from '@nestjs/swagger';
 import { BookingQueryDTO } from './dto/booking-query.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { JWT_Payload } from 'src/common/types';
-import { BookingDTO } from './dto/booking.dto';
+import { CustomerUpdateBookingDTO } from './dto/customer-update-booking.dto';
+import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
+import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
+import { Roles } from 'src/common/decorator/role.decorator';
+import { AccountRole } from '@prisma/client';
 
 @Controller('api/bookings')
 @ApiTags('Bookings')
@@ -14,9 +18,11 @@ export class BookingController {
   constructor(private readonly bookingService: BookingService) {}
 
   @Get('/')
-  async getBookings(@Query() query: BookingQueryDTO) {
-    const { data, page, pageSize, total, totalPages } =
-      await this.bookingService.getBookings(query);
+  async getBookings(@Query() query: BookingQueryDTO, @CurrentUser() user: JWT_Payload) {
+    const { data, page, pageSize, total, totalPages } = await this.bookingService.getBookings(
+      query,
+      user
+    );
     return {
       data,
       page,
@@ -38,10 +44,62 @@ export class BookingController {
 
   @Post('/')
   async createBooking(@Body() bookingData: CreateBookingDTO, @CurrentUser() user: JWT_Payload) {
-    const data = await this.bookingService.createBooking(bookingData, user.sub);
+    const { booking, warning } = await this.bookingService.createBooking(bookingData, user.sub);
+    return {
+      data: booking,
+      warning,
+      message: 'Booking created successfully',
+    };
+  }
+
+  @Patch('admin/:id')
+  @Roles(AccountRole.ADMIN)
+  async adminUpdateBooking(
+    @Param('id') id: string,
+    @Body() body: AdminUpdateBookingDTO,
+    @CurrentUser() user: JWT_Payload
+  ) {
+    const data = await this.bookingService.updateBooking(id, body, user);
     return {
       data,
-      message: 'Booking created successfully',
+      message: 'Booking updated successfully',
+    };
+  }
+
+  @Patch('customer/:id')
+  @Roles(AccountRole.CUSTOMER)
+  async customerUpdateBooking(
+    @Param('id') id: string,
+    @Body() body: CustomerUpdateBookingDTO,
+    @CurrentUser() user: JWT_Payload
+  ) {
+    const data = await this.bookingService.updateBooking(id, body, user);
+    return {
+      data,
+      message: 'Booking updated successfully',
+    };
+  }
+
+  @Patch('staff/:id')
+  @Roles(AccountRole.STAFF)
+  async staffUpdateBooking(
+    @Param('id') id: string,
+    @Body() body: StaffUpdateBookingDTO,
+    @CurrentUser() user: JWT_Payload
+  ) {
+    const data = await this.bookingService.updateBooking(id, body, user);
+    return {
+      data,
+      message: 'Booking updated successfully',
+    };
+  }
+
+  @Delete(':id')
+  async cancelBooking(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
+    const data = await this.bookingService.cancelBooking(id, user);
+    return {
+      data,
+      message: 'Booking cancelled successfully',
     };
   }
 }
