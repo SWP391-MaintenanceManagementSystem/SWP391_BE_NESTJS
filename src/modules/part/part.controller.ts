@@ -65,12 +65,6 @@ export class PartController {
     return this.partService.updatePartInfo(id, updatePartDto);
   }
 
-  // @Patch(':id/toggle-availability')
-  // @Roles(AccountRole.ADMIN)
-  // @ApiBearerAuth('jwt-auth')
-  // toggleAvailability(@Param('id') id: string) {
-  //   return this.partService.togglePartAvailability(id);
-  // }
 
   @Patch(':id/refill')
   @Roles(AccountRole.ADMIN)

@@ -50,7 +50,7 @@ export class PartService {
   }
 
 
-  const status = stock < minStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
+  const status = stock <= minStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
   const newPart = await this.prisma.part.create({
     data: { name, description, price, stock, minStock, status, categoryId: categoryId },
     include: { category: true },
@@ -61,77 +61,7 @@ export class PartService {
   });
 }
 
-//   async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
-//   let {
-//     page = 1,
-//     pageSize = 10,
-//     sortBy = 'createdAt',
-//     orderBy = 'asc',
-//     name,
-//     categoryName,
-//     status, // AVAILABLE | OUT_OF_STOCK | DISCONTINUED
-//   } = filter;
 
-//   if (page < 1) page = 1;
-//   if (pageSize < 1) pageSize = 10;
-//   if (sortBy === 'quantity') sortBy = 'stock';
-
-
-//   const statusFilter: Prisma.PartWhereInput = status
-//     ? { status }
-//     : { status: { in: [PartStatus.AVAILABLE, PartStatus.OUT_OF_STOCK, PartStatus.DISCONTINUED] } };
-
-
-//   const baseWhere: Prisma.PartWhereInput = {
-//     AND: [
-//       name
-//         ? {
-//             OR: [
-//               { name: { contains: name, mode: 'insensitive' } },
-//               { category: { name: { contains: name, mode: 'insensitive' } } },
-//             ],
-//           }
-//         : {},
-//       categoryName
-//         ? { category: { name: { contains: categoryName, mode: 'insensitive' } } }
-//         : {},
-//       statusFilter,
-//     ],
-//   };
-
-//   const [parts, total] = await this.prisma.$transaction([
-//     this.prisma.part.findMany({
-//       where: baseWhere,
-//       include: {
-//         category: true,
-//         ServicePart: true,
-//       },
-//       orderBy: ['name', 'price', 'stock', 'createdAt'].includes(sortBy)
-//         ? { [sortBy]: orderBy }
-//         : { createdAt: 'asc' },
-//       skip: (page - 1) * pageSize,
-//       take: pageSize,
-//     }),
-//     this.prisma.part.count({ where: baseWhere }),
-//   ]);
-
-//   const mappedParts = parts.map((p) => ({
-//     ...p,
-//     quantity: p.stock,
-//   }));
-
-//   const paginatedData = plainToInstance(PartDto, mappedParts, {
-//     excludeExtraneousValues: true,
-//   });
-
-//   return {
-//     data: paginatedData,
-//     total,
-//     page,
-//     pageSize,
-//     totalPages: Math.ceil(total / pageSize),
-//   };
-// }
 async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   let {
     page = 1,
@@ -140,50 +70,64 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     orderBy = 'asc',
     name,
     categoryName,
-    status, // AVAILABLE | OUT_OF_STOCK | DISCONTINUED
+    status,
   } = filter;
+
 
   if (page < 1) page = 1;
   if (pageSize < 1) pageSize = 10;
   if (sortBy === 'quantity') sortBy = 'stock';
 
-  // Status filter (mặc định lấy tất cả 3 trạng thái; FE có thể truyền status để giới hạn)
+
+  if (categoryName) {
+    try {
+      categoryName = decodeURIComponent(categoryName.replace(/\+/g, ' ')).trim();
+    } catch {
+
+      categoryName = categoryName.replace(/\+/g, ' ').trim();
+    }
+  }
+
+
   const statusFilter: Prisma.PartWhereInput = status
     ? { status }
-    : { status: { in: [PartStatus.AVAILABLE, PartStatus.OUT_OF_STOCK, PartStatus.DISCONTINUED] } };
+    : {
+        status: {
+          in: [
+            PartStatus.AVAILABLE,
+            PartStatus.OUT_OF_STOCK,
+            PartStatus.DISCONTINUED,
+          ],
+        },
+      };
 
-  // Build where clause
+
   const whereClauses: Prisma.PartWhereInput[] = [];
 
-  // Tìm theo tên part (partial match, case-insensitive)
+
   if (name) {
     whereClauses.push({
       OR: [
         { name: { contains: name, mode: 'insensitive' } },
-        // Nếu bạn muốn category name cũng search theo name input (partial), giữ dòng bên dưới.
-        // Nếu muốn chỉ tìm theo part.name, xóa dòng category.
         { category: { name: { contains: name, mode: 'insensitive' } } },
       ],
     });
   }
 
-  // Tìm theo categoryName: mặc định là exact match (case-insensitive)
+
   if (categoryName) {
     whereClauses.push({
       category: { name: { equals: categoryName, mode: 'insensitive' } },
     });
 
-    // Nếu bạn **muốn** partial match trên categoryName thay vì exact, thay bằng:
-    // whereClauses.push({ category: { name: { contains: categoryName, mode: 'insensitive' } } });
+
   }
 
-  // Combine base where with status filter
   const baseWhere: Prisma.PartWhereInput = {
     AND: [...whereClauses, statusFilter] as any,
   };
 
-  // Build orderBy: primary sort + deterministic secondary sort (createdAt desc then id)
-  // Note: Prisma supports array orderBy for stable sorting.
+
   const orderByArray: Prisma.Enumerable<Prisma.PartOrderByWithRelationInput> = [];
 
   if (['name', 'price', 'stock', 'createdAt'].includes(sortBy)) {
@@ -191,10 +135,11 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   } else {
     orderByArray.push({ createdAt: 'desc' });
   }
-  // Secondary deterministic ordering to avoid reordering on delete/pagination shifts
-  // Use createdAt then id (or id then createdAt) to ensure stability
+
+
   orderByArray.push({ createdAt: 'desc' });
   orderByArray.push({ id: 'asc' });
+
 
   const [parts, total] = await this.prisma.$transaction([
     this.prisma.part.findMany({
@@ -209,6 +154,7 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     }),
     this.prisma.part.count({ where: baseWhere }),
   ]);
+
 
   const mappedParts = parts.map((p) => ({
     ...p,
@@ -253,7 +199,6 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
 
   const { name, categoryId, price, stock, minStock, description, status } = updatePartDto;
 
-  // 1️⃣ Basic validation (collect, don't throw yet)
   const errors: Record<string, string> = {};
   if (name != null && name.trim() === '') errors.name = 'Item name is required';
   if (categoryId != null && categoryId.trim() === '') errors.categoryId = 'Category is required';
@@ -261,8 +206,7 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
   if (stock != null && stock < 1) errors.stock = 'Quantity must be at least 1';
   if (minStock != null && minStock < 1) errors.minStock = 'Minimum Stock must be at least 1';
 
-  // 2️⃣ Duplicate check (if name or category changed) — run even if there are validation errors,
-  // so FE can see both kinds of errors at once.
+
   if ((name && name !== existingPart.name) || (categoryId && categoryId !== existingPart.categoryId)) {
     const duplicate = await this.prisma.part.findFirst({
       where: {
@@ -274,9 +218,7 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     });
 
     if (duplicate) {
-      // if discontinued duplicate, give informative message (not field error)
       if (duplicate.status === 'DISCONTINUED') {
-        // provide duplicate info as a top-level message and also set errors.name
         errors.name = `Part ${duplicate.name} already existed in category ${duplicate.category.name} but is discontinued. You may recover this part.`;
       } else {
         errors.name = `Part ${duplicate.name} already exists in category ${duplicate.category.name}.`;
@@ -284,19 +226,18 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
     }
   }
 
-  // 3️⃣ If any errors collected, throw once with all errors
   if (Object.keys(errors).length > 0) {
     throw new BadRequestException({ errors });
   }
 
-  // 4️⃣ Logic xử lý status
+
   const newStock = stock ?? existingPart.stock;
   const newMinStock = minStock ?? existingPart.minStock;
   let newStatus = existingPart.status;
 
   if (existingPart.status === 'DISCONTINUED') {
-    // If admin wants to reopen -> must set AVAILABLE and stock >= minStock
     if (status === 'AVAILABLE') {
+
       if (newStock < newMinStock) {
         throw new BadRequestException({
           message: `Cannot set status to AVAILABLE because Quantity < Minimum Stock.`,
@@ -304,23 +245,20 @@ async getAllParts(filter: PartQueryDto): Promise<PaginationResponse<PartDto>> {
       }
       newStatus = 'AVAILABLE';
     } else {
-      // status is DISCONTINUED or not provided -> keep as is, do not update anything
-      return plainToInstance(
-        PartDto,
-        { ...existingPart, quantity: existingPart.stock },
-        { excludeExtraneousValues: true },
-      );
+
+      throw new BadRequestException({
+        message: `This part is currently discontinued. Reactivate it (set to Available) to edit.`,
+      });
     }
   } else {
-    // For non-discontinued parts, status is auto-computed from stock vs minStock
-    newStatus = newStock < newMinStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
+
+    newStatus = newStock <= newMinStock ? 'OUT_OF_STOCK' : 'AVAILABLE';
   }
 
-  // 5️⃣ Perform update
+
   const updatedPart = await this.prisma.part.update({
     where: { id },
     data: {
-      // only update provided fields (so undefined fields won't overwrite db)
       ...(name !== undefined && { name }),
       ...(description !== undefined && { description }),
       ...(price !== undefined && { price }),
@@ -409,10 +347,10 @@ async deletePart(id: string): Promise<{ message: string }> {
   }
 
   async getPartStatistics() {
-    // Lọc chỉ các part còn hoạt động (AVAILABLE + OUT_OF_STOCK)
+
     const activeWhere = { status: { in: [PartStatus.AVAILABLE, PartStatus.OUT_OF_STOCK] } };
 
-    // Lấy tổng số items và thông tin price/stock
+
     const [totalItems, parts, categories] = await this.prisma.$transaction([
       this.prisma.part.count({ where: activeWhere }),
       this.prisma.part.findMany({
@@ -422,11 +360,11 @@ async deletePart(id: string): Promise<{ message: string }> {
       this.prisma.category.count(),
     ]);
 
-    // Tổng giá trị và tổng số lượng
+
     const totalValue = parts.reduce((sum, p) => sum + p.price * p.stock, 0);
     const totalQuantity = parts.reduce((sum, p) => sum + p.stock, 0);
 
-    // Tính lowStock: stock < minStock
+
     const lowStockItems = parts.filter(p => p.stock < p.minStock).length;
 
     return {

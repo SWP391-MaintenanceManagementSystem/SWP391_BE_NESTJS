@@ -47,7 +47,7 @@ export class ServiceService {
 
     const mappedData = data.map(service => ({
       ...service,
-      // ❗️Lọc part có status hợp lệ
+
       parts: service.ServicePart
         .map(sp => sp.part)
         .filter(
@@ -100,7 +100,7 @@ export class ServiceService {
 
     const mappedData = data.map(service => ({
       ...service,
-      // ❗️Lọc part hợp lệ (AVAILABLE / OUT_OF_STOCK)
+
       parts: service.ServicePart
         .map(sp => sp.part)
         .filter(
@@ -124,7 +124,7 @@ export class ServiceService {
   async create(createServiceDto: CreateServiceDto): Promise<ServiceDto> {
     const { name, description, price, partIds } = createServiceDto;
 
-    // Tạo service trước, rồi tạo ServicePart
+
     const newService = await this.prisma.service.create({
       data: {
         name,
@@ -135,7 +135,7 @@ export class ServiceService {
           create:
             partIds?.map(partId => ({
               partId,
-              quantity: 1, // default quantity, bạn có thể cho nhập từ DTO
+              quantity: 1,
             })) || [],
         },
       },
