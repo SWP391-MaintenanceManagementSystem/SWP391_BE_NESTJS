@@ -22,6 +22,13 @@ export class MembershipService {
     return memberships.map(membership => plainToInstance(MembershipDTO, membership));
   }
 
+  async getActiveMemberships(): Promise<MembershipDTO[]> {
+    const memberships = await this.prismaService.membership.findMany({
+      where: { status: MembershipStatus.ACTIVE },
+    });
+    return memberships.map(membership => plainToInstance(MembershipDTO, membership));
+  }
+
   async updateMembership(id: string, data: UpdateMembershipDTO): Promise<MembershipDTO> {
     const membershipExisted = await this.getMembershipById(id);
     if (!membershipExisted) {

@@ -6,6 +6,8 @@ import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 import { UpdateMembershipDTO } from './dto/update-membership.dto';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { JWT_Payload } from 'src/common/types';
 
 @Controller('api/memberships')
 @UseGuards(JwtAuthGuard)
@@ -15,12 +17,19 @@ export class MembershipController {
   constructor(private readonly membershipService: MembershipService) {}
 
   @Get('/')
-  async getAllMemberships() {
-    const data = await this.membershipService.getAllMemberships();
-    return {
-      message: 'Memberships retrieved successfully',
-      data,
-    };
+  async getAllMemberships(@CurrentUser() user: JWT_Payload) {
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        return {
+          message: 'Memberships retrieved successfully',
+          data: await this.membershipService.getActiveMemberships(),
+        };
+      default:
+        return {
+          message: 'Memberships retrieved successfully',
+          data: await this.membershipService.getAllMemberships(),
+        };
+    }
   }
 
   @Get('/:id')
