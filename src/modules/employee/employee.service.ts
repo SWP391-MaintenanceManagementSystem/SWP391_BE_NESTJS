@@ -34,20 +34,53 @@ export class EmployeeService {
     if (filter.lastName)
       employeeWhere.lastName = { contains: filter.lastName, mode: 'insensitive' };
 
+    // WorkCenter assignment status filter
+    if (filter.hasWorkCenter !== undefined) {
+      if (filter.hasWorkCenter) {
+        // Filter for employees WITH work center
+        employeeWhere.workCenters = {
+          some: {
+            OR: [
+              { endDate: null }, // Permanent assignment
+              { endDate: { gt: new Date() } }, // Active assignment
+            ],
+          },
+        };
+      } else {
+        // Filter for employees WITHOUT work center (Not assigned)
+        employeeWhere.OR = [
+          // No work centers at all
+          { workCenters: { none: {} } },
+          // Only has expired/inactive work centers
+          {
+            workCenters: {
+              every: {
+                endDate: { lte: new Date() },
+              },
+            },
+          },
+        ];
+      }
+    }
+
     // WorkCenter level filters
-    const workCenterConditions: Prisma.WorkCenterWhereInput = {};
-    if (filter.centerId) workCenterConditions.centerId = filter.centerId;
-    if (filter.name)
-      workCenterConditions.serviceCenter = {
-        name: { contains: filter.name, mode: 'insensitive' },
-      };
+    if (filter.centerId || filter.name) {
+      const workCenterConditions: Prisma.WorkCenterWhereInput = {};
+      if (filter.centerId) workCenterConditions.centerId = filter.centerId;
+      if (filter.name)
+        workCenterConditions.serviceCenter = {
+          name: { contains: filter.name, mode: 'insensitive' },
+        };
 
-    workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
+      // Only active assignments
+      workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
+      if (filter.hasWorkCenter === false) {
+      } else {
+        employeeWhere.workCenters = { some: workCenterConditions };
+      }
+    }
 
-    if (Object.keys(workCenterConditions).length > 0)
-      employeeWhere.workCenters = { some: workCenterConditions };
-
-    if (Object.keys(employeeWhere).length > 0) where.employee = employeeWhere;
+    where.employee = employeeWhere;
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.account.findMany({
@@ -138,12 +171,15 @@ export class EmployeeService {
               })) ?? [],
           }
         : null,
-      workCenter: emp.employee?.workCenters?.[0]
+      workCenter: emp.employee?.workCenters?.[0]?.serviceCenter
         ? {
             id: emp.employee.workCenters[0].serviceCenter.id,
             name: emp.employee.workCenters[0].serviceCenter.name,
           }
-        : null,
+        : {
+            id: null,
+            name: 'Not assigned',
+          },
     }));
 
     return {

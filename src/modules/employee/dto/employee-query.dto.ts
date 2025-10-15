@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, IsEnum, isEmail, IsEmail } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, IsInt, IsEnum, IsEmail, IsBoolean } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { AccountStatus } from '@prisma/client';
 import { Order } from 'src/common/sort/sort.config';
 import { AccountRole } from '@prisma/client';
@@ -55,6 +55,20 @@ export class EmployeeQueryDTO {
   @IsOptional()
   @IsString()
   name?: string;
+
+  @ApiPropertyOptional({
+    required: false,
+    description:
+      'Filter by work center assignment status. true = has work center, false = not assigned',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  hasWorkCenter?: boolean;
 
   @ApiPropertyOptional({
     required: false,
