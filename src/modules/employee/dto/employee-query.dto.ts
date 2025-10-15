@@ -33,7 +33,6 @@ export class EmployeeQueryDTO {
   @ApiPropertyOptional({ required: false, description: 'Employee email' })
   @IsOptional()
   @IsString()
-  @IsEmail()
   email?: string;
 
   @ApiPropertyOptional({ required: false, description: 'Employee phone number' })
