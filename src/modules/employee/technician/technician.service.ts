@@ -13,6 +13,7 @@ import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { AccountStatus } from '@prisma/client';
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
+import { UpdateEmployeeWithCenterDTO } from '../dto/update-employee-with-center.dto';
 import { EmployeeService } from '../employee.service';
 
 @Injectable()
@@ -74,15 +75,8 @@ export class TechnicianService {
     return this.employeeService.getEmployees(filter, AccountRole.TECHNICIAN);
   }
 
-  async updateTechnician(
-    accountId: string,
-    updateTechnicianDto: UpdateTechnicianDTO
-  ): Promise<AccountWithProfileDTO> {
-    const updatedTechnician = await this.accountService.updateAccount(
-      accountId,
-      updateTechnicianDto
-    );
-    return updatedTechnician;
+  async updateTechnician(id: string, updateData: UpdateTechnicianDTO) {
+    return await this.employeeService.updateEmployee(id, updateData);
   }
 
   async deleteTechnician(accountId: string): Promise<void> {
