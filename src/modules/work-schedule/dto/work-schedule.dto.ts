@@ -32,6 +32,7 @@ export class WorkScheduleDTO {
     if (!employee || !account) return undefined;
 
     return {
+      id: account.id,
       email: account.email,
       phone: account.phone,
       role: account.role,
@@ -48,6 +49,7 @@ export class WorkScheduleDTO {
     };
   })
   account?: {
+    id: string;
     email: string;
     phone: string;
     role: string;
@@ -71,6 +73,7 @@ export class WorkScheduleDTO {
     if (!shift) return undefined;
 
     return {
+      id: shift.id,
       name: shift.name,
       startTime: shift.startTime,
       endTime: shift.endTime,
@@ -81,6 +84,7 @@ export class WorkScheduleDTO {
     };
   })
   shift?: {
+    id: string;
     name: string;
     startTime: string;
     endTime: string;

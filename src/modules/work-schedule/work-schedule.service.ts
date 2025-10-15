@@ -114,11 +114,12 @@ export class WorkScheduleService {
 
     const activeAssignment = await this.prismaService.workCenter.findFirst({
       where: {
-        employeeId,
+        employeeId: createCyclicDto.employeeId,
         centerId: shift?.centerId,
         startDate: { lte: end },
         OR: [{ endDate: null }, { endDate: { gte: start } }],
       },
+      include: { serviceCenter: true },
     });
 
     if (!activeAssignment) {
@@ -241,11 +242,16 @@ export class WorkScheduleService {
     const [workSchedules, total] = await this.prismaService.$transaction([
       this.prismaService.workSchedule.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          date: true,
+          createdAt: true,
+          updatedAt: true,
           employee: {
             include: {
               account: {
                 select: {
+                  id: true,
                   email: true,
                   role: true,
                   phone: true,
@@ -266,7 +272,7 @@ export class WorkScheduleService {
           },
           shift: {
             select: {
-              centerId: true,
+              id: true,
               name: true,
               startTime: true,
               endTime: true,
@@ -304,11 +310,16 @@ export class WorkScheduleService {
   ): Promise<WorkScheduleDTO> {
     const workSchedule = await this.prismaService.workSchedule.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        date: true,
+        createdAt: true,
+        updatedAt: true,
         employee: {
           include: {
             account: {
               select: {
+                id: true,
                 email: true,
                 role: true,
                 phone: true,
@@ -329,6 +340,7 @@ export class WorkScheduleService {
         },
         shift: {
           select: {
+            id: true,
             centerId: true,
             name: true,
             startTime: true,
@@ -347,7 +359,7 @@ export class WorkScheduleService {
     }
 
     if ((userRole === AccountRole.STAFF || userRole === AccountRole.TECHNICIAN) && employeeId) {
-      const isOwnSchedule = workSchedule.employeeId === employeeId;
+      const isOwnSchedule = workSchedule.employee.account.id === employeeId;
 
       if (!isOwnSchedule) {
         const isAssignedCenter = await this.prismaService.workCenter.findFirst({

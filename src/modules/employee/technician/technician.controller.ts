@@ -9,9 +9,9 @@ import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
-@ApiTags('Technician')
+@ApiTags('Technicians')
 @ApiBearerAuth('jwt-auth')
-@Controller('api/technician')
+@Controller('api/technicians')
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 
