@@ -19,8 +19,8 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
 
-@ApiTags('Work Center')
-@Controller('api/work-center')
+@ApiTags('Work Centers')
+@Controller('api/work-centers')
 @UseGuards(RoleGuard)
 @ApiBearerAuth('jwt-auth')
 export class WorkCenterController {

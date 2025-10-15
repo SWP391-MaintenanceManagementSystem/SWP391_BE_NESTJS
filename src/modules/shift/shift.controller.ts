@@ -7,8 +7,8 @@ import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
-@ApiTags('Shift')
-@Controller('api/shift')
+@ApiTags('Shifts')
+@Controller('api/shifts')
 @ApiBearerAuth('jwt-auth')
 export class ShiftController {
   constructor(private readonly shiftService: ShiftService) {}

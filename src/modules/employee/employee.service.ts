@@ -50,6 +50,8 @@ export class EmployeeService {
           name: { contains: filter.name, mode: 'insensitive' },
         };
 
+      workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
+
       if (Object.keys(workCenterConditions).length > 0)
         employeeWhere.workCenters = { some: workCenterConditions };
 
@@ -80,13 +82,33 @@ export class EmployeeService {
                 select: {
                   name: true,
                   issuedAt: true,
-                  expiresAt: true
-                }
+                  expiresAt: true,
+                },
               },
               workCenters: {
-                select: {
-                  serviceCenter: { select: { id: true, name: true } },
+                where: {
+                  OR: [
+                    { endDate: null }, // Permanent assignment
+                    { endDate: { gte: new Date() } }, // Active assignment
+                  ],
                 },
+                select: {
+                  id: true,
+                  startDate: true,
+                  endDate: true,
+                  serviceCenter: {
+                    select: {
+                      id: true,
+                      name: true,
+                      address: true,
+                      status: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  startDate: 'desc', // Most recent assignment first
+                },
+                take: 1, // Take 1 to get the current active assignment
               },
             },
           },
@@ -118,20 +140,19 @@ export class EmployeeService {
             createdAt: emp.employee.createdAt,
             updatedAt: emp.employee.updatedAt,
             certificates:
-            emp.employee?.certificates?.map(c => ({
-            name: c.name,
-            issuedAt: c.issuedAt,
-            expiresAt: c.expiresAt
-             })) ?? [],
+              emp.employee?.certificates?.map(c => ({
+                name: c.name,
+                issuedAt: c.issuedAt,
+                expiresAt: c.expiresAt,
+              })) ?? [],
           }
         : null,
-      workCenters:
-        emp.employee?.workCenters?.map(wc => ({
-          id: wc.serviceCenter.id,
-          name: wc.serviceCenter.name,
-        })) ?? [],
-
-
+      workCenter: emp.employee?.workCenters?.[0]
+        ? {
+            id: emp.employee.workCenters[0].serviceCenter.id,
+            name: emp.employee.workCenters[0].serviceCenter.name,
+          }
+        : null,
     }));
 
     return {

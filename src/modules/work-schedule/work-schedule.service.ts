@@ -112,6 +112,21 @@ export class WorkScheduleService {
     if (toCreate.length === 0)
       throw new ConflictException('No new schedules can be created (all full or exist)');
 
+    const activeAssignment = await this.prismaService.workCenter.findFirst({
+      where: {
+        employeeId,
+        centerId: shift?.centerId,
+        startDate: { lte: end },
+        OR: [{ endDate: null }, { endDate: { gte: start } }],
+      },
+    });
+
+    if (!activeAssignment) {
+      throw new BadRequestException(
+        'Employee does not have an active work center assignment for the shift'
+      );
+    }
+
     await this.prismaService.workSchedule.createMany({
       data: toCreate.map(date => ({
         employeeId,
