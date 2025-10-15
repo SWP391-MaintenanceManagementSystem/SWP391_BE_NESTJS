@@ -27,6 +27,7 @@ export class EmployeeService {
 
     // Employee level filters
     const employeeWhere: Prisma.EmployeeWhereInput = {};
+    const employeeConditions: any[] = [];
 
     if (filter.employeeId) employeeWhere.accountId = filter.employeeId;
     if (filter.firstName)
@@ -38,32 +39,25 @@ export class EmployeeService {
     if (filter.hasWorkCenter !== undefined) {
       if (filter.hasWorkCenter) {
         // Filter for employees WITH work center
-        employeeWhere.workCenters = {
-          some: {
-            OR: [
-              { endDate: null }, // Permanent assignment
-              { endDate: { gt: new Date() } }, // Active assignment
-            ],
-          },
-        };
-      } else {
-        // Filter for employees WITHOUT work center (Not assigned)
-        employeeWhere.OR = [
-          // No work centers at all
-          { workCenters: { none: {} } },
-          // Only has expired/inactive work centers
-          {
-            workCenters: {
-              every: {
-                endDate: { lte: new Date() },
-              },
+        employeeConditions.push({
+          workCenters: {
+            some: {
+              OR: [
+                { endDate: null }, // Permanent assignment
+                { endDate: { gt: new Date() } }, // Active assignment
+              ],
             },
           },
-        ];
+        });
+      } else {
+        // Filter for employees WITHOUT work center (Not assigned)
+        employeeConditions.push({
+          workCenters: { none: {} },
+        });
       }
     }
 
-    // WorkCenter level filters
+    // Specific service center filters
     if (filter.centerId || filter.name) {
       const workCenterConditions: Prisma.WorkCenterWhereInput = {};
       if (filter.centerId) workCenterConditions.centerId = filter.centerId;
@@ -74,10 +68,18 @@ export class EmployeeService {
 
       // Only active assignments
       workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
-      if (filter.hasWorkCenter === false) {
-      } else {
-        employeeWhere.workCenters = { some: workCenterConditions };
+
+      // If hasWorkCenter is false, ignore center filters (they conflict)
+      if (filter.hasWorkCenter !== false) {
+        employeeConditions.push({
+          workCenters: { some: workCenterConditions },
+        });
       }
+    }
+
+    // Combine all employee conditions with AND
+    if (employeeConditions.length > 0) {
+      employeeWhere.AND = employeeConditions;
     }
 
     where.employee = employeeWhere;
