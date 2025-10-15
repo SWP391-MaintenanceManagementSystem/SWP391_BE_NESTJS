@@ -20,43 +20,34 @@ export class EmployeeService {
 
     const where: Prisma.AccountWhereInput = { role };
 
-    if (
-      filter?.employeeId ||
-      filter?.firstName ||
-      filter?.lastName ||
-      filter?.email ||
-      filter?.phone ||
-      filter?.status ||
-      filter?.centerId ||
-      filter?.name
-    ) {
-      const employeeWhere: Prisma.EmployeeWhereInput = {};
+    // Account level filters
+    if (filter.email) where.email = { contains: filter.email, mode: 'insensitive' };
+    if (filter.phone) where.phone = { contains: filter.phone, mode: 'insensitive' };
+    if (filter.status) where.status = filter.status;
 
-      if (filter.employeeId) employeeWhere.accountId = filter.employeeId;
-      if (filter.firstName)
-        employeeWhere.firstName = { contains: filter.firstName, mode: 'insensitive' };
-      if (filter.lastName)
-        employeeWhere.lastName = { contains: filter.lastName, mode: 'insensitive' };
+    // Employee level filters
+    const employeeWhere: Prisma.EmployeeWhereInput = {};
 
-      if (filter.email) where.email = { contains: filter.email, mode: 'insensitive' };
-      if (filter.phone) where.phone = { contains: filter.phone, mode: 'insensitive' };
-      if (filter.status) where.status = filter.status;
+    if (filter.employeeId) employeeWhere.accountId = filter.employeeId;
+    if (filter.firstName)
+      employeeWhere.firstName = { contains: filter.firstName, mode: 'insensitive' };
+    if (filter.lastName)
+      employeeWhere.lastName = { contains: filter.lastName, mode: 'insensitive' };
 
-      // --- WorkCenter filters ---
-      const workCenterConditions: Prisma.WorkCenterWhereInput = {};
-      if (filter.centerId) workCenterConditions.centerId = filter.centerId;
-      if (filter.name)
-        workCenterConditions.serviceCenter = {
-          name: { contains: filter.name, mode: 'insensitive' },
-        };
+    // WorkCenter level filters
+    const workCenterConditions: Prisma.WorkCenterWhereInput = {};
+    if (filter.centerId) workCenterConditions.centerId = filter.centerId;
+    if (filter.name)
+      workCenterConditions.serviceCenter = {
+        name: { contains: filter.name, mode: 'insensitive' },
+      };
 
-      workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
+    workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
 
-      if (Object.keys(workCenterConditions).length > 0)
-        employeeWhere.workCenters = { some: workCenterConditions };
+    if (Object.keys(workCenterConditions).length > 0)
+      employeeWhere.workCenters = { some: workCenterConditions };
 
-      where.employee = employeeWhere;
-    }
+    if (Object.keys(employeeWhere).length > 0) where.employee = employeeWhere;
 
     const [data, total] = await this.prisma.$transaction([
       this.prisma.account.findMany({

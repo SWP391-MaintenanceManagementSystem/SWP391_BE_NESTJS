@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, IsEnum } from 'class-validator';
+import { IsOptional, IsString, IsInt, IsEnum, isEmail, IsEmail } from 'class-validator';
 import { Type } from 'class-transformer';
 import { AccountStatus } from '@prisma/client';
 import { Order } from 'src/common/sort/sort.config';
@@ -30,12 +30,13 @@ export class EmployeeQueryDTO {
   @IsEnum(AccountStatus)
   status?: AccountStatus;
 
-  @ApiPropertyOptional({ required: false, description: 'Customer email' })
+  @ApiPropertyOptional({ required: false, description: 'Employee email' })
   @IsOptional()
   @IsString()
+  @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ required: false, description: 'Customer phone number' })
+  @ApiPropertyOptional({ required: false, description: 'Employee phone number' })
   @IsOptional()
   @IsString()
   phone?: string;
