@@ -212,6 +212,8 @@ export class BookingService {
       pageSize = 10,
       orderBy = 'createdAt',
       sortBy = 'desc',
+      fromDate,
+      toDate,
     } = filterOptions;
 
     const where: Prisma.BookingWhereInput = {
@@ -222,6 +224,16 @@ export class BookingService {
         bookingDate: {
           gte: dateFns.startOfDay(bookingDate),
           lte: dateFns.endOfDay(bookingDate),
+        },
+      }),
+      ...(fromDate && {
+        bookingDate: {
+          gte: dateFns.startOfDay(fromDate),
+        },
+      }),
+      ...(toDate && {
+        bookingDate: {
+          lte: dateFns.endOfDay(toDate),
         },
       }),
       ...buildBookingSearch(search),
