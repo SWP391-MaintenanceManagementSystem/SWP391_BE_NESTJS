@@ -180,6 +180,8 @@ export class EmployeeService {
         ? {
             id: emp.employee.workCenters[0].serviceCenter.id,
             name: emp.employee.workCenters[0].serviceCenter.name,
+            startDate: emp.employee.workCenters[0].startDate,
+            endDate: emp.employee.workCenters[0].endDate,
           }
         : {
             id: null,
@@ -403,4 +405,6 @@ export class EmployeeService {
       excludeExtraneousValues: true,
     });
   }
+
+  // async createEmployee()
 }
