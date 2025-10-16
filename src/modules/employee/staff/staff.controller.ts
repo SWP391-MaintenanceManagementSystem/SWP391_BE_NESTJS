@@ -1,15 +1,15 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { StaffService } from './staff.service';
 import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
-import { CreateStaffDto } from './dto/create-staff.dto';
-import { UpdateStaffDto } from './dto/update-staff.dto';
+import { CreateStaffDTO } from './dto/create-staff.dto';
+import { UpdateStaffDTO } from './dto/update-staff.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
-@ApiTags('Staff')
+@ApiTags('Staffs')
 @Controller('api/staffs')
 export class StaffController {
   constructor(private readonly staffService: StaffService) {}
@@ -52,16 +52,16 @@ export class StaffController {
   @Post('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  @ApiBody({ type: CreateStaffDto })
-  async createStaff(@Body() createStaffDto: CreateStaffDto) {
+  @ApiBody({ type: CreateStaffDTO })
+  async createStaff(@Body() createStaffDto: CreateStaffDTO) {
     return this.staffService.createStaff(createStaffDto);
   }
 
   @Patch('/:id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  @ApiBody({ type: UpdateStaffDto })
-  async updateStaff(@Param('id') id: string, @Body() updateStaffDto: UpdateStaffDto) {
+  @ApiBody({ type: UpdateStaffDTO })
+  async updateStaff(@Param('id') id: string, @Body() updateStaffDto: UpdateStaffDTO) {
     return this.staffService.updateStaff(id, updateStaffDto);
   }
 

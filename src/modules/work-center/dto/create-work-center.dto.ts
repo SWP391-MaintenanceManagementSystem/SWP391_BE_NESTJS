@@ -38,7 +38,7 @@ export class CreateWorkCenterDTO {
     return value;
   })
   @ApiPropertyOptional({
-    example: '2029-11-25T17:00:00.000Z',
+    example: '',
     description: 'End date of the work center assignment. Leave empty for permanent assignment.',
   })
   endDate?: string;

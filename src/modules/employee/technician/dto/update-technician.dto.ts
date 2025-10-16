@@ -1,6 +1,9 @@
-import { IsString, IsOptional, Matches, IsNotEmpty, IsEnum, Length } from 'class-validator';
+import { IsString, IsOptional, Matches, IsEnum, Length } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
+import { UpdateEmployeeWithCenterDTO } from '../../dto/update-employee-with-center.dto';
 
 export class UpdateTechnicianDTO {
   @IsOptional({ message: 'First name is required' })
@@ -41,4 +44,10 @@ export class UpdateTechnicianDTO {
   @IsEnum(AccountStatus)
   @ApiPropertyOptional({ required: false, example: 'VERIFIED', enum: AccountStatus })
   status?: AccountStatus;
+
+  @ApiPropertyOptional({ type: UpdateEmployeeWithCenterDTO, description: 'Work center assignment' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateEmployeeWithCenterDTO)
+  workCenter?: UpdateEmployeeWithCenterDTO;
 }
