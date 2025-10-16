@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { CreateCertificateDTO } from '../../certificate/dto/create-certificate.dto';
 import { Type } from 'class-transformer';
-export class CreateStaffDto {
+export class CreateStaffDTO {
   @ApiProperty({
     example: 'Nguyen',
     description: 'First name of the staff',
@@ -53,7 +53,7 @@ export class CreateStaffDto {
   })
   phone?: string;
 
- @ApiPropertyOptional({
+  @ApiPropertyOptional({
     type: [CreateCertificateDTO],
     description: 'List of certificates belonging to the staff (optional)',
   })
