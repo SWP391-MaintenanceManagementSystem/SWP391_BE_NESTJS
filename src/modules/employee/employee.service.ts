@@ -8,7 +8,6 @@ import { plainToInstance } from 'class-transformer';
 import { UpdateEmployeeWithCenterDTO } from './dto/update-employee-with-center.dto';
 import { UpdateTechnicianDTO } from './technician/dto/update-technician.dto';
 import { UpdateStaffDTO } from './staff/dto/update-staff.dto';
-import { CreateEmployeeWithCenterDTO } from './dto/create-employee-with-center.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
 import { AccountStatus } from '@prisma/client';
 
