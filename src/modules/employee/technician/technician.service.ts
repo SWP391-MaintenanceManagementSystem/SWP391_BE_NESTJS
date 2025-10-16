@@ -75,7 +75,19 @@ export class TechnicianService {
     return this.employeeService.getEmployees(filter, AccountRole.TECHNICIAN);
   }
 
-  async updateTechnician(id: string, updateData: UpdateTechnicianDTO) {
+  async updateTechnician(
+    id: string,
+    updateData: UpdateTechnicianDTO
+  ): Promise<EmployeeWithCenterDTO> {
+    const existingTechnician = await this.prisma.account.findUnique({
+      where: { id, role: 'TECHNICIAN' },
+      include: { employee: true },
+    });
+
+    if (!existingTechnician || !existingTechnician.employee) {
+      throw new NotFoundException('Technician not found');
+    }
+
     return await this.employeeService.updateEmployee(id, updateData);
   }
 
