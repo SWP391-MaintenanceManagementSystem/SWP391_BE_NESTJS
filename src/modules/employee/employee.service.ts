@@ -8,6 +8,9 @@ import { plainToInstance } from 'class-transformer';
 import { UpdateEmployeeWithCenterDTO } from './dto/update-employee-with-center.dto';
 import { UpdateTechnicianDTO } from './technician/dto/update-technician.dto';
 import { UpdateStaffDTO } from './staff/dto/update-staff.dto';
+import { CreateEmployeeWithCenterDTO } from './dto/create-employee-with-center.dto';
+import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
+import { AccountStatus } from '@prisma/client';
 
 @Injectable()
 export class EmployeeService {
@@ -218,7 +221,14 @@ export class EmployeeService {
       },
     });
 
-    if (!employee) throw new Error('Employee not found');
+    if (!employee) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: {
+          employee: 'Employee not found',
+        },
+      });
+    }
 
     const currentAssignment = employee.workCenters[0]; // Active assignment (nếu có)
 
@@ -244,7 +254,15 @@ export class EmployeeService {
     const serviceCenter = await this.prisma.serviceCenter.findUnique({
       where: { id: centerId },
     });
-    if (!serviceCenter) throw new Error('Service center not found');
+
+    if (!serviceCenter) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: {
+          'workCenter.centerId': 'Service center not found',
+        },
+      });
+    }
 
     const hasChanges =
       !currentAssignment ||
@@ -310,20 +328,127 @@ export class EmployeeService {
       include: { employee: true },
     });
 
-    if (!existing?.employee) throw new Error('Employee not found');
+    if (!employeeId) throw new BadRequestException('Employee ID is required');
+    if (!updateData || Object.keys(updateData).length === 0)
+      throw new BadRequestException('No update data provided');
+
+    if (!existing) throw new NotFoundException('Account not found');
+    if (!existing.employee) throw new NotFoundException('Employee not found');
+
+    const errors: Record<string, string> = {};
+
+    if (firstName !== undefined) {
+      if (!firstName || firstName.trim() === '') {
+        errors.firstName = 'First name is required and cannot be empty';
+      } else {
+        const nameRegex = /^[\p{L}\s'-]{2,30}$/u;
+        if (!nameRegex.test(firstName)) {
+          errors.firstName =
+            'First name must be 2-30 characters and contain only letters, spaces, apostrophes, and hyphens';
+        }
+      }
+    }
+
+    if (lastName !== undefined) {
+      if (!lastName || lastName.trim() === '') {
+        errors.lastName = 'Last name is required and cannot be empty';
+      } else {
+        const nameRegex = /^[\p{L}\s'-]{1,30}$/u;
+        if (!nameRegex.test(lastName)) {
+          errors.lastName =
+            'Last name must be 1-30 characters and contain only letters, spaces, apostrophes, and hyphens';
+        }
+      }
+    }
+    if (phone !== undefined) {
+      if (!phone || phone.trim() === '') {
+        errors.phone = 'Phone is required and cannot be empty';
+      } else {
+        const phoneRegex = /^[0-9]{10,11}$/;
+        if (!phoneRegex.test(phone)) {
+          errors.phone = 'Phone must be 10-11 digits';
+        }
+      }
+    }
+
+    if (status !== undefined) {
+      // Check if status is empty or just whitespace
+      if (!status || (typeof status === 'string' && status.trim() === '')) {
+        errors.status = 'Status is required and cannot be empty';
+      } else {
+        const validStatuses = Object.values(AccountStatus);
+        if (!validStatuses.includes(status)) {
+          errors.status = `Status must be one of the following values: ${validStatuses.join(', ')}`;
+        }
+      }
+    }
+
+    if (workCenter !== undefined) {
+      const { centerId, startDate, endDate } = workCenter;
+
+      // centerId validation
+      if (centerId !== undefined) {
+        if (!centerId || centerId.trim() === '') {
+          errors['workCenter.centerId'] = 'Work center ID is required and cannot be empty';
+        } else {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          if (!uuidRegex.test(centerId)) {
+            errors['workCenter.centerId'] = 'Center ID must be a valid UUID';
+          }
+        }
+      }
+
+      // startDate validation
+      if (startDate !== undefined) {
+        if (!startDate || startDate.trim() === '') {
+          errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
+        } else if (isNaN(Date.parse(startDate))) {
+          errors['workCenter.startDate'] = 'Start date must be a valid ISO date string';
+        }
+      }
+
+      // endDate validation (optional)
+      if (endDate !== undefined && endDate !== '') {
+        if (isNaN(Date.parse(endDate))) {
+          errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
+        }
+      }
+
+      // Date range validation
+      if (
+        startDate &&
+        startDate.trim() !== '' &&
+        endDate &&
+        endDate.trim() !== '' &&
+        !isNaN(Date.parse(startDate)) &&
+        !isNaN(Date.parse(endDate)) &&
+        new Date(startDate) >= new Date(endDate)
+      ) {
+        errors['workCenter.dateRange'] = 'Start date must be before end date';
+      }
+    }
+
+    // ✅ Throw validation errors if any
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: errors,
+      });
+    }
 
     // Update account if changed
     const accountData: Record<string, any> = {};
     if (phone !== undefined) accountData.phone = phone;
     if (status !== undefined) accountData.status = status;
-    if (Object.keys(accountData).length)
+    if (Object.keys(accountData).length > 0)
       await this.prisma.account.update({ where: { id: employeeId }, data: accountData });
 
     // Update employee if changed
     const employeeData: Record<string, any> = {};
     if (firstName !== undefined) employeeData.firstName = firstName;
     if (lastName !== undefined) employeeData.lastName = lastName;
-    if (Object.keys(employeeData).length)
+    if (Object.keys(employeeData).length > 0)
       await this.prisma.employee.update({ where: { accountId: employeeId }, data: employeeData });
 
     // Update work center assignment if provided
@@ -406,5 +531,5 @@ export class EmployeeService {
     });
   }
 
-  // async createEmployee()
+  // async createEmployee(createData: CreateEmployeeWithCenterDTO, role: AccountRole): {};
 }
