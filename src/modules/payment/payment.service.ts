@@ -10,6 +10,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import Stripe from 'stripe';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { MembershipDTO } from '../membership/dto/membership.dto';
+import { plainToInstance } from 'class-transformer';
+import { TransactionDTO } from './dto/transaction.dto';
 
 // todo import Booking
 type PaymentReference = MembershipDTO;
@@ -83,6 +85,12 @@ export class PaymentService {
         customerId,
       },
     });
+
+    await this.prismaService.transaction.update({
+      where: { id: transaction.id },
+      data: { sessionId: session.id },
+    });
+
     if (!session.url) {
       throw new InternalServerErrorException('Failed to create checkout session');
     }
@@ -133,5 +141,15 @@ export class PaymentService {
       where: { id: transactionId },
       data: { status: TransactionStatus.FAILED },
     });
+  }
+
+  async getTransactionBySessionId(sessionId: string) {
+    const transaction = await this.prismaService.transaction.findUnique({
+      where: { sessionId },
+    });
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+    return plainToInstance(TransactionDTO, transaction);
   }
 }

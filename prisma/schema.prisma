@@ -440,6 +440,7 @@ model Transaction {
   customerId    String            @map("customer_id")
   referenceId   String?           @map("reference_id")
   referenceType ReferenceType?    @map("reference_type")
+  sessionId     String?           @unique @map("session_id")
   amount        Float
   status        TransactionStatus @default(PENDING)
   method        Method

@@ -8,6 +8,9 @@ import {
   HttpCode,
   Inject,
   Res,
+  Param,
+  NotFoundException,
+  Get,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -79,6 +82,15 @@ export class PaymentController {
     return {
       message: 'Webhook handled',
       data: null,
+    };
+  }
+
+  @Get('transaction/:sessionId')
+  async getTransactionBySessionId(@Param('sessionId') sessionId: string) {
+    const transaction = await this.paymentService.getTransactionBySessionId(sessionId);
+    return {
+      message: 'Transaction retrieved successfully',
+      data: transaction,
     };
   }
 }
