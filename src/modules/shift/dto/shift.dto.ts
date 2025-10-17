@@ -21,9 +21,6 @@ export default class ShiftDTO {
   status: ShiftStatus;
 
   @Expose()
-  centerId: string;
-
-  @Expose()
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   createdAt: Date;
 
