@@ -81,6 +81,16 @@ export class WorkScheduleDTO {
       status: shift.status,
       createdAt: shift.createdAt?.toISOString(),
       updatedAt: shift.updatedAt?.toISOString(),
+      serviceCenter: serviceCenter
+        ? {
+            id: serviceCenter.id,
+            name: serviceCenter.name,
+            address: serviceCenter.address,
+            status: serviceCenter.status,
+            createdAt: serviceCenter.createdAt?.toISOString(),
+            updatedAt: serviceCenter.updatedAt?.toISOString(),
+          }
+        : undefined,
     };
   })
   shift?: {
@@ -92,5 +102,13 @@ export class WorkScheduleDTO {
     status: string;
     createdAt: string;
     updatedAt: string;
+    serviceCenter?: {
+      id: string;
+      name: string;
+      address: string;
+      status: string;
+      createdAt: string;
+      updatedAt: string;
+    };
   };
 }

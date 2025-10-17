@@ -280,6 +280,16 @@ export class WorkScheduleService {
               status: true,
               createdAt: true,
               updatedAt: true,
+              serviceCenter: {
+                select: {
+                  id: true,
+                  name: true,
+                  address: true,
+                  status: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
             },
           },
         },
@@ -349,6 +359,16 @@ export class WorkScheduleService {
             status: true,
             createdAt: true,
             updatedAt: true,
+            serviceCenter: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
