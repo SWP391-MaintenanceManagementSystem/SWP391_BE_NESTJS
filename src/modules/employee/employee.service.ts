@@ -559,6 +559,13 @@ export class EmployeeService {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(email)) {
         errors.email = 'Email must be a valid email address';
+      } else {
+        const existingAccount = await this.prisma.account.findUnique({
+          where: { email },
+        });
+        if (existingAccount) {
+          errors.email = 'Email is already exists';
+        }
       }
     }
 

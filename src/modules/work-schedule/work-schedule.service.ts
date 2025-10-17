@@ -14,7 +14,6 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma } from '@prisma/client';
 import { dateToTimeString } from 'src/common/time/time.util';
-import { RuleTester } from 'eslint';
 
 @Injectable()
 export class WorkScheduleService {
