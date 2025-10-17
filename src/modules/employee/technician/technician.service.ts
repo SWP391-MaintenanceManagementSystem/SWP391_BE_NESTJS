@@ -3,17 +3,15 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateTechnicianDTO } from './dto/create-technician.dto';
 import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { Employee, AccountRole } from '@prisma/client';
+import { AccountRole } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { hashPassword } from 'src/utils';
-import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 import { EmployeeQueryDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { AccountStatus } from '@prisma/client';
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
-import { UpdateEmployeeWithCenterDTO } from '../dto/update-employee-with-center.dto';
 import { EmployeeService } from '../employee.service';
 
 @Injectable()
@@ -25,39 +23,8 @@ export class TechnicianService {
     private readonly employeeService: EmployeeService
   ) {}
 
-  async createTechnician(createTechnicianDto: CreateTechnicianDTO): Promise<Employee | null> {
-    const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
-    if (!defaultPassword) {
-      throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
-    }
-
-    if (createTechnicianDto.email) {
-      const existingAccount = await this.prisma.account.findUnique({
-        where: { email: createTechnicianDto.email },
-      });
-      if (existingAccount) {
-        throw new ConflictException('Email is already exists');
-      }
-    }
-
-    const technicianAccount = await this.prisma.account.create({
-      data: {
-        email: createTechnicianDto.email,
-        password: await hashPassword(defaultPassword),
-        role: AccountRole.TECHNICIAN,
-        phone: createTechnicianDto.phone,
-        status: 'VERIFIED',
-      },
-    });
-
-    const employee = await this.prisma.employee.create({
-      data: {
-        accountId: technicianAccount.id,
-        firstName: createTechnicianDto.firstName,
-        lastName: createTechnicianDto.lastName ? createTechnicianDto.lastName : '',
-      },
-    });
-    return employee;
+  async createTechnician(createTechnicianDto: CreateTechnicianDTO): Promise<EmployeeWithCenterDTO> {
+    return this.employeeService.createEmployee(createTechnicianDto, 'TECHNICIAN');
   }
 
   async getTechnicianById(accountId: string): Promise<AccountWithProfileDTO | null> {

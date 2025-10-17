@@ -8,7 +8,7 @@ import { CertificateModule } from '../certificate/certificate.module';
 @Module({
   imports: [AccountModule, EmployeeModule, CertificateModule],
   controllers: [StaffController],
-  providers: [StaffService],
+  providers: [StaffService, EmployeeModule],
   exports: [StaffService],
 })
 export class StaffModule {}

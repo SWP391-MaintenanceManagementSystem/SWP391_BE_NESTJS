@@ -1,14 +1,8 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
 import { CreateStaffDTO } from './dto/create-staff.dto';
 import { UpdateStaffDTO } from './dto/update-staff.dto';
-import { FilterOptionsDTO } from 'src/common/dto/filter-options.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { AccountService } from 'src/modules/account/account.service';
@@ -43,48 +37,8 @@ export class StaffService {
     return plainToInstance(AccountWithProfileDTO, staff);
   }
 
-  async createStaff(dto: CreateStaffDTO): Promise<Employee | null> {
-    const existingAccount = await this.prisma.account.findUnique({
-      where: { email: dto.email },
-    });
-    if (existingAccount) {
-      throw new BadRequestException('Email is already in use');
-    }
-
-    const defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
-
-    const staffAccount = await this.prisma.account.create({
-      data: {
-        email: dto.email,
-        password: await hashPassword(defaultPassword),
-        phone: dto.phone,
-        role: AccountRole.STAFF,
-        status: 'VERIFIED',
-      },
-    });
-
-    const employee = await this.prisma.employee.create({
-      data: {
-        accountId: staffAccount.id,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-      },
-    });
-
-    if (dto.certificates?.length) {
-      await Promise.all(
-        dto.certificates.map(cert =>
-          this.certificateService.createCertificate(staffAccount.id, cert)
-        )
-      );
-    }
-
-    const result = await this.prisma.employee.findUnique({
-      where: { accountId: employee.accountId },
-      include: { certificates: true },
-    });
-
-    return result;
+  async createStaff(createStaffDto: CreateStaffDTO): Promise<EmployeeWithCenterDTO> {
+    return this.employeeService.createEmployee(createStaffDto, 'STAFF');
   }
 
   async updateStaff(id: string, updateData: UpdateStaffDTO): Promise<EmployeeWithCenterDTO> {

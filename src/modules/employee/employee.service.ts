@@ -10,10 +10,18 @@ import { UpdateTechnicianDTO } from './technician/dto/update-technician.dto';
 import { UpdateStaffDTO } from './staff/dto/update-staff.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
 import { AccountStatus } from '@prisma/client';
+import { CreateEmployeeWithCenterDTO } from './dto/create-employee-with-center.dto';
+import { ConfigService } from '@nestjs/config';
+import { hashPassword } from 'src/utils';
+import { CreateTechnicianDTO } from './technician/dto/create-technician.dto';
+import { CreateStaffDTO } from './staff/dto/create-staff.dto';
 
 @Injectable()
 export class EmployeeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService
+  ) {}
 
   async getEmployees(
     filter: EmployeeQueryDTO,
@@ -385,50 +393,57 @@ export class EmployeeService {
     if (workCenter !== undefined) {
       const { centerId, startDate, endDate } = workCenter;
 
-      // centerId validation
-      if (centerId !== undefined) {
-        if (!centerId || centerId.trim() === '') {
-          errors['workCenter.centerId'] = 'Work center ID is required and cannot be empty';
-        } else {
-          const uuidRegex =
-            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-          if (!uuidRegex.test(centerId)) {
-            errors['workCenter.centerId'] = 'Center ID must be a valid UUID';
+      const allEmpty =
+        (!centerId || centerId.trim() === '') &&
+        (!startDate || startDate.trim() === '') &&
+        (!endDate || endDate.trim() === '');
+
+      if (allEmpty) {
+      } else {
+        // centerId validation
+        if (centerId !== undefined) {
+          if (!centerId || centerId.trim() === '') {
+            errors['workCenter.centerId'] = 'Service Center ID is required and cannot be empty';
+          } else {
+            const uuidRegex =
+              /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(centerId)) {
+              errors['workCenter.centerId'] = 'Service Center ID must be a valid UUID';
+            }
           }
         }
-      }
 
-      // startDate validation
-      if (startDate !== undefined) {
-        if (!startDate || startDate.trim() === '') {
-          errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
-        } else if (isNaN(Date.parse(startDate))) {
-          errors['workCenter.startDate'] = 'Start date must be a valid ISO date string';
+        // startDate validation
+        if (startDate !== undefined) {
+          if (!startDate || startDate.trim() === '') {
+            errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
+          } else if (isNaN(Date.parse(startDate))) {
+            errors['workCenter.startDate'] = 'Start date must be a valid ISO date string';
+          }
         }
-      }
 
-      // endDate validation (optional)
-      if (endDate !== undefined && endDate !== '') {
-        if (isNaN(Date.parse(endDate))) {
-          errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
+        // endDate validation (optional)
+        if (endDate !== undefined && endDate !== '') {
+          if (isNaN(Date.parse(endDate))) {
+            errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
+          }
         }
-      }
 
-      // Date range validation
-      if (
-        startDate &&
-        startDate.trim() !== '' &&
-        endDate &&
-        endDate.trim() !== '' &&
-        !isNaN(Date.parse(startDate)) &&
-        !isNaN(Date.parse(endDate)) &&
-        new Date(startDate) >= new Date(endDate)
-      ) {
-        errors['workCenter.dateRange'] = 'Start date must be before end date';
+        // Date range validation
+        if (
+          startDate &&
+          startDate.trim() !== '' &&
+          endDate &&
+          endDate.trim() !== '' &&
+          !isNaN(Date.parse(startDate)) &&
+          !isNaN(Date.parse(endDate)) &&
+          new Date(startDate) >= new Date(endDate)
+        ) {
+          errors['workCenter.dateRange'] = 'Start date must be before end date';
+        }
       }
     }
 
-    // ✅ Throw validation errors if any
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
@@ -530,5 +545,259 @@ export class EmployeeService {
     });
   }
 
-  // async createEmployee(createData: CreateEmployeeWithCenterDTO, role: AccountRole): {};
+  async createEmployee(
+    createData: CreateTechnicianDTO | CreateStaffDTO,
+    role: AccountRole
+  ): Promise<EmployeeWithCenterDTO> {
+    const { email, phone, firstName, lastName, workCenter } = createData;
+
+    const errors: Record<string, string> = {};
+
+    if (!email || email.trim() === '') {
+      errors.email = 'Email is required and cannot be empty';
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.email = 'Email must be a valid email address';
+      }
+    }
+
+    if (firstName !== undefined) {
+      if (!firstName || firstName.trim() === '') {
+        errors.firstName = 'First name is required and cannot be empty';
+      } else {
+        const nameRegex = /^[\p{L}\s'-]{2,30}$/u;
+        if (!nameRegex.test(firstName)) {
+          errors.firstName =
+            'First name must be 2-30 characters and contain only letters, spaces, apostrophes, and hyphens';
+        }
+      }
+    }
+
+    if (lastName !== undefined) {
+      if (!lastName || lastName.trim() === '') {
+        errors.lastName = 'Last name is required and cannot be empty';
+      } else {
+        const nameRegex = /^[\p{L}\s'-]{1,30}$/u;
+        if (!nameRegex.test(lastName)) {
+          errors.lastName =
+            'Last name must be 1-30 characters and contain only letters, spaces, apostrophes, and hyphens';
+        }
+      }
+    }
+    if (phone !== undefined) {
+      if (!phone || phone.trim() === '') {
+        errors.phone = 'Phone is required and cannot be empty';
+      } else {
+        const phoneRegex = /^[0-9]{10,11}$/;
+        if (!phoneRegex.test(phone)) {
+          errors.phone = 'Phone must be 10-11 digits';
+        }
+      }
+    }
+
+    if (workCenter !== undefined) {
+      const { centerId, startDate, endDate } = workCenter;
+
+      // centerId validation
+      if (centerId !== undefined) {
+        if (!centerId || centerId.trim() === '') {
+          errors['workCenter.centerId'] = 'Service Center ID is required and cannot be empty';
+        } else {
+          const uuidRegex =
+            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+          if (!uuidRegex.test(centerId)) {
+            errors['workCenter.centerId'] = 'Service Center ID must be a valid UUID';
+          }
+        }
+      }
+
+      // startDate validation
+      if (startDate !== undefined) {
+        if (!startDate || startDate.trim() === '') {
+          errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
+        } else if (isNaN(Date.parse(startDate))) {
+          errors['workCenter.startDate'] = 'Start date must be a valid ISO date string';
+        }
+      }
+
+      // endDate validation (optional)
+      if (endDate !== undefined && endDate !== '') {
+        if (isNaN(Date.parse(endDate))) {
+          errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
+        }
+      }
+
+      // Date range validation
+      if (
+        startDate &&
+        startDate.trim() !== '' &&
+        endDate &&
+        endDate.trim() !== '' &&
+        !isNaN(Date.parse(startDate)) &&
+        !isNaN(Date.parse(endDate)) &&
+        new Date(startDate) >= new Date(endDate)
+      ) {
+        errors['workCenter.dateRange'] = 'Start date must be before end date';
+      }
+    }
+
+    // ✅ Throw validation errors if any
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: errors,
+      });
+    }
+
+    // Check if email already exists
+    const existingAccount = await this.prisma.account.findUnique({
+      where: { email },
+    });
+
+    if (existingAccount) {
+      throw new BadRequestException('Email is already exists');
+    }
+
+    // Get default password from config
+    const defaultPassword =
+      this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD') ||
+      this.configService.get<string>('DEFAULT_STAFF_PASSWORD');
+    if (!defaultPassword) {
+      if (role === AccountRole.TECHNICIAN) {
+        throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
+      }
+      if (role === AccountRole.STAFF) {
+        throw new Error('DEFAULT_STAFF_PASSWORD is not set in environment variables');
+      }
+    }
+
+    // Create account and employee in transaction
+    const result = await this.prisma.$transaction(async tx => {
+      // Create account
+      const account = await tx.account.create({
+        data: {
+          email,
+          phone,
+          password: await hashPassword(defaultPassword!),
+          role,
+          status: 'VERIFIED',
+        },
+      });
+
+      // Create employee profile
+      await tx.employee.create({
+        data: {
+          accountId: account.id,
+          firstName,
+          lastName,
+        },
+      });
+
+      return account.id;
+    });
+
+    // Assign work center if provided
+    if (workCenter) {
+      await this.updateEmployeeWithWorkCenter(result, workCenter);
+    }
+
+    // Fetch complete employee data (same as getEmployees logic)
+    const createdEmployee = await this.prisma.account.findUnique({
+      where: { id: result },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true,
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            updatedAt: true,
+            certificates: {
+              select: {
+                name: true,
+                issuedAt: true,
+                expiresAt: true,
+              },
+            },
+            workCenters: {
+              where: {
+                OR: [
+                  { endDate: null }, // Permanent assignment
+                  { endDate: { gte: new Date() } }, // Active assignment
+                ],
+              },
+              select: {
+                id: true,
+                startDate: true,
+                endDate: true,
+                serviceCenter: {
+                  select: {
+                    id: true,
+                    name: true,
+                    address: true,
+                    status: true,
+                  },
+                },
+              },
+              orderBy: {
+                startDate: 'desc',
+              },
+              take: 1,
+            },
+          },
+        },
+      },
+    });
+
+    if (!createdEmployee?.employee) {
+      throw new Error('Failed to create employee');
+    }
+
+    // Transform data (same logic as getEmployees)
+    const transformed = {
+      id: createdEmployee.id,
+      email: createdEmployee.email,
+      phone: createdEmployee.phone,
+      role: createdEmployee.role,
+      status: createdEmployee.status,
+      avatar: createdEmployee.avatar,
+      createdAt: createdEmployee.createdAt,
+      updatedAt: createdEmployee.updatedAt,
+      profile: {
+        firstName: createdEmployee.employee.firstName,
+        lastName: createdEmployee.employee.lastName,
+        createdAt: createdEmployee.employee.createdAt,
+        updatedAt: createdEmployee.employee.updatedAt,
+        certificates:
+          createdEmployee.employee.certificates?.map(c => ({
+            name: c.name,
+            issuedAt: c.issuedAt,
+            expiresAt: c.expiresAt,
+          })) ?? [],
+      },
+      workCenter: createdEmployee.employee.workCenters?.[0]?.serviceCenter
+        ? {
+            id: createdEmployee.employee.workCenters[0].serviceCenter.id,
+            name: createdEmployee.employee.workCenters[0].serviceCenter.name,
+            startDate: createdEmployee.employee.workCenters[0].startDate,
+            endDate: createdEmployee.employee.workCenters[0].endDate,
+          }
+        : {
+            id: null,
+            name: 'Not assigned',
+          },
+    };
+
+    return plainToInstance(EmployeeWithCenterDTO, transformed, {
+      excludeExtraneousValues: true,
+    });
+  }
 }
