@@ -393,50 +393,57 @@ export class EmployeeService {
     if (workCenter !== undefined) {
       const { centerId, startDate, endDate } = workCenter;
 
-      // centerId validation
-      if (centerId !== undefined) {
-        if (!centerId || centerId.trim() === '') {
-          errors['workCenter.centerId'] = 'Service Center ID is required and cannot be empty';
-        } else {
-          const uuidRegex =
-            /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-          if (!uuidRegex.test(centerId)) {
-            errors['workCenter.centerId'] = 'Service Center ID must be a valid UUID';
+      const allEmpty =
+        (!centerId || centerId.trim() === '') &&
+        (!startDate || startDate.trim() === '') &&
+        (!endDate || endDate.trim() === '');
+
+      if (allEmpty) {
+      } else {
+        // centerId validation
+        if (centerId !== undefined) {
+          if (!centerId || centerId.trim() === '') {
+            errors['workCenter.centerId'] = 'Service Center ID is required and cannot be empty';
+          } else {
+            const uuidRegex =
+              /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(centerId)) {
+              errors['workCenter.centerId'] = 'Service Center ID must be a valid UUID';
+            }
           }
         }
-      }
 
-      // startDate validation
-      if (startDate !== undefined) {
-        if (!startDate || startDate.trim() === '') {
-          errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
-        } else if (isNaN(Date.parse(startDate))) {
-          errors['workCenter.startDate'] = 'Start date must be a valid ISO date string';
+        // startDate validation
+        if (startDate !== undefined) {
+          if (!startDate || startDate.trim() === '') {
+            errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
+          } else if (isNaN(Date.parse(startDate))) {
+            errors['workCenter.startDate'] = 'Start date must be a valid ISO date string';
+          }
         }
-      }
 
-      // endDate validation (optional)
-      if (endDate !== undefined && endDate !== '') {
-        if (isNaN(Date.parse(endDate))) {
-          errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
+        // endDate validation (optional)
+        if (endDate !== undefined && endDate !== '') {
+          if (isNaN(Date.parse(endDate))) {
+            errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
+          }
         }
-      }
 
-      // Date range validation
-      if (
-        startDate &&
-        startDate.trim() !== '' &&
-        endDate &&
-        endDate.trim() !== '' &&
-        !isNaN(Date.parse(startDate)) &&
-        !isNaN(Date.parse(endDate)) &&
-        new Date(startDate) >= new Date(endDate)
-      ) {
-        errors['workCenter.dateRange'] = 'Start date must be before end date';
+        // Date range validation
+        if (
+          startDate &&
+          startDate.trim() !== '' &&
+          endDate &&
+          endDate.trim() !== '' &&
+          !isNaN(Date.parse(startDate)) &&
+          !isNaN(Date.parse(endDate)) &&
+          new Date(startDate) >= new Date(endDate)
+        ) {
+          errors['workCenter.dateRange'] = 'Start date must be before end date';
+        }
       }
     }
 
-    // ✅ Throw validation errors if any
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',

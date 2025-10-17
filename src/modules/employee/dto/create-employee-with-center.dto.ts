@@ -21,7 +21,7 @@ export class CreateEmployeeWithCenterDTO {
   @IsOptional()
   @IsISO8601({}, { message: 'endDate must be a valid ISO 8601 date string' })
   @ApiPropertyOptional({
-    example: '2025-12-31T17:00:00.000Z',
+    example: '',
     description: 'End date of the work center assignment. Set to current date for soft delete.',
   })
   endDate?: string;
