@@ -123,13 +123,24 @@ export class ShiftService {
     const where: Prisma.ShiftWhereInput = {
       ...(filter.id && { id: { contains: filter.id, mode: 'insensitive' } }),
       ...(filter.centerId && { centerId: { contains: filter.centerId, mode: 'insensitive' } }),
+      ...(filter.centerName && {
+        serviceCenter: { name: { contains: filter.centerName, mode: 'insensitive' } },
+      }),
       ...(filter.status && { status: filter.status }),
       ...(filter.name && { name: { contains: filter.name, mode: 'insensitive' } }),
       ...(startTime && { startTime: { gte: timeStringToDate(startTime) } }),
       ...(endTime && { endTime: { lte: timeStringToDate(endTime) } }),
+      ...(filter.maximumSlot !== undefined && { maximumSlot: filter.maximumSlot }),
     };
 
-    const allowedSortFields = ['name', 'startTime', 'endTime', 'createdAt', 'updatedAt'];
+    const allowedSortFields = [
+      'name',
+      'startTime',
+      'endTime',
+      'maximumSlot',
+      'createdAt',
+      'updatedAt',
+    ];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
 
     const [shifts, total] = await this.prismaService.$transaction([

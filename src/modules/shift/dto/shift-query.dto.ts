@@ -15,6 +15,11 @@ export class ShiftQueryDTO {
   @IsString()
   centerId?: string;
 
+  @ApiProperty({ required: false, description: 'Filter by service center name' })
+  @IsOptional()
+  @IsString()
+  centerName?: string;
+
   @ApiProperty({ required: false, description: 'Filter by shift name' })
   @IsOptional()
   @IsString()
@@ -37,6 +42,15 @@ export class ShiftQueryDTO {
     message: 'endTime must be in format HH:mm:ss',
   })
   endTime?: string;
+
+  @ApiPropertyOptional({
+    required: false,
+    description: 'Filter by maximum slot',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  maximumSlot?: number;
 
   @ApiProperty({ required: false, description: 'Filter by shift status', enum: ShiftStatus })
   @IsOptional()
