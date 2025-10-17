@@ -21,9 +21,6 @@ export default class ShiftDTO {
   status: ShiftStatus;
 
   @Expose()
-  centerId: string;
-
-  @Expose()
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   createdAt: Date;
 
@@ -32,21 +29,26 @@ export default class ShiftDTO {
   updatedAt: Date;
 
   @Expose()
-  @Transform(({ obj }) => {
-    const serviceCenter = obj.serviceCenter;
-    if (!serviceCenter) return undefined;
-
-    return {
-      id: serviceCenter.id,
-      name: serviceCenter.name,
-      address: serviceCenter.address,
-      status: serviceCenter.status,
-    };
-  })
+  @Transform(({ value }) =>
+    value
+      ? {
+          id: value.id,
+          name: value.name,
+          address: value.address,
+          status: value.status,
+          createdAt:
+            value.createdAt instanceof Date ? value.createdAt.toISOString() : value.createdAt,
+          updatedAt:
+            value.updatedAt instanceof Date ? value.updatedAt.toISOString() : value.updatedAt,
+        }
+      : undefined
+  )
   serviceCenter?: {
     id: string;
     name: string;
     address: string;
     status: string;
+    createdAt: string;
+    updatedAt: string;
   };
 }

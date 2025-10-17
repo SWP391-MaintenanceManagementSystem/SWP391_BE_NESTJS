@@ -75,7 +75,7 @@ export class ShiftService {
     const shift = await this.prismaService.shift.findUnique({
       where: { id },
       include: {
-        serviceCenter: { select: { name: true, address: true, status: true } },
+        serviceCenter: true,
         workSchedules: {
           include: {
             employee: { select: { accountId: true, firstName: true, lastName: true } },
@@ -95,6 +95,16 @@ export class ShiftService {
         ...shift,
         startTime: dateToTimeString(shift.startTime),
         endTime: dateToTimeString(shift.endTime),
+        serviceCenter: shift.serviceCenter
+          ? {
+              id: shift.serviceCenter.id,
+              name: shift.serviceCenter.name,
+              address: shift.serviceCenter.address,
+              status: shift.serviceCenter.status,
+              createdAt: shift.serviceCenter.createdAt,
+              updatedAt: shift.serviceCenter.updatedAt,
+            }
+          : undefined,
       },
       { excludeExtraneousValues: true }
     );
@@ -125,6 +135,9 @@ export class ShiftService {
     const [shifts, total] = await this.prismaService.$transaction([
       this.prismaService.shift.findMany({
         where,
+        include: {
+          serviceCenter: true,
+        },
         orderBy: { [sortField]: orderBy },
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -136,6 +149,16 @@ export class ShiftService {
       ...s,
       startTime: dateToTimeString(s.startTime),
       endTime: dateToTimeString(s.endTime),
+      serviceCenter: s.serviceCenter
+        ? {
+            id: s.serviceCenter.id,
+            name: s.serviceCenter.name,
+            address: s.serviceCenter.address,
+            status: s.serviceCenter.status,
+            createdAt: s.serviceCenter.createdAt,
+            updatedAt: s.serviceCenter.updatedAt,
+          }
+        : undefined,
     }));
 
     return {
