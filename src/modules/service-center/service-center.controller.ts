@@ -34,7 +34,6 @@ export class ServiceCenterController {
   }
 
   @Get('/')
-  @Roles(AccountRole.ADMIN)
   async getServiceCenters(@Query() query: ServiceCenterQueryDTO) {
     const { data } = await this.serviceCenterService.getServiceCenters(query);
 
@@ -45,7 +44,6 @@ export class ServiceCenterController {
   }
 
   @Get('/:id')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
   async getServiceCenterById(
     @Param('id') id: string,
     @CurrentUser() user: { sub: string; role: AccountRole; centerId?: string }
