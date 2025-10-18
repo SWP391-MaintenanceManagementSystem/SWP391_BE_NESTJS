@@ -1,9 +1,8 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
 
 export class CreatePartDto {
   @ApiProperty({ description: 'Name of the part' })
-  @IsNotEmpty()
   @IsString()
   name: string;
 
@@ -14,24 +13,17 @@ export class CreatePartDto {
 
   @ApiProperty({ description: 'Price of the part' })
   @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
   price: number;
 
   @ApiProperty({ description: 'Current stock quantity' })
   @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
   stock: number;
 
   @ApiProperty({ description: 'Minimum stock quantity before reordering' })
   @IsNotEmpty()
-  @IsNumber()
-  @Min(0)
   minStock: number;
 
   @ApiProperty({ description: 'ID of the category this part belongs to' })
-  @IsNotEmpty()
   @IsString()
   categoryId: string;
 }

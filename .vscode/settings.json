@@ -4,5 +4,5 @@
   "editor.formatOnSave": true,
   "editor.formatOnPaste": true,
   "files.insertFinalNewline": true,
-  "files.trimTrailingWhitespace": true,
+  "files.trimTrailingWhitespace": true
 }

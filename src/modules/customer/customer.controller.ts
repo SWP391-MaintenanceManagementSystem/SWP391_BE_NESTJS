@@ -8,6 +8,7 @@ import { CustomerQueryDTO } from './dto/customer-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from '../account/dto/account-with-profile.dto';
 import { UpdateCustomerDTO } from './dto/update-customer.dto';
+import { CustomerStatisticsDTO } from './dto/customer-statistics.dto';
 
 @ApiTags('Customers')
 @ApiBearerAuth('jwt-auth')
@@ -17,6 +18,19 @@ export class CustomerController {
     private readonly customerService: CustomerService,
     private readonly accountService: AccountService
   ) {}
+
+  @Get('/statistics')
+  @Roles(AccountRole.ADMIN)
+  async getCustomerStatistics() {
+    const { data, premium, total } = await this.customerService.getCustomerStatistics();
+
+    return {
+      message: 'Get customer statistics successfully',
+      data,
+      premium,
+      total,
+    };
+  }
 
   @Get('/')
   @Roles(AccountRole.ADMIN)

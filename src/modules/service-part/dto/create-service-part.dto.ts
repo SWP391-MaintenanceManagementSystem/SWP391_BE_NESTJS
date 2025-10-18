@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsInt, IsNotEmpty, IsUUID, Min } from "class-validator";
+import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsNotEmpty, IsUUID, Min } from 'class-validator';
 
 export class CreateServicePartDto {
   @ApiProperty({ description: 'Service ID', example: 'uuid-service-id' })
