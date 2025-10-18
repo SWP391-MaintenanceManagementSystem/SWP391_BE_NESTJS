@@ -38,6 +38,8 @@ import { WorkCenterModule } from './modules/work-center/work-center.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
 import { BookingAssignmentModule } from './modules/booking-assignment/booking-assignment.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { NotificationGateway } from './src/modules/notification/notification.gateway';
 
 @Module({
   imports: [
@@ -101,6 +103,7 @@ import { BookingAssignmentModule } from './modules/booking-assignment/booking-as
     BookingModule,
     BookingDetailModule,
     BookingAssignmentModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [
@@ -121,6 +124,7 @@ import { BookingAssignmentModule } from './modules/booking-assignment/booking-as
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
     },
+    NotificationGateway,
   ],
 })
 export class AppModule {}
