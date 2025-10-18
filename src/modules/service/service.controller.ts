@@ -16,35 +16,68 @@ export class ServiceController {
   @Get('/customer')
   @ApiBearerAuth('jwt-auth')
   async getServicesForCustomer(@Query() query: ServiceQueryCustomerDTO) {
-    return this.serviceService.findAllForCustomer(query);
+    const { data, page, pageSize, total, totalPages} = await this.serviceService.findAllForCustomer(query)
+    return {
+      message: 'Successfully',
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages
+    }
   }
 
   @Get('/admin')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getServicesForAdmin(@Query() query: ServiceQueryDTO) {
-    return this.serviceService.findAllForAdmin(query);
-  }
-
-  @Get('/:name')
-  @Roles(AccountRole.ADMIN)
-  @ApiBearerAuth('jwt-auth')
-  async getServiceByName(@Param('name') name: string) {
-    return this.serviceService.getServiceByNameForAdmin(name);
+    const { data, page, pageSize, total, totalPages} = await this.serviceService.findAllForAdmin(query)
+    return {
+      message: 'Successfully',
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages
+    }
   }
 
   @Get('search/:name')
   @ApiBearerAuth('jwt-auth')
   async getActiveServiceByName(@Param('name') name: string) {
-    return this.serviceService.getServiceByNameForCustomer(name);
+    const services = await this.serviceService.getServiceByNameForCustomer(name)
+    return {
+      message: 'Successfully',
+      data: services
+    }
   }
+
+  @Get('/:id')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async getServiceByID(@Param('id') id: string) {
+    return await this.serviceService.getServiceById(id)
+  }
+
+  @Get('search-admin/:name')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async getServiceByName(@Param('name') name: string) {
+    const services = await this.serviceService.getServiceByNameForAdmin(name)
+    return {
+      message: 'Successfully',
+      data: services
+    }
+  }
+
+
 
   @Post('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   @ApiBody({ type: CreateServiceDto })
   async createService(@Body() dto: CreateServiceDto) {
-    return this.serviceService.create(dto);
+    return await this.serviceService.create(dto);
   }
 
   @Patch('/:id')
