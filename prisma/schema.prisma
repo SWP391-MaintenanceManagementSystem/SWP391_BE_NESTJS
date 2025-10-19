@@ -393,7 +393,7 @@ model Shift {
   name        String
   startTime   DateTime    @map("start_time") @db.Time
   endTime     DateTime    @map("end_time") @db.Time
-  maximumSlot Int?        @map("maximum_slot")
+  maximumSlot Int        @map("maximum_slot")
   status      ShiftStatus @default(ACTIVE)
   centerId    String      @map("center_id")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
