@@ -34,8 +34,19 @@ export class PackageController {
     }
   }
 
-  @Get(':id')
+  @Get('/search/:name')
   @Roles(AccountRole.ADMIN, AccountRole.CUSTOMER)
+  @ApiBearerAuth('jwt-auth')
+  async getPakageByName(@Param('name') name:string) {
+    const pakages = await this.packageService.getPakageByName(name)
+    return {
+      message: 'Successfully',
+      data: pakages
+    }
+  }
+
+  @Get(':id')
+  @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   findOne(@Param('id') id: string) {
     return this.packageService.getPackageById(id);

@@ -189,7 +189,7 @@ export class ServiceService {
   });
 
   if (!services.length) {
-    throw new NotFoundException(`No active services found with name containing "${name}"`);
+    throw new NotFoundException(`No active services found with name containing ${name}`);
   }
 
   return plainToInstance(ServiceDto, services, {
