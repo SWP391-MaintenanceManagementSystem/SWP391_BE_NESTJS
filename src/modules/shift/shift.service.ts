@@ -218,7 +218,7 @@ export class ShiftService {
     // --- Validate name ---
     if (update.name !== undefined) {
       if (!update.name || update.name.trim() === '') {
-        errors.name = 'Name is required';
+        errors.name = 'Name can not be empty';
       } else if (update.name.length < 2 || update.name.length > 50) {
         errors.name = 'Name must be between 2 and 50 characters';
       } else if (update.name !== existing.name) {
@@ -246,7 +246,7 @@ export class ShiftService {
 
     if (update.startTime !== undefined) {
       if (!update.startTime || update.startTime.trim() === '') {
-        errors.startTime = 'Start time is required';
+        errors.startTime = 'Start time can not be empty';
       } else {
         // Validate time format HH:MM:SS
         const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
@@ -265,7 +265,7 @@ export class ShiftService {
 
     if (update.endTime !== undefined) {
       if (!update.endTime || update.endTime.trim() === '') {
-        errors.endTime = 'End time is required';
+        errors.endTime = 'End time can not be empty';
       } else {
         const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
         if (!timeRegex.test(update.endTime)) {
@@ -295,7 +295,7 @@ export class ShiftService {
     // --- Validate maximumSlot ---
     if (update.maximumSlot !== undefined) {
       if (update.maximumSlot === null || update.maximumSlot === undefined) {
-        errors.maximumSlot = 'Maximum slot is required and cannot be empty';
+        errors.maximumSlot = 'Maximum slot can not be empty';
       } else if (typeof update.maximumSlot !== 'number') {
         errors.maximumSlot = 'Maximum slot must be a number';
       } else if (!Number.isInteger(update.maximumSlot)) {
@@ -312,7 +312,7 @@ export class ShiftService {
     // --- Validate status ---
     if (update.status !== undefined) {
       if (!update.status || (typeof update.status === 'string' && update.status.trim() === '')) {
-        errors.status = 'Status is required';
+        errors.status = 'Status can not be empty';
       } else {
         const validStatuses = Object.values(ShiftStatus);
         if (!validStatuses.includes(update.status as ShiftStatus)) {
@@ -326,7 +326,7 @@ export class ShiftService {
     // --- Validate centerId ---
     if (update.centerId !== undefined) {
       if (!update.centerId || update.centerId.trim() === '') {
-        errors.centerId = 'Service Center ID is required';
+        errors.centerId = 'Service Center ID can not be empty';
       } else {
         const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
         if (!uuidRegex.test(update.centerId)) {

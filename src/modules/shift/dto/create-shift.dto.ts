@@ -8,16 +8,16 @@ export class CreateShiftDTO {
 
   @ApiProperty({ example: '08:00:00', description: 'Start Time (HH:mm:ss)' })
   @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
-    message: 'startTime must be in format HH:mm:ss',
+    message: 'Start time must be in format HH:mm:ss',
   })
-  @IsNotEmpty({ message: 'startTime is required' })
+  @IsNotEmpty({ message: 'Start time is required' })
   startTime: string;
 
   @ApiProperty({ example: '12:00:00', description: 'End Time (HH:mm:ss)' })
   @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
-    message: 'endTime must be in format HH:mm:ss',
+    message: 'End time must be in format HH:mm:ss',
   })
-  @IsNotEmpty({ message: 'endTime is required' })
+  @IsNotEmpty({ message: 'End time is required' })
   endTime: string;
 
   @IsOptional()
@@ -30,7 +30,7 @@ export class CreateShiftDTO {
   })
   maximumSlot?: number;
 
-  @IsUUID(4, { message: 'Center ID must be a valid UUID' })
+  @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Service Center ID is required' })
   @ApiProperty({
     example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
