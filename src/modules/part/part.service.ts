@@ -349,6 +349,9 @@ async deletePart(id: string): Promise<{ message: string }> {
     throw new NotFoundException(`Part with ID ${id} not found`);
   }
 
+  if(part.status === 'DISCONTINUED') {
+    throw new BadRequestException('It has been discontinued and cannot be deleted.')
+  }
 
   await this.prisma.part.update({
     where: { id },
