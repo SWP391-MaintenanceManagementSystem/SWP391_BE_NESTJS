@@ -6,7 +6,7 @@ import { PackageDto } from './dto/package.dto';
 import { plainToInstance } from 'class-transformer';
 import { PakageQueryDTO } from './dto/pakage-query.dto';
 import { PaginationResponse, PaginationResponseDTO } from 'src/common/dto/pagination-response.dto';
-import { Prisma } from '@prisma/client';
+import { PackageStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class PackageService {
@@ -95,6 +95,23 @@ export class PackageService {
     //   },
     // });
     // return plainToInstance(PackageDto, packages, { excludeExtraneousValues: true });
+  }
+
+  async getPakageByName(name: string): Promise<PackageDto[]> {
+    const pakages = await this.prisma.package.findMany({
+      where: {
+        name: {contains: name, mode: 'insensitive'},
+        status: PackageStatus.ACTIVE
+      },
+      orderBy: {createdAt: 'asc'},
+    });
+    if(!pakages.length) {
+      throw new NotFoundException(`No active pakage found with name containing ${name}`);
+    }
+
+    return plainToInstance(PackageDto, pakages, {
+    excludeExtraneousValues: true,
+  });
   }
 
   async getPackageById(id: string): Promise<PackageDto> {
