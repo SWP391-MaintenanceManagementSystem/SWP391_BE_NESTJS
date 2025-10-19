@@ -36,7 +36,7 @@ export class PackageController {
   }
 
   @Get(':id')
-  @Roles(AccountRole.ADMIN, AccountRole.CUSTOMER)
+  @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   findOne(@Param('id') id: string) {
     return this.packageService.getPackageById(id);
@@ -57,7 +57,6 @@ export class PackageController {
   }
 
   @Get('/search/:name')
-  @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getActivePackageByName(@Param('name') name: string) {
     const packages = await this.packageService.getPackageByNameForCustomer(name);

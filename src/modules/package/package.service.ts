@@ -6,7 +6,7 @@ import { PackageDto } from './dto/package.dto';
 import { plainToInstance } from 'class-transformer';
 import { PakageQueryDTO } from './dto/pakage-query.dto';
 import { PaginationResponse, PaginationResponseDTO } from 'src/common/dto/pagination-response.dto';
-import { Prisma } from '@prisma/client';
+import { PackageStatus, Prisma } from '@prisma/client';
 import { PackageDetailDTO } from './dto/package-detail.dto';
 
 @Injectable()
