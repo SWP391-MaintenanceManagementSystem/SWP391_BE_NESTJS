@@ -3,21 +3,21 @@ import { IsUUID, IsNotEmpty, Matches, IsOptional, IsNumber, Min, Max } from 'cla
 
 export class CreateShiftDTO {
   @ApiProperty({ example: 'Morning Shift' })
-  @IsNotEmpty()
+  @IsNotEmpty({ message: 'Shift name is required' })
   name: string;
 
   @ApiProperty({ example: '08:00:00', description: 'Start Time (HH:mm:ss)' })
-  @IsNotEmpty()
   @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
-    message: 'startTime must be in format HH:mm:ss',
+    message: 'Start time must be in format HH:mm:ss',
   })
+  @IsNotEmpty({ message: 'Start time is required' })
   startTime: string;
 
   @ApiProperty({ example: '12:00:00', description: 'End Time (HH:mm:ss)' })
-  @IsNotEmpty()
   @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
-    message: 'endTime must be in format HH:mm:ss',
+    message: 'End time must be in format HH:mm:ss',
   })
+  @IsNotEmpty({ message: 'End time is required' })
   endTime: string;
 
   @IsOptional()
@@ -26,12 +26,12 @@ export class CreateShiftDTO {
   @Max(50, { message: 'Maximum slot cannot exceed 50' })
   @ApiPropertyOptional({
     example: 10,
-    description: 'Maximum number of technicians for this shift',
+    description: 'Maximum booking slots for this shift',
   })
   maximumSlot?: number;
 
-  @IsUUID(4, { message: 'Center ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Center ID is required' })
+  @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Service Center ID is required' })
   @ApiProperty({
     example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
     description: 'Service center UUID',
