@@ -1,44 +1,40 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsUUID,
-  IsDateString,
-  IsArray,
-  ArrayMinSize,
-  ArrayMaxSize,
-  IsInt,
-  Min,
-  Max,
-} from 'class-validator';
+import { IsOptional } from 'class-validator';
 
 export class UpdateCyclicWorkScheduleDTO {
-  @ApiPropertyOptional({ example: 'uuid-of-employee' })
+  @ApiPropertyOptional({
+    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    description: 'Employee account UUID',
+  })
   @IsOptional()
-  @IsUUID()
   employeeId?: string;
 
-  @ApiPropertyOptional({ example: 'uuid-of-shift' })
+  @ApiPropertyOptional({
+    example: 'a1b2c3d4-5678-9abc-def0-123456789abc',
+    description: 'Shift UUID',
+  })
   @IsOptional()
-  @IsUUID()
   shiftId?: string;
 
-  @ApiPropertyOptional({ example: '2025-10-11' })
+  @ApiPropertyOptional({
+    example: '2025-10-11',
+    description: 'Start date in YYYY-MM-DD format',
+  })
   @IsOptional()
-  @IsDateString()
   startDate?: string;
 
-  @ApiPropertyOptional({ example: '2025-10-17' })
+  @ApiPropertyOptional({
+    example: '2025-10-17',
+    description: 'End date in YYYY-MM-DD format',
+  })
   @IsOptional()
-  @IsDateString()
   endDate?: string;
 
-  @ApiPropertyOptional({ example: [1, 3, 5], description: '0=Sunday → 6=Saturday' })
+  @ApiPropertyOptional({
+    example: [1, 3, 5],
+    description: 'Days of week to repeat (0=Sunday to 6=Saturday)',
+    type: [Number],
+  })
   @IsOptional()
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(7)
-  @IsInt({ each: true })
-  @Min(0, { each: true })
-  @Max(6, { each: true })
   repeatDays?: number[];
 }

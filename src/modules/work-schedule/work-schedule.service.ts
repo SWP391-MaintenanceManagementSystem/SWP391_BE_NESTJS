@@ -46,41 +46,120 @@ export class WorkScheduleService {
     }
 
     const { employeeId, shiftId, startDate, endDate, repeatDays } = createCyclicDto;
+    const errors: Record<string, string> = {};
 
-    const shift = await this.prismaService.shift.findUnique({
-      where: { id: shiftId },
-      include: { serviceCenter: true },
-    });
-    if (!shift) throw new NotFoundException(`Shift with ID ${shiftId} not found`);
-
-    const employee = await this.prismaService.employee.findUnique({
-      where: { accountId: employeeId },
-      include: { account: true },
-    });
-    if (!employee || !employee.account) throw new BadRequestException('Employee not found');
-
-    if (
-      employee.account.role !== AccountRole.TECHNICIAN &&
-      employee.account.role !== AccountRole.STAFF
-    ) {
-      throw new BadRequestException('Only STAFF and TECHNICIAN employees can be assigned');
+    // --- Validate employeeId ---
+    let employee = null;
+    if (!employeeId || employeeId.trim() === '') {
+      errors.employeeId = 'Employee ID is required and cannot be empty';
+    } else {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(employeeId)) {
+        errors.employeeId = 'Employee ID must be a valid UUID';
+      } else {
+        employee = await this.prismaService.employee.findUnique({
+          where: { accountId: employeeId },
+          include: { account: true },
+        });
+        if (!employee || !employee.account) {
+          errors.employeeId = `Employee with ID ${employeeId} not found`;
+        } else if (
+          employee.account.role !== AccountRole.TECHNICIAN &&
+          employee.account.role !== AccountRole.STAFF
+        ) {
+          errors.employeeId = `Only STAFF and TECHNICIAN employees can be assigned. This employee has role ${employee.account.role}`;
+        }
+      }
     }
 
-    const start = this.normalizeDate(startDate);
-    const end = this.normalizeDate(endDate);
-    if (start > end)
-      throw new BadRequestException('Start date must be before or equal to end date');
+    // --- Validate shiftId ---
+    let shift = null;
+    if (!shiftId || shiftId.trim() === '') {
+      errors.shiftId = 'Shift ID is required and cannot be empty';
+    } else {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(shiftId)) {
+        errors.shiftId = 'Shift ID must be a valid UUID';
+      } else {
+        shift = await this.prismaService.shift.findUnique({
+          where: { id: shiftId },
+          include: { serviceCenter: true },
+        });
+        if (!shift) {
+          errors.shiftId = `Shift with ID ${shiftId} not found`;
+        }
+      }
+    }
+
+    // --- Validate dates ---
+    let start: Date | null = null;
+    let end: Date | null = null;
+
+    if (!startDate || startDate.trim() === '') {
+      errors.startDate = 'Start date is required and cannot be empty';
+    } else {
+      start = new Date(startDate);
+      if (isNaN(start.getTime())) {
+        errors.startDate = 'Start date must be a valid ISO date string';
+      } else {
+        start.setUTCHours(0, 0, 0, 0);
+      }
+    }
+
+    if (!endDate || endDate.trim() === '') {
+      errors.endDate = 'End date is required and cannot be empty';
+    } else {
+      end = new Date(endDate);
+      if (isNaN(end.getTime())) {
+        errors.endDate = 'End date must be a valid ISO date string';
+      } else {
+        end.setUTCHours(0, 0, 0, 0);
+      }
+    }
+
+    // Validate date range
+    if (start && end && start > end) {
+      errors.dateRange = 'Start date must be before or equal to end date';
+    }
+
+    // --- Validate repeatDays ---
+    if (!repeatDays || !Array.isArray(repeatDays)) {
+      errors.repeatDays = 'Repeat days is required and must be an array';
+    } else if (repeatDays.length === 0) {
+      errors.repeatDays = 'At least one repeat day is required';
+    } else if (repeatDays.length > 7) {
+      errors.repeatDays = 'Maximum 7 repeat days allowed';
+    } else {
+      const invalidDays = repeatDays.filter(day => !Number.isInteger(day) || day < 0 || day > 6);
+      if (invalidDays.length > 0) {
+        errors.repeatDays = 'Each repeat day must be an integer between 0 and 6';
+      }
+    }
+
+    // --- Throw all validation errors at once ---
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: errors,
+      });
+    }
 
     const ONE_DAY = 24 * 60 * 60 * 1000;
     const scheduleDates: Date[] = [];
 
-    for (let t = start.getTime(); t <= end.getTime(); t += ONE_DAY) {
+    for (let t = start!.getTime(); t <= end!.getTime(); t += ONE_DAY) {
       const d = new Date(t);
-      if (repeatDays.includes(d.getUTCDay())) scheduleDates.push(d);
+      if (repeatDays.includes(d.getUTCDay())) {
+        scheduleDates.push(d);
+      }
     }
 
-    if (scheduleDates.length === 0)
-      throw new BadRequestException('No valid repeat days within range');
+    if (scheduleDates.length === 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { repeatDays: 'No valid repeat days within the specified date range' },
+      });
+    }
 
     const existingSchedules = await this.prismaService.workSchedule.findMany({
       where: {
@@ -106,26 +185,33 @@ export class WorkScheduleService {
       const key = d.toISOString().slice(0, 10);
       if (existingDates.has(key)) return false;
       const currentCount = countMap.get(key) || 0;
-      return !shift.maximumSlot || currentCount < shift.maximumSlot;
+      return !shift!.maximumSlot || currentCount < shift!.maximumSlot;
     });
 
-    if (toCreate.length === 0)
-      throw new ConflictException('No new schedules can be created (all full or exist)');
+    if (toCreate.length === 0) {
+      throw new ConflictException(
+        'No new schedules can be created (all slots full or schedules already exist)'
+      );
+    }
 
     const activeAssignment = await this.prismaService.workCenter.findFirst({
       where: {
-        employeeId: createCyclicDto.employeeId,
-        centerId: shift?.centerId,
-        startDate: { lte: end },
-        OR: [{ endDate: null }, { endDate: { gte: start } }],
+        employeeId,
+        centerId: shift!.centerId,
+        startDate: { lte: end! },
+        OR: [{ endDate: null }, { endDate: { gte: start! } }],
       },
       include: { serviceCenter: true },
     });
 
     if (!activeAssignment) {
-      throw new BadRequestException(
-        'Employee does not have an active work center assignment for the shift'
-      );
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: {
+          workCenter:
+            'Employee does not have an active work center assignment for the specified shift',
+        },
+      });
     }
 
     await this.prismaService.workSchedule.createMany({
@@ -154,7 +240,12 @@ export class WorkScheduleService {
                 createdAt: true,
                 updatedAt: true,
                 employee: {
-                  select: { firstName: true, lastName: true },
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
                 },
               },
             },
@@ -162,7 +253,6 @@ export class WorkScheduleService {
         },
         shift: {
           select: {
-            centerId: true,
             name: true,
             startTime: true,
             endTime: true,
@@ -170,6 +260,16 @@ export class WorkScheduleService {
             status: true,
             createdAt: true,
             updatedAt: true,
+            serviceCenter: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
@@ -418,6 +518,24 @@ export class WorkScheduleService {
       throw new ForbiddenException('Only ADMIN can update cyclic work schedule assignments');
     }
 
+    // Validate path parameters
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const errors: Record<string, string> = {};
+
+    if (!uuidRegex.test(employeeId)) {
+      errors.employeeId = 'Employee ID must be a valid UUID';
+    }
+    if (!uuidRegex.test(shiftId)) {
+      errors.shiftId = 'Shift ID must be a valid UUID';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: errors,
+      });
+    }
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -432,26 +550,118 @@ export class WorkScheduleService {
       );
     }
 
-    const newEmployeeId = updateCyclicDto.employeeId || employeeId;
-    const newShiftId = updateCyclicDto.shiftId || shiftId;
+    const {
+      employeeId: newEmployeeId,
+      shiftId: newShiftId,
+      startDate: startDateStr,
+      endDate: endDateStr,
+      repeatDays,
+    } = updateCyclicDto;
 
-    const newStartDate = updateCyclicDto.startDate
-      ? new Date(updateCyclicDto.startDate)
-      : existingSchedules[0].date;
-
-    const newEndDate = updateCyclicDto.endDate
-      ? new Date(updateCyclicDto.endDate)
-      : (existingSchedules.at(-1)?.date ?? new Date());
-
-    const newRepeatDays =
-      updateCyclicDto.repeatDays || this.inferRepeatDaysFromSchedules(existingSchedules);
-
-    newStartDate.setHours(0, 0, 0, 0);
-    newEndDate.setHours(0, 0, 0, 0);
-
-    if (newStartDate >= newEndDate) {
-      throw new BadRequestException('Start date must be before end date');
+    // --- Validate newEmployeeId (if provided) ---
+    let targetEmployee = null;
+    if (newEmployeeId !== undefined) {
+      if (!newEmployeeId || newEmployeeId.trim() === '') {
+        errors.employeeId = 'Employee ID cannot be empty';
+      } else if (!uuidRegex.test(newEmployeeId)) {
+        errors.employeeId = 'Employee ID must be a valid UUID';
+      } else {
+        targetEmployee = await this.prismaService.employee.findUnique({
+          where: { accountId: newEmployeeId },
+          include: { account: true },
+        });
+        if (!targetEmployee || !targetEmployee.account) {
+          errors.employeeId = `Employee with ID ${newEmployeeId} not found`;
+        } else if (
+          targetEmployee.account.role !== AccountRole.TECHNICIAN &&
+          targetEmployee.account.role !== AccountRole.STAFF
+        ) {
+          errors.employeeId = `Only STAFF and TECHNICIAN employees can be assigned. This employee has role ${targetEmployee.account.role}`;
+        }
+      }
     }
+
+    // --- Validate newShiftId (if provided) ---
+    let targetShift = null;
+    if (newShiftId !== undefined) {
+      if (!newShiftId || newShiftId.trim() === '') {
+        errors.shiftId = 'Shift ID cannot be empty';
+      } else if (!uuidRegex.test(newShiftId)) {
+        errors.shiftId = 'Shift ID must be a valid UUID';
+      } else {
+        targetShift = await this.prismaService.shift.findUnique({
+          where: { id: newShiftId },
+          include: { serviceCenter: true },
+        });
+        if (!targetShift) {
+          errors.shiftId = `Shift with ID ${newShiftId} not found`;
+        }
+      }
+    }
+
+    // --- Validate dates ---
+    let newStartDate = existingSchedules[0].date;
+    let newEndDate = existingSchedules.at(-1)?.date ?? new Date();
+
+    if (startDateStr !== undefined) {
+      if (!startDateStr || startDateStr.trim() === '') {
+        errors.startDate = 'Start date cannot be empty';
+      } else {
+        newStartDate = new Date(startDateStr);
+        if (isNaN(newStartDate.getTime())) {
+          errors.startDate = 'Start date must be a valid ISO date string';
+        } else {
+          newStartDate.setHours(0, 0, 0, 0);
+        }
+      }
+    }
+
+    if (endDateStr !== undefined) {
+      if (!endDateStr || endDateStr.trim() === '') {
+        errors.endDate = 'End date cannot be empty';
+      } else {
+        newEndDate = new Date(endDateStr);
+        if (isNaN(newEndDate.getTime())) {
+          errors.endDate = 'End date must be a valid ISO date string';
+        } else {
+          newEndDate.setHours(0, 0, 0, 0);
+        }
+      }
+    }
+
+    // Validate date range
+    if (newStartDate >= newEndDate) {
+      errors.dateRange = 'End date must be after start date';
+    }
+
+    // --- Validate repeatDays (if provided) ---
+    let newRepeatDays = this.inferRepeatDaysFromSchedules(existingSchedules);
+    if (repeatDays !== undefined) {
+      if (!Array.isArray(repeatDays)) {
+        errors.repeatDays = 'Repeat days must be an array';
+      } else if (repeatDays.length === 0) {
+        errors.repeatDays = 'At least one repeat day is required';
+      } else if (repeatDays.length > 7) {
+        errors.repeatDays = 'Maximum 7 repeat days allowed';
+      } else {
+        const invalidDays = repeatDays.filter(day => !Number.isInteger(day) || day < 0 || day > 6);
+        if (invalidDays.length > 0) {
+          errors.repeatDays = 'Each repeat day must be an integer between 0 and 6';
+        } else {
+          newRepeatDays = repeatDays;
+        }
+      }
+    }
+
+    // --- Throw all validation errors at once ---
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: errors,
+      });
+    }
+
+    // --- Generate target dates ---
     const targetDates: Date[] = [];
     for (let d = new Date(newStartDate); d <= newEndDate; d.setDate(d.getDate() + 1)) {
       if (newRepeatDays.includes(d.getDay())) {
@@ -462,52 +672,56 @@ export class WorkScheduleService {
     }
 
     if (targetDates.length === 0) {
-      throw new BadRequestException('No valid dates found for the specified repeat days');
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { repeatDays: 'No valid dates found for the specified repeat days' },
+      });
     }
 
-    const shift = await this.prismaService.shift.findUnique({
-      where: { id: newShiftId },
-    });
-    if (!shift) throw new NotFoundException(`Shift with ID ${newShiftId} not found`);
+    const finalEmployeeId = newEmployeeId || employeeId;
+    const finalShiftId = newShiftId || shiftId;
 
-    const UpdatePattern =
-      !!updateCyclicDto.startDate ||
-      !!updateCyclicDto.endDate ||
-      (Array.isArray(updateCyclicDto.repeatDays) && updateCyclicDto.repeatDays.length > 0);
+    // Check if updating pattern or just employee/shift
+    const updatePattern =
+      startDateStr !== undefined ||
+      endDateStr !== undefined ||
+      (repeatDays !== undefined && Array.isArray(repeatDays) && repeatDays.length > 0);
 
-    if (!UpdatePattern && (updateCyclicDto.employeeId || updateCyclicDto.shiftId)) {
+    if (!updatePattern && (newEmployeeId || newShiftId)) {
+      // Just update employee/shift for existing future schedules
       await this.prismaService.workSchedule.updateMany({
         where: { employeeId, shiftId, date: { gte: today } },
         data: {
-          ...(updateCyclicDto.employeeId && { employeeId: updateCyclicDto.employeeId }),
-          ...(updateCyclicDto.shiftId && { shiftId: updateCyclicDto.shiftId }),
+          ...(newEmployeeId && { employeeId: newEmployeeId }),
+          ...(newShiftId && { shiftId: newShiftId }),
         },
       });
     } else {
+      // Delete old schedules and create new ones with new pattern
       await this.prismaService.workSchedule.deleteMany({
-        where: { employeeId, shiftId, date: { in: targetDates } },
+        where: { employeeId, shiftId, date: { gte: today } },
       });
 
       await this.prismaService.workSchedule.createMany({
         data: targetDates.map(date => ({
-          employeeId: newEmployeeId,
-          shiftId: newShiftId,
+          employeeId: finalEmployeeId,
+          shiftId: finalShiftId,
           date,
         })),
       });
     }
 
+    // --- Fetch updated schedules ---
     const updatedSchedules = await this.prismaService.workSchedule.findMany({
       where: {
-        employeeId: newEmployeeId,
-        shiftId: newShiftId,
-        date: { in: targetDates },
+        date: { gte: today },
       },
       include: {
         employee: {
           include: {
             account: {
               select: {
+                id: true,
                 email: true,
                 role: true,
                 phone: true,
@@ -528,7 +742,7 @@ export class WorkScheduleService {
         },
         shift: {
           select: {
-            centerId: true,
+            id: true,
             name: true,
             startTime: true,
             endTime: true,
@@ -536,9 +750,20 @@ export class WorkScheduleService {
             status: true,
             createdAt: true,
             updatedAt: true,
+            serviceCenter: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+              },
+            },
           },
         },
       },
+      orderBy: { date: 'asc' },
     });
 
     return updatedSchedules.map(ws =>
