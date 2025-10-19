@@ -23,15 +23,16 @@ export class PackageController {
   @Roles(AccountRole.ADMIN, AccountRole.CUSTOMER)
   @ApiBearerAuth('jwt-auth')
   async findAll(@Query() query: PakageQueryDTO) {
-    const { data, page, pageSize, total, totalPages} = await this.packageService.getAllPackages(query)
+    const { data, page, pageSize, total, totalPages } =
+      await this.packageService.getAllPackages(query);
     return {
       message: 'Successfully',
       data,
       page,
       pageSize,
       total,
-      totalPages
-    }
+      totalPages,
+    };
   }
 
   @Get(':id')
@@ -53,5 +54,16 @@ export class PackageController {
   @ApiBearerAuth('jwt-auth')
   remove(@Param('id') id: string) {
     return this.packageService.deletePackage(id);
+  }
+
+  @Get('/search/:name')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async getActivePackageByName(@Param('name') name: string) {
+    const packages = await this.packageService.getPackageByNameForCustomer(name);
+    return {
+      message: 'Search packages successfully',
+      data: packages,
+    };
   }
 }
