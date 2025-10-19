@@ -4,6 +4,9 @@ import { UpdatePackageDto } from './dto/update-package.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PackageDto } from './dto/package.dto';
 import { plainToInstance } from 'class-transformer';
+import { PakageQueryDTO } from './dto/pakage-query.dto';
+import { PaginationResponse, PaginationResponseDTO } from 'src/common/dto/pagination-response.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class PackageService {
@@ -39,9 +42,18 @@ export class PackageService {
     return plainToInstance(PackageDto, result, { excludeExtraneousValues: true });
   }
 
-  async getAllPackages(): Promise<PackageDto[]> {
-    const packages = await this.prisma.package.findMany({
-      orderBy: { createdAt: 'asc' },
+  async getAllPackages(query: PakageQueryDTO): Promise<PaginationResponse<PackageDto>> {
+     const { page = 1, pageSize = 10, name, price, status, sortBy, orderBy } = query;
+
+  const where: Prisma.PackageWhereInput = {
+    name: name ? { contains: name, mode: 'insensitive' } : undefined,
+    price: price ? { lte: price } : undefined,
+    status: status ?? 'ACTIVE',
+  };
+
+  const [data, total] = await this.prisma.$transaction([
+    this.prisma.package.findMany({
+      where,
       include: {
         packageDetails: {
           include: {
@@ -53,8 +65,36 @@ export class PackageService {
           },
         },
       },
-    });
-    return plainToInstance(PackageDto, packages, { excludeExtraneousValues: true });
+      orderBy: { [sortBy ?? 'createdAt']: orderBy ?? 'asc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    this.prisma.package.count({ where }),
+  ]);
+
+  return {
+    data: plainToInstance(PackageDto, data, { excludeExtraneousValues: true }),
+    page,
+    pageSize,
+    total,
+    totalPages: Math.ceil(total / pageSize),
+  };
+
+    // const packages = await this.prisma.package.findMany({
+    //   orderBy: { createdAt: 'asc' },
+    //   include: {
+    //     packageDetails: {
+    //       include: {
+    //         service: {
+    //           include: {
+    //             ServicePart: { include: { part: true } },
+    //           },
+    //         },
+    //       },
+    //     },
+    //   },
+    // });
+    // return plainToInstance(PackageDto, packages, { excludeExtraneousValues: true });
   }
 
   async getPackageById(id: string): Promise<PackageDto> {
