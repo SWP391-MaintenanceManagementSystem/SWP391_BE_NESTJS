@@ -153,7 +153,7 @@ async getAllPackagesForAdmin(query: PakageQueryDTO): Promise<PaginationResponse<
   const where: Prisma.PackageWhereInput = {
     name: name ? { contains: name, mode: 'insensitive' } : undefined,
     price: price ? { lte: price } : undefined,
-    status: status ?? undefined, // admin có thể xem mọi trạng thái
+    status: status ?? undefined,
   };
 
   const orderByArray: Prisma.Enumerable<Prisma.PackageOrderByWithRelationInput> = [];
