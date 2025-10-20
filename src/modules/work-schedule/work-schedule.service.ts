@@ -46,6 +46,7 @@ export class WorkScheduleService {
     }
 
     const { employeeId, shiftId, startDate, endDate, repeatDays } = createCyclicDto;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     const errors: Record<string, string> = {};
 
     // --- Validate employeeId ---
@@ -53,7 +54,6 @@ export class WorkScheduleService {
     if (!employeeId || employeeId.trim() === '') {
       errors.employeeId = 'Employee ID is required and cannot be empty';
     } else {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(employeeId)) {
         errors.employeeId = 'Employee ID must be a valid UUID';
       } else {
@@ -77,7 +77,6 @@ export class WorkScheduleService {
     if (!shiftId || shiftId.trim() === '') {
       errors.shiftId = 'Shift ID is required and cannot be empty';
     } else {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(shiftId)) {
         errors.shiftId = 'Shift ID must be a valid UUID';
       } else {

@@ -18,16 +18,49 @@ import { timeStringToDate, dateToTimeString } from 'src/common/time/time.util';
 export class ShiftService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  private validateShiftTimes(startTimeStr: string, endTimeStr: string): string | null {
-    const startTime = timeStringToDate(startTimeStr);
-    const endTime = timeStringToDate(endTimeStr);
+  private validateTimes(startTimeStr: string, endTimeStr: string): string | null {
+    // --- Check format ---
 
-    if (startTime.getTime() === endTime.getTime()) {
-      return 'Start time and end time cannot be the same';
+    // --- Convert to Date ---
+    const start = timeStringToDate(startTimeStr);
+    const end = timeStringToDate(endTimeStr);
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return 'Invalid time value';
     }
 
-    // start < end -> normal shift → valid
-    // start > end -> overnight shift → valid
+    // --- Calculate duration ---
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    let durationMs =
+      end.getTime() >= start.getTime()
+        ? end.getTime() - start.getTime()
+        : end.getTime() + oneDayMs - start.getTime();
+
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    const startHour = start.getUTCHours();
+    const endHour = end.getUTCHours();
+
+    // --- Validate logic ---
+    if (start.getTime() === end.getTime()) {
+      return 'Start time and end time cannot be the same';
+    }
+    if (durationHours < 1) {
+      return 'Shift duration must be at least 1 hour';
+    }
+    if (durationHours > 16) {
+      return 'Shift duration cannot exceed 16 hours';
+    }
+
+    // --- Overnight case ---
+    if (end.getTime() < start.getTime()) {
+      const isEveningStart = startHour >= 17 && startHour <= 23;
+      const isMorningEnd = endHour >= 0 && endHour <= 12;
+      if (!isEveningStart || !isMorningEnd) {
+        return 'Overnight shifts must start in the evening (≥17:00) and end in the morning (≤12:00)';
+      }
+    }
+
     return null;
   }
 
@@ -37,7 +70,7 @@ export class ShiftService {
     const errors: Record<string, string> = {};
 
     // --- Validate start/end time logic (overnight check) ---
-    const timeError = this.validateShiftTimes(shift.startTime, shift.endTime);
+    const timeError = this.validateTimes(shift.startTime, shift.endTime);
     if (timeError) errors['timeRange'] = timeError;
 
     // --- Check if service center exists ---
@@ -243,13 +276,13 @@ export class ShiftService {
     // --- Validate times ---
     let finalStartTime = existing.startTime;
     let finalEndTime = existing.endTime;
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
 
     if (update.startTime !== undefined) {
       if (!update.startTime || update.startTime.trim() === '') {
         errors.startTime = 'Start time can not be empty';
       } else {
         // Validate time format HH:MM:SS
-        const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
         if (!timeRegex.test(update.startTime)) {
           errors.startTime = 'Start time must be in format HH:MM:SS';
         } else {
@@ -267,7 +300,6 @@ export class ShiftService {
       if (!update.endTime || update.endTime.trim() === '') {
         errors.endTime = 'End time can not be empty';
       } else {
-        const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
         if (!timeRegex.test(update.endTime)) {
           errors.endTime = 'End time must be in format HH:MM:SS';
         } else {
@@ -283,7 +315,7 @@ export class ShiftService {
 
     // Validate time range if both times are valid
     if (!errors.startTime && !errors.endTime) {
-      const timeError = this.validateShiftTimes(
+      const timeError = this.validateTimes(
         dateToTimeString(finalStartTime),
         dateToTimeString(finalEndTime)
       );
