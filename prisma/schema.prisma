@@ -312,6 +312,7 @@ model Package {
   name         String
   price        Float
   discountRate Float         @default(0) @map("discount_rate")
+  description  String?
   status       PackageStatus @default(ACTIVE)
   createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz
