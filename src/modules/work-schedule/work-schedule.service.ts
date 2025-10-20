@@ -310,9 +310,32 @@ export class WorkScheduleService {
       where.date = { lte: new Date(filter.dateTo) };
     }
 
-    // Role-based filter
+    if (filter.role) {
+      const whereRole: Prisma.AccountWhereInput = { role: filter.role };
+      where.employee = where.employee || {};
+      where.employee.account = whereRole;
+    }
+
+    // --- Filter theo search ---
+    if (filter.search) {
+      const search = filter.search.trim();
+      const searchFilter: Prisma.WorkScheduleWhereInput[] = [
+        {
+          AND: [
+            { employee: { firstName: { contains: search.split(' ')[0], mode: 'insensitive' } } },
+            {
+              employee: { lastName: { contains: search.split(' ')[1] || '', mode: 'insensitive' } },
+            },
+          ],
+        },
+        { employee: { account: { email: { contains: search, mode: 'insensitive' } } } },
+      ];
+      where.OR = where.OR ? [...where.OR, ...searchFilter] : searchFilter;
+    }
+
+    // --- Role-based filter STAFF/TECHNICIAN to own schedules only ---
     if ((userRole === AccountRole.STAFF || userRole === AccountRole.TECHNICIAN) && employeeId) {
-      where.OR = [
+      const roleRestriction: Prisma.WorkScheduleWhereInput[] = [
         { employeeId },
         {
           shift: {
@@ -327,6 +350,7 @@ export class WorkScheduleService {
           },
         },
       ];
+      where.OR = where.OR ? [...where.OR, ...roleRestriction] : roleRestriction;
     }
 
     const orderByClause: Prisma.WorkScheduleOrderByWithRelationInput = {};
