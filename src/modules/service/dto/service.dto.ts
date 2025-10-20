@@ -43,20 +43,18 @@ export class ServiceDto {
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   updatedAt: Date;
 
-  // Quan hệ (nếu bạn muốn expose)
-  // Service có nhiều bookingDetails, packageDetails, serviceParts
-  // Nếu bạn muốn lazy load hay join DTO thì để đây, còn không có thể exclude
-  @IsOptional()
-  @Expose()
-  bookingDetails?: any[]; // TODO: define BookingDetailDTO nếu cần
 
   @IsOptional()
   @Expose()
-  packageDetails?: PackageDetailDto[]; // TODO: define PackageDetailDTO nếu cần
+  bookingDetails?: any[];
 
   @IsOptional()
   @Expose()
-  serviceParts?: ServicePartDto[]; // TODO: define ServicePartDTO nếu cần
+  packageDetails?: PackageDetailDto[];
+
+  @IsOptional()
+  @Expose()
+  serviceParts?: ServicePartDto[];
 
   @ApiProperty({
     type: () => [PartDto],
@@ -64,14 +62,17 @@ export class ServiceDto {
   })
   @Expose()
   @Type(() => PartDto)
-  parts: PartDto[];
+  parts?: PartDto[];
 
-  @ApiProperty({ description: 'Final price = price + sum(parts.price)' })
   @Expose()
-  @Transform(({ obj }) => {
-    const parts: PartDto[] = obj.parts || [];
+@Transform(({ obj }) => {
+  if (obj && typeof obj.finalPrice === 'number') return obj.finalPrice;
+  const parts = obj?.parts || [];
+  if (Array.isArray(parts) && parts.length > 0) {
     const partsTotal = parts.reduce((sum, part) => sum + (part.price || 0), 0);
     return (obj.price || 0) + partsTotal;
-  })
-  finalPrice: number;
+  }
+  return obj?.price ?? 0;
+})
+finalPrice: number;
 }
