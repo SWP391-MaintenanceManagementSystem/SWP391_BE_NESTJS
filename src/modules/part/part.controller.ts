@@ -50,7 +50,6 @@ export class PartController {
     };
   }
 
-
   @Get(':id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
@@ -65,14 +64,10 @@ export class PartController {
     return this.partService.updatePartInfo(id, updatePartDto);
   }
 
-
   @Patch(':id/refill')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  refill(
-    @Param('id') id: string,
-    @Body('refillAmount') refillAmount: number,
-  ) {
+  refill(@Param('id') id: string, @Body('refillAmount') refillAmount: number) {
     return this.partService.refillOutOfStockPart(id, refillAmount);
   }
 

@@ -7,7 +7,6 @@ import { BookingAssignmentsDTO } from './dto/booking-assignments.dto';
 import { CustomerBookingAssignmentsDTO } from './dto/customer-booking-assigments.dto';
 import { StaffBookingAssignmentDTO } from './dto/staff-booking-assignments.dto';
 import { JWT_Payload } from 'src/common/types';
-import { TechnicianBookingAssignmentDTO } from './dto/technician-booking-assignments.dto';
 
 @Injectable()
 export class BookingAssignmentService {
@@ -225,44 +224,6 @@ export class BookingAssignmentService {
     }));
 
     return plainToInstance(StaffBookingAssignmentDTO, staffAssignments);
-  }
-
-  async getAssignmentsForTechnician(bookingId: string, technicianId: string) {
-    const assignments = await this.prismaService.bookingAssignment.findMany({
-      where: {
-        bookingId,
-        employeeId: technicianId,
-        booking: {
-          status: {
-            notIn: ['CANCELLED', 'COMPLETED'],
-          },
-        },
-      },
-      include: {
-        employee: { include: { account: true } },
-        assigner: { include: { account: true } },
-        booking: true,
-      },
-    });
-
-    if (assignments.length === 0) {
-      throw new BadRequestException('No active assignments found for this booking.');
-    }
-
-    const technicianAssignments = assignments.map(a => ({
-      booking: a.booking,
-      employee: {
-        id: a.employee.accountId,
-        firstName: a.employee.firstName,
-        lastName: a.employee.lastName,
-        email: a.employee.account.email,
-        phoneNumber: a.employee.account.phone,
-        avatar: a.employee.account.avatar,
-      },
-      assignedBy: a.assigner ? `${a.assigner.firstName} ${a.assigner.lastName}` : null,
-    }));
-
-    return plainToInstance(TechnicianBookingAssignmentDTO, technicianAssignments);
   }
 
   async deleteAssignment(assignmentId: string, staff: JWT_Payload) {

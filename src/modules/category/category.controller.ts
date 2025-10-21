@@ -43,8 +43,8 @@ export class CategoryController {
     const categories = await this.categoryService.getCategoryByName(name);
     return {
       message: 'Successfully',
-      data: categories
-    }
+      data: categories,
+    };
   }
 
   @Patch(':id')

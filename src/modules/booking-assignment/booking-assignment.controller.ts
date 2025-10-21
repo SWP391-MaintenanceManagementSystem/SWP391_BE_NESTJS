@@ -38,13 +38,6 @@ export class BookingAssignmentController {
           data: customerAssignments,
           message: 'Assignments retrieved successfully',
         };
-      case 'TECHNICIAN':
-        const technicianAssignments =
-          await this.bookingAssignmentService.getAssignmentsForTechnician(bookingId, user.sub);
-        return {
-          data: technicianAssignments,
-          message: 'Assignments retrieved successfully',
-        };
       case 'STAFF':
         const staffAssignments = await this.bookingAssignmentService.getAssignmentsForStaff(
           bookingId,

@@ -69,69 +69,60 @@ export class ServiceService {
   async findAllForCustomer(
     query: ServiceQueryCustomerDTO
   ): Promise<PaginationResponse<ServiceDto>> {
-  const { page = 1, pageSize = 10 } = query;
+    const { page = 1, pageSize = 10 } = query;
 
-  const where: Prisma.ServiceWhereInput = {
-    name: query.name ? { contains: query.name, mode: 'insensitive' } : undefined,
-    price:
-      query.minPrice || query.maxPrice
-        ? {
-            gte: query.minPrice ?? undefined,
-            lte: query.maxPrice ?? undefined,
-          }
-        : undefined,
-    status: ServiceStatus.ACTIVE,
-  };
+    const where: Prisma.ServiceWhereInput = {
+      name: query.name ? { contains: query.name, mode: 'insensitive' } : undefined,
+      price:
+        query.minPrice || query.maxPrice
+          ? {
+              gte: query.minPrice ?? undefined,
+              lte: query.maxPrice ?? undefined,
+            }
+          : undefined,
+      status: ServiceStatus.ACTIVE,
+    };
 
-  const [services, total] = await this.prisma.$transaction([
-    this.prisma.service.findMany({
-      where,
-      include: {
-        ServicePart: {
-          include: {
-            part: true,
+    const [services, total] = await this.prisma.$transaction([
+      this.prisma.service.findMany({
+        where,
+        include: {
+          ServicePart: {
+            include: {
+              part: true,
+            },
           },
         },
-      },
-      orderBy: { [query.sortBy ?? 'createdAt']: query.orderBy ?? 'asc' },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-    this.prisma.service.count({ where }),
-  ]);
+        orderBy: { [query.sortBy ?? 'createdAt']: query.orderBy ?? 'asc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.service.count({ where }),
+    ]);
 
+    const processed = services.map(s => {
+      const partsTotal = s.ServicePart.reduce((sum, sp) => sum + (sp.part?.price ?? 0), 0);
+      const finalPrice = s.price + partsTotal;
 
-
-
-
-  const processed = services.map((s) => {
-    const partsTotal = s.ServicePart.reduce(
-      (sum, sp) => sum + (sp.part?.price ?? 0),
-      0,
-    );
-    const finalPrice = s.price + partsTotal;
-
+      return {
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        price: s.price,
+        status: s.status,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        finalPrice,
+      };
+    });
 
     return {
-      id: s.id,
-      name: s.name,
-      description: s.description,
-      price: s.price,
-      status: s.status,
-      createdAt: s.createdAt,
-      updatedAt: s.updatedAt,
-      finalPrice,
+      data: processed,
+      page,
+      pageSize,
+      total,
+      totalPages: Math.ceil(total / pageSize),
     };
-  });
-
-  return {
-    data: processed,
-    page,
-    pageSize,
-    total,
-    totalPages: Math.ceil(total / pageSize),
-  };
-
   }
 
   async create(createServiceDto: CreateServiceDto): Promise<ServiceDto> {
@@ -245,52 +236,49 @@ export class ServiceService {
   }
 
   async updateService(id: string, updateServiceDto: UpdateServiceDto): Promise<ServiceDto> {
-  const existingService = await this.prisma.service.findUnique({
-    where: { id },
-    include: { ServicePart: true },
-  });
+    const existingService = await this.prisma.service.findUnique({
+      where: { id },
+      include: { ServicePart: true },
+    });
 
-  if (!existingService) {
-    throw new NotFoundException(`Service with ID ${id} not found`);
-  }
+    if (!existingService) {
+      throw new NotFoundException(`Service with ID ${id} not found`);
+    }
 
+    const { partIds, ...rest } = updateServiceDto;
 
-  const { partIds, ...rest } = updateServiceDto;
+    const updatedService = await this.prisma.service.update({
+      where: { id },
+      data: {
+        ...rest,
 
-  const updatedService = await this.prisma.service.update({
-    where: { id },
-    data: {
-      ...rest,
-
-
-      ...(partIds && {
-        ServicePart: {
-          deleteMany: {},
-          create: partIds.map((partId) => ({
-            part: { connect: { id: partId } },
-            quantity: 1,
-          })),
-        },
-      }),
-    },
-    include: {
-      ServicePart: {
-        include: { part: true },
+        ...(partIds && {
+          ServicePart: {
+            deleteMany: {},
+            create: partIds.map(partId => ({
+              part: { connect: { id: partId } },
+              quantity: 1,
+            })),
+          },
+        }),
       },
-    },
-  });
+      include: {
+        ServicePart: {
+          include: { part: true },
+        },
+      },
+    });
 
+    const filteredParts = updatedService.ServicePart.map(sp => sp.part).filter(
+      part => part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+    );
 
-  const filteredParts = updatedService.ServicePart.map((sp) => sp.part).filter(
-    (part) => part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK',
-  );
-
-  return plainToInstance(
-    ServiceDto,
-    { ...updatedService, parts: filteredParts },
-    { excludeExtraneousValues: true },
-  );
-}
+    return plainToInstance(
+      ServiceDto,
+      { ...updatedService, parts: filteredParts },
+      { excludeExtraneousValues: true }
+    );
+  }
 
   async deleteService(id: string) {
     const existingService = await this.prisma.service.findUnique({
@@ -306,20 +294,19 @@ export class ServiceService {
   }
 
   async getManyByIds(ids: string[]) {
-  const services = await this.prisma.service.findMany({
-    where: { id: { in: ids } },
-    include: {
-      ServicePart: {
-        include: {
-          part: true,
+    const services = await this.prisma.service.findMany({
+      where: { id: { in: ids } },
+      include: {
+        ServicePart: {
+          include: {
+            part: true,
+          },
         },
       },
-    },
-  });
+    });
 
-
-  return plainToInstance(ServiceDto, services, {
-    excludeExtraneousValues: true,
-  });
-}
+    return plainToInstance(ServiceDto, services, {
+      excludeExtraneousValues: true,
+    });
+  }
 }

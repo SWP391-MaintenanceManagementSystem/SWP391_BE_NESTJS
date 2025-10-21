@@ -11,23 +11,23 @@ export class CategoryService {
 
   async createCategory(createCategoryDto: CreateCategoryDto): Promise<CategoryDto> {
     const existingCategory = await this.prisma.category.findFirst({
-    where: { name: {
-      equals: createCategoryDto.name,
-      mode: 'insensitive'
-    } },
-  });
+      where: {
+        name: {
+          equals: createCategoryDto.name,
+          mode: 'insensitive',
+        },
+      },
+    });
 
-  if (existingCategory) {
-    throw new BadRequestException(
-      `Category with name ${createCategoryDto.name} already exists`
-    );
-  }
+    if (existingCategory) {
+      throw new BadRequestException(`Category with name ${createCategoryDto.name} already exists`);
+    }
 
-  const category = await this.prisma.category.create({
-    data: createCategoryDto,
-  });
+    const category = await this.prisma.category.create({
+      data: createCategoryDto,
+    });
 
-  return plainToInstance(CategoryDto, category);
+    return plainToInstance(CategoryDto, category);
   }
 
   async getAllCategory(): Promise<CategoryDto[]> {
@@ -62,78 +62,70 @@ export class CategoryService {
   }
 
   async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto): Promise<CategoryDto> {
-  const { name} = updateCategoryDto;
+    const { name } = updateCategoryDto;
 
-
-  const existingCategory = await this.prisma.category.findUnique({
-    where: { id },
-  });
-
-  if (!existingCategory) {
-    throw new NotFoundException(`Category with ID ${id} not found`);
-  }
-
-
-  if (name && name.trim().toLowerCase() !== existingCategory.name.toLowerCase()) {
-    const duplicate = await this.prisma.category.findFirst({
-      where: {
-        name: {
-          equals: name.trim(),
-          mode: 'insensitive',
-        },
-        NOT: { id },
-      },
-    });
-
-    if (duplicate) {
-      throw new BadRequestException(`Category ${name} already exists.`);
-    }
-  }
-
-
-  const updatedCategory = await this.prisma.category.update({
-    where: { id },
-    data: {
-      name: name?.trim() ?? existingCategory.name,
-    },
-  });
-
-
-  return plainToInstance(CategoryDto, updatedCategory, {
-    excludeExtraneousValues: true,
-  });
-}
-
-  async removeCategory(id: string) {
-
-  const category = await this.prisma.category.findUnique({
-    where: { id },
-    include: { parts: true },
-  });
-
-  if (!category) {
-    throw new NotFoundException(`Category with ID ${id} not found`);
-  }
-
-  try {
-
-    await this.prisma.category.delete({
+    const existingCategory = await this.prisma.category.findUnique({
       where: { id },
     });
 
-    return {
-      message: `Category '${category.name}' and related parts deleted successfully`,
-      data: null,
-    };
-  } catch (error) {
-
-    if (error.code === 'P2003') {
-
-      throw new BadRequestException(
-        `Cannot delete category '${category.name}' because it has related parts.`,
-      );
+    if (!existingCategory) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
     }
-    throw new BadRequestException(`Failed to delete category: ${error.message}`);
+
+    if (name && name.trim().toLowerCase() !== existingCategory.name.toLowerCase()) {
+      const duplicate = await this.prisma.category.findFirst({
+        where: {
+          name: {
+            equals: name.trim(),
+            mode: 'insensitive',
+          },
+          NOT: { id },
+        },
+      });
+
+      if (duplicate) {
+        throw new BadRequestException(`Category ${name} already exists.`);
+      }
+    }
+
+    const updatedCategory = await this.prisma.category.update({
+      where: { id },
+      data: {
+        name: name?.trim() ?? existingCategory.name,
+      },
+    });
+
+    return plainToInstance(CategoryDto, updatedCategory, {
+      excludeExtraneousValues: true,
+    });
   }
-}
+
+  async removeCategory(id: string) {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: { parts: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    try {
+      await this.prisma.category.delete({
+        where: { id },
+      });
+
+      return {
+        message: `Category '${category.name}' and related parts deleted successfully`,
+        data: null,
+      };
+    } catch (error) {
+      if (error.code === 'P2003') {
+        throw new BadRequestException(
+          `Cannot delete category '${category.name}' because it has related parts.`
+        );
+      }
+      throw new BadRequestException(`Failed to delete category: ${error.message}`);
+    }
+  }
 }
