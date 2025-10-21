@@ -8,7 +8,7 @@ import { plainToInstance } from 'class-transformer';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { hashPassword } from 'src/utils';
-import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { AccountStatus } from '@prisma/client';
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
@@ -37,7 +37,7 @@ export class TechnicianService {
   }
 
   async getTechnicians(
-    filter: EmployeeQueryDTO
+    filter: EmployeeQueryWithPaginationDTO
   ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
     return this.employeeService.getEmployees(filter, AccountRole.TECHNICIAN);
   }

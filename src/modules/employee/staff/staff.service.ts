@@ -10,7 +10,7 @@ import { StaffDTO } from './dto/staff.dto';
 import { plainToClass, plainToInstance } from 'class-transformer';
 import { hashPassword } from 'src/utils';
 import { ConfigService } from '@nestjs/config';
-import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
 import { EmployeeService } from '../employee.service';
 import { CertificateService } from '../certificate/certificate.service';
@@ -25,7 +25,9 @@ export class StaffService {
     private readonly certificateService: CertificateService
   ) {}
 
-  async getStaffs(filter: EmployeeQueryDTO): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
+  async getStaffs(
+    filter: EmployeeQueryWithPaginationDTO
+  ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
     return this.employeeService.getEmployees(filter, AccountRole.STAFF);
   }
 
