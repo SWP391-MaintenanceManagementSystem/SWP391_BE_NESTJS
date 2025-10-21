@@ -667,16 +667,20 @@ export class EmployeeService {
     }
 
     // Get default password from config
-    const defaultPassword =
-      this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD') ||
-      this.configService.get<string>('DEFAULT_STAFF_PASSWORD');
+    let defaultPassword: string | undefined;
+
+    if (role === AccountRole.TECHNICIAN) {
+    defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
     if (!defaultPassword) {
-      if (role === AccountRole.TECHNICIAN) {
-        throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
-      }
-      if (role === AccountRole.STAFF) {
-        throw new Error('DEFAULT_STAFF_PASSWORD is not set in environment variables');
-      }
+      throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
+    }
+    } else if (role === AccountRole.STAFF) {
+      defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD');
+    if (!defaultPassword) {
+      throw new Error('DEFAULT_STAFF_PASSWORD is not set in environment variables');
+    }
+    } else {
+      throw new Error(`Unsupported role: ${role}`);
     }
 
     // Create account and employee in transaction
