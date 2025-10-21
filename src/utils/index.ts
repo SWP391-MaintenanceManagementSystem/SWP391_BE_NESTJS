@@ -54,6 +54,24 @@ const vnToUtcDate = (date: Date) => {
   return utcDate;
 };
 
+const dateToString = (date: Date): string => {
+  return date.toISOString().split('T')[0]; // YYYY-MM-DD
+};
+
+const stringToDate = (dateStr: string): Date => {
+  const d = new Date(dateStr);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
+
+const timeStringToDate = (time: string): Date => {
+  return new Date(`1970-01-01T${time}Z`);
+};
+
+const dateToTimeString = (date: Date): string => {
+  return date.toISOString().substring(11, 19);
+};
+
 export {
   hashPassword,
   comparePassword,
@@ -62,4 +80,8 @@ export {
   getVNDayOfWeek,
   utcToVNDate,
   vnToUtcDate,
+  dateToString,
+  stringToDate,
+  timeStringToDate,
+  dateToTimeString,
 };
