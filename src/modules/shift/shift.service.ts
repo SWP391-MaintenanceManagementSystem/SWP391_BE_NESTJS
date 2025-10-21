@@ -10,7 +10,7 @@ import { UpdateShiftDTO } from './dto/update-shift.dto';
 import ShiftDTO from './dto/shift.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
-import { ShiftQueryDTO } from './dto/shift-query.dto';
+import { ShiftQueryDTO, ShiftWithCenterQueryDTO } from './dto/shift-query.dto';
 import { ShiftStatus, Prisma } from '@prisma/client';
 import { timeStringToDate, dateToTimeString } from 'src/common/time/time.util';
 import { utcToVNDate, vnToUtcDate } from 'src/utils';
@@ -20,8 +20,6 @@ export class ShiftService {
   constructor(private readonly prismaService: PrismaService) {}
 
   private validateTimes(startTimeStr: string, endTimeStr: string): string | null {
-    // --- Check format ---
-
     // --- Convert to Date ---
     const start = vnToUtcDate(timeStringToDate(startTimeStr));
     const end = vnToUtcDate(timeStringToDate(endTimeStr));
@@ -165,7 +163,9 @@ export class ShiftService {
     );
   }
 
-  async getShifts(filter: ShiftQueryDTO): Promise<PaginationResponse<ShiftDTO>> {
+  async getShiftsWithCenters(
+    filter: ShiftWithCenterQueryDTO
+  ): Promise<PaginationResponse<ShiftDTO>> {
     const {
       page = 1,
       pageSize = 10,
@@ -234,6 +234,26 @@ export class ShiftService {
       total,
       totalPages: Math.ceil(total / pageSize),
     };
+  }
+
+  async getShifts(filter: ShiftQueryDTO): Promise<{ data: ShiftDTO[] }> {
+    const where: Prisma.ShiftWhereInput = {
+      ...(filter.id && { id: { contains: filter.id, mode: 'insensitive' } }),
+      ...(filter.centerId && { centerId: { contains: filter.centerId, mode: 'insensitive' } }),
+      ...(filter.status && { status: filter.status }),
+      ...(filter.name && { name: { contains: filter.name, mode: 'insensitive' } }),
+      ...(filter.maximumSlot !== undefined && { maximumSlot: filter.maximumSlot }),
+    };
+    const shifts = await this.prismaService.shift.findMany({
+      where,
+      orderBy: filter.sortBy ? { [filter.sortBy]: filter.orderBy ?? 'asc' } : { createdAt: 'asc' },
+    });
+    const formatted = shifts.map(s => ({
+      ...s,
+      startTime: dateToTimeString(utcToVNDate(s.startTime)),
+      endTime: dateToTimeString(utcToVNDate(s.endTime)),
+    }));
+    return { data: plainToInstance(ShiftDTO, formatted, { excludeExtraneousValues: true }) };
   }
 
   async updateShift(id: string, update: UpdateShiftDTO): Promise<ShiftDTO> {
