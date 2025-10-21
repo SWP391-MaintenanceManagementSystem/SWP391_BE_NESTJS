@@ -68,9 +68,7 @@ export class ShiftQueryDTO {
   @IsOptional()
   @IsString()
   sortBy?: string;
-}
 
-export class ShiftWithCenterQueryDTO extends ShiftQueryDTO {
   @ApiProperty({ required: false, description: 'Filter by page number', example: 1 })
   @IsOptional()
   @IsNumber()
