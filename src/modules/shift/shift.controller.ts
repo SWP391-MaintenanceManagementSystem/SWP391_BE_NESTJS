@@ -27,7 +27,8 @@ export class ShiftController {
   @Get()
   @Roles(AccountRole.ADMIN)
   async getShifts(@Query() query: ShiftQueryDTO) {
-    const { data, page, pageSize, total, totalPages } = await this.shiftService.getShifts(query);
+    const { data, page, pageSize, total, totalPages } =
+      await this.shiftService.getShiftsWithCenters(query);
 
     return {
       message: 'Shifts retrieved successfully',
@@ -36,6 +37,16 @@ export class ShiftController {
       pageSize,
       total,
       totalPages,
+    };
+  }
+
+  @Get('all')
+  @Roles(AccountRole.ADMIN)
+  async getAllShifts(@Query() query: ShiftQueryDTO) {
+    const { data } = await this.shiftService.getShifts(query);
+    return {
+      message: 'All shifts retrieved successfully',
+      data,
     };
   }
 
