@@ -42,8 +42,8 @@ export class ShiftController {
 
   @Get('all')
   @Roles(AccountRole.ADMIN)
-  async getAllShifts(@Query() query: ShiftQueryDTO) {
-    const { data } = await this.shiftService.getShifts(query);
+  async getAllShifts() {
+    const { data } = await this.shiftService.getShifts();
     return {
       message: 'All shifts retrieved successfully',
       data,
