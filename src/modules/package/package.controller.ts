@@ -35,6 +35,22 @@ export class PackageController {
     };
   }
 
+  @Get('/admin')
+  @Roles(AccountRole.ADMIN, AccountRole.CUSTOMER)
+  @ApiBearerAuth('jwt-auth')
+  async getAllPakagesForAdmin(@Query() query: PakageQueryDTO) {
+    const { data, page, pageSize, total, totalPages } =
+      await this.packageService.getAllPackagesForAdmin(query);
+    return {
+      message: 'Successfully',
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages,
+    };
+  }
+
   @Get(':id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
