@@ -5,7 +5,7 @@ import { CreateTechnicianDTO } from './dto/create-technician.dto';
 import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
-import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
@@ -28,7 +28,7 @@ export class TechnicianController {
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
-  async getTechnicians(@Query() query: EmployeeQueryDTO) {
+  async getTechnicians(@Query() query: EmployeeQueryWithPaginationDTO) {
     const { data, page, pageSize, total, totalPages } =
       await this.technicianService.getTechnicians(query);
     return {
