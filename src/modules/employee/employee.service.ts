@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { Prisma, AccountRole } from '@prisma/client';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { EmployeeQueryDTO } from './dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from './dto/employee-query.dto';
 import { EmployeeWithCenterDTO } from './dto/employee-with-center.dto';
 import { plainToInstance } from 'class-transformer';
 import { UpdateEmployeeWithCenterDTO } from './dto/update-employee-with-center.dto';
@@ -24,7 +24,7 @@ export class EmployeeService {
   ) {}
 
   async getEmployees(
-    filter: EmployeeQueryDTO,
+    filter: EmployeeQueryWithPaginationDTO,
     role: AccountRole
   ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
     let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = filter;
@@ -804,6 +804,183 @@ export class EmployeeService {
     };
 
     return plainToInstance(EmployeeWithCenterDTO, transformed, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async getAllEmployees(filter: EmployeeQueryDTO): Promise<EmployeeWithCenterDTO[]> {
+    let { orderBy = 'asc', sortBy = 'createdAt' } = filter;
+
+    const where: Prisma.AccountWhereInput = {
+      role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] },
+    };
+
+    // Account level filters
+    if (filter.email) where.email = { contains: filter.email, mode: 'insensitive' };
+    if (filter.phone) where.phone = { contains: filter.phone, mode: 'insensitive' };
+    if (filter.status) where.status = filter.status;
+
+    // Employee level filters
+    const employeeWhere: Prisma.EmployeeWhereInput = {};
+    const employeeConditions: any[] = [];
+
+    if (filter.employeeId) employeeWhere.accountId = filter.employeeId;
+    if (filter.firstName)
+      employeeWhere.firstName = { contains: filter.firstName, mode: 'insensitive' };
+    if (filter.lastName)
+      employeeWhere.lastName = { contains: filter.lastName, mode: 'insensitive' };
+
+    if (filter.search) {
+      const search = filter.search.trim();
+      const searchConditions: Prisma.AccountWhereInput[] = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { employee: { firstName: { contains: search, mode: 'insensitive' } } },
+        { employee: { lastName: { contains: search, mode: 'insensitive' } } },
+        {
+          employee: {
+            AND: [
+              { firstName: { contains: search.split(' ')[0] || '', mode: 'insensitive' } },
+              { lastName: { contains: search.split(' ')[1] || '', mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+
+      where.OR = searchConditions;
+    }
+
+    // WorkCenter assignment status filter
+    if (filter.hasWorkCenter !== undefined) {
+      if (filter.hasWorkCenter) {
+        employeeConditions.push({
+          workCenters: {
+            some: {
+              OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+            },
+          },
+        });
+      } else {
+        employeeConditions.push({
+          workCenters: { none: {} },
+        });
+      }
+    }
+
+    // Specific service center filters
+    if (filter.centerId || filter.name) {
+      const workCenterConditions: Prisma.WorkCenterWhereInput = {};
+      if (filter.centerId) workCenterConditions.centerId = filter.centerId;
+      if (filter.name)
+        workCenterConditions.serviceCenter = {
+          name: { contains: filter.name, mode: 'insensitive' },
+        };
+
+      workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
+
+      if (filter.hasWorkCenter !== false) {
+        employeeConditions.push({
+          workCenters: { some: workCenterConditions },
+        });
+      }
+    }
+
+    if (employeeConditions.length > 0) {
+      employeeWhere.AND = employeeConditions;
+    }
+
+    where.employee = employeeWhere;
+
+    const data = await this.prisma.account.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        avatar: true,
+        avatarPublicId: true,
+        providerId: true,
+        createdAt: true,
+        updatedAt: true,
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            updatedAt: true,
+            certificates: {
+              select: {
+                name: true,
+                issuedAt: true,
+                expiresAt: true,
+              },
+            },
+            workCenters: {
+              where: {
+                OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+              },
+              select: {
+                id: true,
+                startDate: true,
+                endDate: true,
+                serviceCenter: {
+                  select: {
+                    id: true,
+                    name: true,
+                    address: true,
+                    status: true,
+                  },
+                },
+              },
+              orderBy: { startDate: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: { [sortBy]: orderBy },
+    });
+
+    const transformedData = data.map(emp => ({
+      id: emp.id,
+      email: emp.email,
+      phone: emp.phone,
+      role: emp.role,
+      status: emp.status,
+      avatar: emp.avatar,
+      avatarPublicId: emp.avatarPublicId,
+      providerId: emp.providerId,
+      createdAt: emp.createdAt,
+      updatedAt: emp.updatedAt,
+      profile: emp.employee
+        ? {
+            firstName: emp.employee.firstName,
+            lastName: emp.employee.lastName,
+            createdAt: emp.employee.createdAt,
+            updatedAt: emp.employee.updatedAt,
+            certificates:
+              emp.employee?.certificates?.map(c => ({
+                name: c.name,
+                issuedAt: c.issuedAt,
+                expiresAt: c.expiresAt,
+              })) ?? [],
+          }
+        : null,
+      workCenter: emp.employee?.workCenters?.[0]?.serviceCenter
+        ? {
+            id: emp.employee.workCenters[0].serviceCenter.id,
+            name: emp.employee.workCenters[0].serviceCenter.name,
+            startDate: emp.employee.workCenters[0].startDate,
+            endDate: emp.employee.workCenters[0].endDate,
+          }
+        : {
+            id: null,
+            name: 'Not assigned',
+          },
+    }));
+
+    return plainToInstance(EmployeeWithCenterDTO, transformedData, {
       excludeExtraneousValues: true,
     });
   }
