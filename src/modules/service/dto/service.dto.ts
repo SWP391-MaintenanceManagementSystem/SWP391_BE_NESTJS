@@ -43,7 +43,6 @@ export class ServiceDto {
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   updatedAt: Date;
 
-
   @IsOptional()
   @Expose()
   bookingDetails?: any[];
@@ -65,14 +64,14 @@ export class ServiceDto {
   parts?: PartDto[];
 
   @Expose()
-@Transform(({ obj }) => {
-  if (obj && typeof obj.finalPrice === 'number') return obj.finalPrice;
-  const parts = obj?.parts || [];
-  if (Array.isArray(parts) && parts.length > 0) {
-    const partsTotal = parts.reduce((sum, part) => sum + (part.price || 0), 0);
-    return (obj.price || 0) + partsTotal;
-  }
-  return obj?.price ?? 0;
-})
-finalPrice: number;
+  @Transform(({ obj }) => {
+    if (obj && typeof obj.finalPrice === 'number') return obj.finalPrice;
+    const parts = obj?.parts || [];
+    if (Array.isArray(parts) && parts.length > 0) {
+      const partsTotal = parts.reduce((sum, part) => sum + (part.price || 0), 0);
+      return (obj.price || 0) + partsTotal;
+    }
+    return obj?.price ?? 0;
+  })
+  finalPrice: number;
 }

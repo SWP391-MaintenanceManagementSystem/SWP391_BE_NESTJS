@@ -6,7 +6,7 @@ import { BookingDTO } from './dto/booking.dto';
 import { BookingWithDetailsDTO } from './dto/booking-with-details.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingQueryDTO } from './dto/booking-query.dto';
-import { AccountRole, Booking, BookingStatus, Package, Prisma, Service } from '@prisma/client';
+import { AccountRole, BookingStatus, Package, Prisma, Service } from '@prisma/client';
 import * as dateFns from 'date-fns';
 import { buildBookingSearch } from 'src/common/search/search.util';
 import { buildBookingOrderBy } from 'src/common/sort/sort.util';
@@ -152,6 +152,9 @@ export class BookingService {
         serviceCenter: true,
         shift: true,
         bookingDetails: true,
+        bookingAssignments: {
+          include: { employee: true },
+        },
       },
     });
 
@@ -186,11 +189,17 @@ export class BookingService {
         }
       : null;
 
+    const formattedEmployees = booking.bookingAssignments.map(ba => ({
+      firstName: ba.employee.firstName,
+      lastName: ba.employee.lastName,
+    }));
+
     const modifiedBooking = {
       ...rest,
       account,
       vehicle: formattedVehicle,
       serviceCenter: formattedServiceCenter,
+      employees: formattedEmployees,
     };
 
     return plainToInstance(BookingWithDetailsDTO, modifiedBooking, {

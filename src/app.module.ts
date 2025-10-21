@@ -79,7 +79,6 @@ import { BookingAssignmentModule } from './modules/booking-assignment/booking-as
     EmailModule,
     RedisModule,
     CustomerModule,
-    TechnicianModule,
     CertificateModule,
     VehicleModule,
     ServiceModule,
@@ -101,6 +100,7 @@ import { BookingAssignmentModule } from './modules/booking-assignment/booking-as
     BookingModule,
     BookingDetailModule,
     BookingAssignmentModule,
+    TechnicianModule,
   ],
   controllers: [AppController],
   providers: [

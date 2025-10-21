@@ -5,5 +5,6 @@ import { BookingAssignmentController } from './booking-assignment.controller';
 @Module({
   controllers: [BookingAssignmentController],
   providers: [BookingAssignmentService],
+  exports: [BookingAssignmentService],
 })
 export class BookingAssignmentModule {}

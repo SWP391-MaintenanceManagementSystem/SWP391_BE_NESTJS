@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Query, Param, Delete, Post, Patch } from '@nestjs/common';
 import { TechnicianService } from './technician.service';
-import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
 import { CreateTechnicianDTO } from './dto/create-technician.dto';
 import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
@@ -8,12 +8,19 @@ import { AccountRole } from '@prisma/client';
 import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { JWT_Payload } from 'src/common/types';
+import { TechnicianBookingQueryDTO } from 'src/modules/booking/dto/technician-booking-query.dto';
+import { TechnicianBookingService } from 'src/modules/booking/technician-booking.service';
 
 @ApiTags('Technicians')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/technicians')
 export class TechnicianController {
-  constructor(private readonly technicianService: TechnicianService) {}
+  constructor(
+    private readonly technicianService: TechnicianService,
+    private readonly technicianBookingService: TechnicianBookingService
+  ) {}
 
   @Get('/statistics')
   @Roles(AccountRole.ADMIN)
@@ -23,6 +30,24 @@ export class TechnicianController {
       message: 'Get technician statistics successfully',
       data,
       total,
+    };
+  }
+
+  @Get('/bookings')
+  @Roles(AccountRole.TECHNICIAN)
+  async getTechnicianBookings(
+    @Query() query: TechnicianBookingQueryDTO,
+    @CurrentUser() user: JWT_Payload
+  ) {
+    const { data, page, pageSize, total, totalPages } =
+      await this.technicianBookingService.getTechnicianBookings(user.sub, query);
+    return {
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages,
+      message: 'Get technician bookings successfully',
     };
   }
 
