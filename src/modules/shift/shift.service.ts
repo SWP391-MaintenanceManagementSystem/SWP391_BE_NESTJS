@@ -236,11 +236,24 @@ export class ShiftService {
   async getShifts(): Promise<{ data: ShiftDTO[] }> {
     const shifts = await this.prismaService.shift.findMany({
       orderBy: { createdAt: 'asc' },
+      include: {
+        serviceCenter: true,
+      },
     });
     const formatted = shifts.map(s => ({
       ...s,
       startTime: dateToTimeString(utcToVNDate(s.startTime)),
       endTime: dateToTimeString(utcToVNDate(s.endTime)),
+      serviceCenter: s.serviceCenter
+        ? {
+            id: s.serviceCenter.id,
+            name: s.serviceCenter.name,
+            address: s.serviceCenter.address,
+            status: s.serviceCenter.status,
+            createdAt: s.serviceCenter.createdAt,
+            updatedAt: s.serviceCenter.updatedAt,
+          }
+        : undefined,
     }));
     return { data: plainToInstance(ShiftDTO, formatted, { excludeExtraneousValues: true }) };
   }
