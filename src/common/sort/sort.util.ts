@@ -5,6 +5,7 @@ import {
   Order,
   ROLE_SORTABLE_FIELDS,
   VEHICLE_SORTABLE_FIELDS,
+  BOOKING_SORTABLE_FIELDS,
 } from './sort.config';
 
 export function buildAccountOrderBy(
@@ -38,7 +39,7 @@ export function buildBookingOrderBy(
   sortBy: string,
   order: Order
 ): Prisma.BookingOrderByWithRelationInput {
-  const field = VEHICLE_SORTABLE_FIELDS[sortBy];
+  const field = BOOKING_SORTABLE_FIELDS[sortBy];
 
   if (!field) {
     throw new BadRequestException(`Cannot sort by ${sortBy}`);
