@@ -19,7 +19,9 @@ import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
 import { CreateCyclicWorkScheduleDTO } from './dto/create-cyclic-work-schedule.dto';
 import { UpdateCyclicWorkScheduleDTO } from './dto/update-cyclic-work-schedule.dto';
+import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
 import { CreateWorkScheduleDTO } from './dto/create-work-schedule.dto';
+import { create } from 'domain';
 
 @ApiTags('Work Schedules')
 @Controller('api/work-schedules')
@@ -30,15 +32,9 @@ export class WorkScheduleController {
 
   @Post()
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: CreateCyclicWorkScheduleDTO })
-  async createWorkSchedule(
-    @Body() createCyclicDto: CreateCyclicWorkScheduleDTO,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.workScheduleService.createCyclicWorkSchedule(
-      createCyclicDto,
-      user.role
-    );
+  @ApiBody({ type: CreateWorkScheduleDTO })
+  async createWorkSchedule(@Body() createDto: CreateWorkScheduleDTO, @CurrentUser() user: any) {
+    const data = await this.workScheduleService.createWorkSchedule(createDto, user.role);
     return {
       message: 'Work schedules created successfully',
       data,
@@ -72,40 +68,17 @@ export class WorkScheduleController {
     };
   }
 
-  @Patch(':employeeId/:shiftId/:date')
+  @Patch(':id')
   @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: UpdateCyclicWorkScheduleDTO })
+  @ApiBody({ type: UpdateWorkScheduleDTO })
   async updateWorkSchedule(
-    @Param('employeeId', ParseUUIDPipe) employeeId: string,
-    @Param('shiftId', ParseUUIDPipe) shiftId: string,
-    @Param('date') date: string,
-    @Body() updateDto: UpdateCyclicWorkScheduleDTO,
+    @Param('id', ParseUUIDPipe) id: string, // ✅ Changed parameter
+    @Body() updateDto: UpdateWorkScheduleDTO,
     @CurrentUser() user: any
   ) {
-    const data = await this.workScheduleService.updateCyclicWorkSchedule(
-      employeeId,
-      shiftId,
-      date,
-      updateDto,
-      user.role
-    );
+    const data = await this.workScheduleService.updateWorkSchedule(id, updateDto, user.role);
     return {
       message: 'Work schedule updated successfully',
-      data,
-      count: data.length,
-    };
-  }
-
-  @Post('single')
-  @Roles(AccountRole.ADMIN)
-  @ApiBody({ type: CreateWorkScheduleDTO })
-  async createSingleWorkSchedule(
-    @Body() createDto: CreateWorkScheduleDTO,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.workScheduleService.createSingleWorkSchedule(createDto, user.role);
-    return {
-      message: 'Work schedule created successfully',
       data,
     };
   }
