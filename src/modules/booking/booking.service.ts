@@ -3,7 +3,6 @@ import { CreateBookingDTO } from './dto/create-booking.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { BookingDTO } from './dto/booking.dto';
-import { BookingWithDetailsDTO } from './dto/booking-with-details.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingQueryDTO } from './dto/booking-query.dto';
 import { AccountRole, BookingStatus, Package, Prisma, Service } from '@prisma/client';
@@ -138,74 +137,13 @@ export class BookingService {
     };
   }
 
-  async getBookingById(bookingId: string): Promise<BookingWithDetailsDTO | null> {
-    const booking = await this.prismaService.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        customer: {
-          include: { account: true },
-        },
-        vehicle: {
-          include: {
-            vehicleModel: { include: { brand: true } },
-          },
-        },
-        serviceCenter: true,
-        shift: true,
-        bookingDetails: true,
-        bookingAssignments: {
-          include: { employee: true },
-        },
-      },
-    });
-
-    if (!booking) return null;
-
-    const { customer, vehicle, serviceCenter, ...rest } = booking;
-
-    const account = customer?.account
-      ? {
-          ...customer.account,
-          profile: {
-            ...customer,
-            account: undefined,
-          },
-        }
-      : null;
-
-    const formattedVehicle = vehicle
-      ? {
-          id: vehicle.id,
-          vin: vehicle.vin,
-          licensePlate: vehicle.licensePlate,
-          model: vehicle.vehicleModel?.name ?? null,
-          brand: vehicle.vehicleModel?.brand?.name ?? null,
-        }
-      : null;
-
-    const formattedServiceCenter = serviceCenter
-      ? {
-          id: serviceCenter.id,
-          name: serviceCenter.name,
-        }
-      : null;
-
-    const formattedEmployees = booking.bookingAssignments.map(ba => ({
-      firstName: ba.employee.firstName,
-      lastName: ba.employee.lastName,
-    }));
-
-    const modifiedBooking = {
-      ...rest,
-      account,
-      vehicle: formattedVehicle,
-      serviceCenter: formattedServiceCenter,
-      employees: formattedEmployees,
-    };
-
-    return plainToInstance(BookingWithDetailsDTO, modifiedBooking, {
-      excludeExtraneousValues: true,
-    });
+  async getBookingById(bookingId: string, user: JWT_Payload) {
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        return await this.customerBookingService.getBookingById(bookingId, user.sub);
+      default:
+        throw new BadRequestException('Invalid user role');
+    }
   }
 
   private transformBookingByRole(booking: any, role: AccountRole) {

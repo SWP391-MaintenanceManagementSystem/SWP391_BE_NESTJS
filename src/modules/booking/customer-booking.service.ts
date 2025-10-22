@@ -3,6 +3,8 @@ import { CustomerUpdateBookingDTO } from './dto/customer-update-booking.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { startOfDay } from 'date-fns/startOfDay';
 import { endOfDay } from 'date-fns/endOfDay';
+import { CustomerBookingDetailDTO } from './dto/customer-booking-detail.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class CustomerBookingService {
@@ -74,5 +76,37 @@ export class CustomerBookingService {
     });
 
     return updatedBooking;
+  }
+
+  async getBookingById(bookingId: string, userId: string) {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: {
+          include: { account: true },
+        },
+        vehicle: {
+          include: { vehicleModel: { include: { brand: true } } },
+        },
+        serviceCenter: true,
+        shift: true,
+        bookingDetails: true,
+        bookingAssignments: {
+          include: {
+            employee: { include: { account: true } },
+            assigner: { include: { account: true } },
+          },
+        },
+      },
+    });
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+    if (booking.customer.accountId !== userId) {
+      throw new BadRequestException('You can only access your own bookings');
+    }
+
+    console.log('🚀 ~ CustomerBookingService ~ getBookingById ~ booking:', booking);
+    return plainToInstance(CustomerBookingDetailDTO, booking, { excludeExtraneousValues: true });
   }
 }

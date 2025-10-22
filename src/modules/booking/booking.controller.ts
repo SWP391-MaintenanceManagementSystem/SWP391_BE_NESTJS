@@ -38,8 +38,8 @@ export class BookingController {
   }
 
   @Get('/:id')
-  async getBookingById(@Param('id') id: string) {
-    const data = await this.bookingService.getBookingById(id);
+  async getBookingById(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
+    const data = await this.bookingService.getBookingById(id, user);
     return {
       data,
       message: 'Get booking successfully',
