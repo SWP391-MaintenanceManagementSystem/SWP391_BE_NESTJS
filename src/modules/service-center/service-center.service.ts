@@ -3,10 +3,9 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { ServiceCenterDTO } from './dto/service-center.dto';
 import { CreateServiceCenterDTO } from './dto/create-service-center.dto';
 import { UpdateServiceCenterDTO } from './dto/update-service-center.dto';
-import { CenterStatus, Prisma, ServiceCenter } from '@prisma/client';
+import { CenterStatus, Prisma } from '@prisma/client';
 import { ServiceCenterQueryDTO } from './dto/service-center.query.dto';
 import { plainToInstance } from 'class-transformer';
-import { BookingStatus } from '@prisma/client';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 
 @Injectable()
@@ -156,7 +155,7 @@ export class ServiceCenterService {
             bookings: {
               where: {
                 status: {
-                  in: ['PENDING', 'CONFIRMED', 'CHECKED_IN', 'IN_PROGRESS'], // Active bookings
+                  in: ['PENDING', 'ASSIGNED', 'CHECKED_IN', 'IN_PROGRESS'], // Active bookings
                 },
               },
             },

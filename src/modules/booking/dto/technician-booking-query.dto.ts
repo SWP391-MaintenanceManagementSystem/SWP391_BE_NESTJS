@@ -19,8 +19,14 @@ export class TechnicianBookingQueryDTO {
   })
   @ApiPropertyOptional({
     description: 'Filter by booking status',
-    example: BookingStatus.CONFIRMED,
-    enum: BookingStatus,
+    example: BookingStatus.ASSIGNED,
+    enum: [
+      BookingStatus.ASSIGNED,
+      BookingStatus.CHECKED_IN,
+      BookingStatus.IN_PROGRESS,
+      BookingStatus.COMPLETED,
+      BookingStatus.CANCELLED,
+    ],
   })
   status?: BookingStatus;
 

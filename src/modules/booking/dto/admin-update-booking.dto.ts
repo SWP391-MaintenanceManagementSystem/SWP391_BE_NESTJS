@@ -45,6 +45,6 @@ export class AdminUpdateBookingDTO {
   @IsEnum(BookingStatus, {
     message: `status must be one of ${Object.values(BookingStatus).join(', ')}`,
   })
-  @ApiPropertyOptional({ example: BookingStatus.CONFIRMED, enum: BookingStatus })
+  @ApiPropertyOptional({ example: BookingStatus.ASSIGNED, enum: BookingStatus })
   status?: BookingStatus;
 }

@@ -19,8 +19,8 @@ export class BookingAssignmentService {
       include: { shift: true },
     });
     if (!booking) throw new BadRequestException('Booking not found.');
-    if (booking.status !== BookingStatus.CONFIRMED) {
-      throw new BadRequestException('Booking must be confirmed before assignment.');
+    if (booking.status !== BookingStatus.ASSIGNED) {
+      throw new BadRequestException('Booking must be assigned before technician assignment.');
     }
 
     const employees = await this.prismaService.employee.findMany({
@@ -50,7 +50,7 @@ export class BookingAssignmentService {
     }
 
     const ONGOING_BOOKING_STATUSES = [
-      BookingStatus.CONFIRMED,
+      BookingStatus.ASSIGNED,
       BookingStatus.CHECKED_IN,
       BookingStatus.IN_PROGRESS,
     ];

@@ -60,7 +60,7 @@ export class BookingService {
         customerId,
         vehicleId,
         shiftId: workSchedule.shiftId,
-        status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+        status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
       },
     });
     if (existingBooking)
@@ -93,7 +93,7 @@ export class BookingService {
       const currentBookingCount = await this.prismaService.booking.count({
         where: {
           shiftId: workSchedule.shiftId,
-          status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+          status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
         },
       });
       if (currentBookingCount >= workSchedule.shift.maximumSlot) {

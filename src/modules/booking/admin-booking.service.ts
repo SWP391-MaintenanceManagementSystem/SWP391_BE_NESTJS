@@ -47,7 +47,7 @@ export class AdminBookingService {
       where: {
         vehicleId,
         shiftId,
-        status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+        status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
         NOT: { id: bookingId },
       },
     });

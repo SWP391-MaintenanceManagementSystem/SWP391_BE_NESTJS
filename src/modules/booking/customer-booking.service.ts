@@ -53,7 +53,7 @@ export class CustomerBookingService {
         where: {
           vehicleId,
           shiftId,
-          status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+          status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
           NOT: { id: bookingId },
         },
       });
@@ -106,7 +106,6 @@ export class CustomerBookingService {
       throw new BadRequestException('You can only access your own bookings');
     }
 
-    console.log('🚀 ~ CustomerBookingService ~ getBookingById ~ booking:', booking);
     return plainToInstance(CustomerBookingDetailDTO, booking, { excludeExtraneousValues: true });
   }
 }

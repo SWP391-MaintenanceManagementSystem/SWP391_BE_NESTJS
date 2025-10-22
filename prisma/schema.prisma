@@ -33,7 +33,7 @@ enum AuthProvider {
 
 enum BookingStatus {
   PENDING
-  CONFIRMED
+  ASSIGNED
   CHECKED_IN
   COMPLETED
   CANCELLED
