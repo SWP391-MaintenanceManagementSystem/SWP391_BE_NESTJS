@@ -12,8 +12,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { ShiftStatus, Prisma } from '@prisma/client';
-import { timeStringToDate, dateToTimeString } from 'src/common/time/time.util';
-import { utcToVNDate, vnToUtcDate } from 'src/utils';
+import { utcToVNDate, vnToUtcDate, timeStringToDate, dateToTimeString } from 'src/utils';
 
 @Injectable()
 export class ShiftService {
