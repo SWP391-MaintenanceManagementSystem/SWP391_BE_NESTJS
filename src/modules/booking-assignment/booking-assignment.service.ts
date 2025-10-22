@@ -58,7 +58,10 @@ export class BookingAssignmentService {
     const ongoingBookings = await this.prismaService.bookingAssignment.findMany({
       where: {
         employeeId: { in: employeeIds },
-        booking: { status: { in: ONGOING_BOOKING_STATUSES } },
+        booking: {
+          status: { in: ONGOING_BOOKING_STATUSES },
+          shiftId: booking.shiftId,
+        },
       },
     });
     const busyEmployees = ongoingBookings.map(b => b.employeeId);

@@ -1,7 +1,15 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
 import { PrismaService } from '../prisma/prisma.service';
-
+import { plainToInstance } from 'class-transformer';
+import { StaffBookingDTO } from './dto/staff-booking.dto';
+import { buildBookingOrderBy } from 'src/common/sort/sort.util';
+import { buildBookingSearch } from 'src/common/search/search.util';
+import * as dateFns from 'date-fns';
+import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
+import { BookingQueryDTO } from './dto/booking-query.dto';
+import { JWT_Payload } from 'src/common/types';
+import { Prisma } from '@prisma/client';
 @Injectable()
 export class StaffBookingService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -23,5 +31,95 @@ export class StaffBookingService {
     });
 
     return updatedBooking;
+  }
+
+  async getBookings(
+    filterOptions: BookingQueryDTO,
+    user: JWT_Payload
+  ): Promise<PaginationResponse<StaffBookingDTO>> {
+    const {
+      search,
+      status,
+      bookingDate,
+      centerId,
+      shiftId,
+      page = 1,
+      pageSize = 10,
+      orderBy = 'desc',
+      sortBy = 'createdAt',
+      fromDate,
+      toDate,
+    } = filterOptions;
+
+    const where: Prisma.BookingWhereInput = {
+      ...(status && { status }),
+      ...(centerId && { centerId }),
+      ...(shiftId && { shiftId }),
+      ...(bookingDate && {
+        bookingDate: {
+          gte: dateFns.startOfDay(bookingDate),
+          lte: dateFns.endOfDay(bookingDate),
+        },
+      }),
+      ...(fromDate && {
+        bookingDate: {
+          gte: dateFns.startOfDay(fromDate),
+        },
+      }),
+      ...(toDate && {
+        bookingDate: {
+          lte: dateFns.endOfDay(toDate),
+        },
+      }),
+      ...buildBookingSearch(search),
+    };
+
+    const staff = await this.prismaService.employee.findUnique({
+      where: { accountId: user.sub },
+      select: {
+        workCenters: {
+          where: { endDate: null },
+          select: { centerId: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!staff) {
+      throw new BadRequestException('Staff not found');
+    }
+
+    where.centerId = staff.workCenters[0].centerId;
+
+    const [totalItems, bookings] = await this.prismaService.$transaction([
+      this.prismaService.booking.count({ where }),
+      this.prismaService.booking.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: buildBookingOrderBy(sortBy, orderBy),
+        include: {
+          customer: {
+            include: { account: true },
+          },
+          vehicle: {
+            include: { vehicleModel: { include: { brand: true } } },
+          },
+          serviceCenter: true,
+          shift: true,
+          bookingDetails: true,
+        },
+      }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return {
+      data: bookings.map(booking => plainToInstance(StaffBookingDTO, booking)),
+      page,
+      pageSize,
+      total: totalItems,
+      totalPages,
+    };
   }
 }

@@ -65,7 +65,7 @@ export class BookingQueryDTO {
   })
   @IsOptional()
   @IsString()
-  orderBy?: string;
+  sortBy?: string;
 
   @ApiProperty({
     required: false,
@@ -73,7 +73,7 @@ export class BookingQueryDTO {
   })
   @IsOptional()
   @Type(() => String)
-  sortBy?: Order;
+  orderBy?: Order;
 
   @ApiProperty({
     required: false,

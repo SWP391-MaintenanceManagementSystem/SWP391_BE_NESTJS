@@ -18,6 +18,6 @@ import { PrismaModule } from '../prisma/prisma.module';
     StaffBookingService,
     TechnicianBookingService,
   ],
-  exports: [BookingService, TechnicianBookingService],
+  exports: [BookingService, TechnicianBookingService, StaffBookingService],
 })
 export class BookingModule {}

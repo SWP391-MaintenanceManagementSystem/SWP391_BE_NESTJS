@@ -18,6 +18,7 @@ import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
 import { CustomerBookingService } from './customer-booking.service';
 import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
+import { StaffBookingDTO } from './dto/staff-booking.dto';
 @Injectable()
 export class BookingService {
   constructor(
@@ -137,7 +138,7 @@ export class BookingService {
     };
   }
 
-  async getBookingById(bookingId: string): Promise<BookingDTO | null> {
+  async getBookingById(bookingId: string): Promise<BookingWithDetailsDTO | null> {
     const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -207,10 +208,30 @@ export class BookingService {
     });
   }
 
+  private transformBookingByRole(booking: any, role: AccountRole) {
+    switch (role) {
+      case AccountRole.CUSTOMER:
+        return plainToInstance(BookingDTO, booking, {
+          excludeExtraneousValues: true,
+        });
+
+      case AccountRole.STAFF:
+        return plainToInstance(StaffBookingDTO, booking, {
+          excludeExtraneousValues: true,
+        });
+
+      case AccountRole.ADMIN:
+      default:
+        return plainToInstance(BookingDTO, booking, {
+          excludeExtraneousValues: true,
+        });
+    }
+  }
+
   async getBookings(
     filterOptions: BookingQueryDTO,
     user: JWT_Payload
-  ): Promise<PaginationResponse<BookingDTO>> {
+  ): Promise<PaginationResponse<BookingDTO | StaffBookingDTO>> {
     const {
       search,
       status,
@@ -219,8 +240,8 @@ export class BookingService {
       shiftId,
       page = 1,
       pageSize = 10,
-      orderBy = 'createdAt',
-      sortBy = 'desc',
+      orderBy = 'desc',
+      sortBy = 'createdAt',
       fromDate,
       toDate,
     } = filterOptions;
@@ -255,10 +276,7 @@ export class BookingService {
         };
         break;
       case AccountRole.STAFF:
-        if (centerId) {
-          where.centerId = centerId;
-        }
-        break;
+        return this.staffBookingService.getBookings(filterOptions, user);
       case AccountRole.ADMIN:
       default:
         break;
@@ -270,7 +288,7 @@ export class BookingService {
         where,
         skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: buildBookingOrderBy(orderBy, sortBy),
+        orderBy: buildBookingOrderBy(sortBy, orderBy),
         include: {
           customer: {
             include: { account: true },
@@ -285,43 +303,10 @@ export class BookingService {
       }),
     ]);
 
-    // const modifiedBookings = bookings.map(b => {
-    //   const { customer, ...rest } = b;
-    //   const account = customer?.account
-    //     ? { ...customer.account, profile: { ...customer, account: undefined } }
-    //     : null;
-
-    //   const vehicle = b.vehicle
-    //     ? {
-    //         id: b.vehicle.id,
-    //         vin: b.vehicle.vin,
-    //         licensePlate: b.vehicle.licensePlate,
-    //         model: b.vehicle.vehicleModel?.name,
-    //         brand: b.vehicle.vehicleModel?.brand?.name,
-    //       }
-    //     : null;
-
-    //   const serviceCenter = b.serviceCenter
-    //     ? {
-    //         id: b.serviceCenter.id,
-    //         name: b.serviceCenter.name,
-    //       }
-    //     : null;
-
-    //   return {
-    //     ...rest,
-    //     account,
-    //     vehicle,
-    //     serviceCenter,
-    //   };
-    // });
-
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return {
-      data: bookings.map(booking =>
-        plainToInstance(BookingDTO, booking, { excludeExtraneousValues: true })
-      ),
+      data: bookings.map(booking => this.transformBookingByRole(booking, user.role)),
       page,
       pageSize,
       total: totalItems,
