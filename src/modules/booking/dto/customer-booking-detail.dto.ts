@@ -12,6 +12,9 @@ class CustomerInfo {
 
   @Expose()
   phone: string;
+
+  @Expose()
+  isPremium: boolean;
 }
 
 class VehicleInfo {
@@ -90,7 +93,7 @@ class PackageInfo {
   status: BookingDetailStatus;
 }
 
-class BookingDetail {
+class BookingDetails {
   @Expose()
   @Type(() => ServiceInfo)
   services?: ServiceInfo[];
@@ -121,6 +124,7 @@ export class CustomerBookingDetailDTO {
     lastName: obj.customer?.lastName,
     email: obj.customer?.account?.email,
     phone: obj.customer?.account?.phone,
+    isPremium: obj.customer?.isPremium,
   }))
   @Type(() => CustomerInfo)
   customer: CustomerInfo;
@@ -189,7 +193,7 @@ export class CustomerBookingDetailDTO {
 
     return { services, packages };
   })
-  bookingDetail: BookingDetail;
+  bookingDetails: BookingDetails;
 
   @Expose()
   createdAt: Date;

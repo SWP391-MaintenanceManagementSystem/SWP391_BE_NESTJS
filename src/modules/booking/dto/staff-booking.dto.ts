@@ -28,6 +28,9 @@ class CustomerInfo {
 
   @Expose()
   phone: string;
+
+  @Expose()
+  isPremium: boolean;
 }
 
 export class StaffBookingDTO {
@@ -40,6 +43,7 @@ export class StaffBookingDTO {
     lastName: obj.customer?.lastName,
     email: obj.customer?.account?.email,
     phone: obj.customer?.account?.phone,
+    isPremium: obj.customer?.isPremium,
   }))
   @Type(() => CustomerInfo)
   customer: CustomerInfo;

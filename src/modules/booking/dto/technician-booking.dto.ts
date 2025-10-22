@@ -13,6 +13,9 @@ class CustomerInfo {
 
   @Expose()
   phone: string;
+
+  @Expose()
+  isPremium: boolean;
 }
 
 class VehicleInfo {
@@ -52,32 +55,6 @@ class ShiftInfo {
   endTime: Date;
 }
 
-// class AssignmentInfo {
-//   @Expose()
-//   id: string;
-
-//   @Expose()
-//   @Transform(({ obj }) => obj.employee?.accountId)
-//   employeeId: string;
-
-//   @Expose()
-//   @Transform(({ obj }) => obj.employee?.firstName)
-//   employeeFirstName: string;
-
-//   @Expose()
-//   @Transform(({ obj }) => obj.employee?.lastName)
-//   employeeLastName: string;
-
-//   @Expose()
-//   @Transform(({ obj }) =>
-//     obj.assigner ? `${obj.assigner.firstName} ${obj.assigner.lastName}` : null
-//   )
-//   assignedBy: string;
-
-//   @Expose()
-//   createdAt: Date;
-// }
-
 class AssignerInfo {
   @Expose()
   firstName: string;
@@ -111,6 +88,7 @@ export class TechnicianBookingDTO {
     lastName: obj.customer?.lastName,
     email: obj.customer?.account?.email,
     phone: obj.customer?.account?.phone,
+    isPremium: obj.customer?.isPremium,
   }))
   @Type(() => CustomerInfo)
   customer: CustomerInfo;
