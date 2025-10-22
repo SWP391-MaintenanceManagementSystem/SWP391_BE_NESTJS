@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
@@ -6,6 +6,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import * as dateFns from 'date-fns';
 import { TechnicianBookingQueryDTO } from './dto/technician-booking-query.dto';
 import { TechnicianBookingDTO } from './dto/technician-booking.dto';
+import { TechnicianBookingDetailDTO } from './dto/technician-booking-detail.dto';
 
 @Injectable()
 export class TechnicianBookingService {
@@ -128,5 +129,38 @@ export class TechnicianBookingService {
       total: totalItems,
       totalPages: Math.ceil(totalItems / pageSize),
     };
+  }
+
+  async getBookingById(bookingId: string): Promise<TechnicianBookingDetailDTO> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: {
+          include: { account: true },
+        },
+        vehicle: {
+          include: { vehicleModel: { include: { brand: true } } },
+        },
+        serviceCenter: true,
+        shift: true,
+        bookingDetails: {
+          include: {
+            service: true,
+            package: true,
+          },
+        },
+        bookingAssignments: {
+          include: {
+            employee: { include: { account: true } },
+            assigner: { include: { account: true } },
+          },
+        },
+      },
+    });
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+
+    return plainToInstance(TechnicianBookingDetailDTO, booking, { excludeExtraneousValues: true });
   }
 }

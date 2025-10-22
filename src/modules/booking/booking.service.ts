@@ -18,6 +18,7 @@ import { CustomerBookingService } from './customer-booking.service';
 import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
 import { StaffBookingDTO } from './dto/staff-booking.dto';
+import { TechnicianBookingService } from './technician-booking.service';
 @Injectable()
 export class BookingService {
   constructor(
@@ -25,7 +26,8 @@ export class BookingService {
     private readonly bookingDetailService: BookingDetailService,
     private readonly customerBookingService: CustomerBookingService,
     private readonly adminBookingService: AdminBookingService,
-    private readonly staffBookingService: StaffBookingService
+    private readonly staffBookingService: StaffBookingService,
+    private readonly technicianBookingService: TechnicianBookingService
   ) {}
   async createBooking(
     bookingData: CreateBookingDTO,
@@ -141,6 +143,12 @@ export class BookingService {
     switch (user.role) {
       case AccountRole.CUSTOMER:
         return await this.customerBookingService.getBookingById(bookingId, user.sub);
+      case AccountRole.TECHNICIAN:
+        return await this.technicianBookingService.getBookingById(bookingId);
+      case AccountRole.STAFF:
+        return await this.staffBookingService.getBookingById(bookingId);
+      case AccountRole.ADMIN:
+        return await this.adminBookingService.getBookingById(bookingId);
       default:
         throw new BadRequestException('Invalid user role');
     }

@@ -90,7 +90,12 @@ export class CustomerBookingService {
         },
         serviceCenter: true,
         shift: true,
-        bookingDetails: true,
+        bookingDetails: {
+          include: {
+            service: true,
+            package: true,
+          },
+        },
         bookingAssignments: {
           include: {
             employee: { include: { account: true } },

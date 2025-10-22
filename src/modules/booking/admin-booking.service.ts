@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { startOfDay } from 'date-fns/startOfDay';
 import { endOfDay } from 'date-fns/endOfDay';
 import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
+import { AdminBookingDetailDTO } from './dto/admin-booking-detail.dto';
+import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class AdminBookingService {
@@ -66,5 +68,38 @@ export class AdminBookingService {
       },
     });
     return updatedBooking;
+  }
+
+  async getBookingById(bookingId: string): Promise<AdminBookingDetailDTO> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: {
+          include: { account: true },
+        },
+        vehicle: {
+          include: { vehicleModel: { include: { brand: true } } },
+        },
+        serviceCenter: true,
+        shift: true,
+        bookingDetails: {
+          include: {
+            service: true,
+            package: true,
+          },
+        },
+        bookingAssignments: {
+          include: {
+            employee: { include: { account: true } },
+            assigner: { include: { account: true } },
+          },
+        },
+      },
+    });
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+
+    return plainToInstance(AdminBookingDetailDTO, booking, { excludeExtraneousValues: true });
   }
 }

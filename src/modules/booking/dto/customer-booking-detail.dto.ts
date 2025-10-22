@@ -1,5 +1,5 @@
 import { Expose, Transform, Type } from 'class-transformer';
-import { BookingStatus } from '@prisma/client';
+import { BookingDetailStatus, BookingStatus } from '@prisma/client';
 class CustomerInfo {
   @Expose()
   firstName: string;
@@ -68,6 +68,37 @@ class AssignerInfo {
   email: string;
 }
 
+class ServiceInfo {
+  @Expose()
+  id: string;
+  @Expose()
+  name: string;
+  @Expose()
+  price: number;
+  @Expose()
+  status: BookingDetailStatus;
+}
+
+class PackageInfo {
+  @Expose()
+  id: string;
+  @Expose()
+  name: string;
+  @Expose()
+  price: number;
+  @Expose()
+  status: BookingDetailStatus;
+}
+
+class BookingDetail {
+  @Expose()
+  @Type(() => ServiceInfo)
+  services?: ServiceInfo[];
+  @Expose()
+  @Type(() => PackageInfo)
+  packages?: PackageInfo[];
+}
+
 export class CustomerBookingDetailDTO {
   @Expose()
   id: string;
@@ -132,6 +163,33 @@ export class CustomerBookingDetailDTO {
   )
   @Type(() => TechnicianInfo)
   technicians: TechnicianInfo[];
+  @Expose()
+  @Transform(({ obj }) => {
+    const services: ServiceInfo[] = [];
+    const packages: PackageInfo[] = [];
+
+    obj.bookingDetails.forEach((detail: any) => {
+      if (detail.service) {
+        services.push({
+          id: detail.service.id,
+          name: detail.service.name,
+          price: detail.service.price,
+          status: detail.status,
+        });
+      }
+      if (detail.package) {
+        packages.push({
+          id: detail.package.id,
+          name: detail.package.name,
+          price: detail.package.price,
+          status: detail.status,
+        });
+      }
+    });
+
+    return { services, packages };
+  })
+  bookingDetail: BookingDetail;
 
   @Expose()
   createdAt: Date;

@@ -10,6 +10,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { BookingQueryDTO } from './dto/booking-query.dto';
 import { JWT_Payload } from 'src/common/types';
 import { Prisma } from '@prisma/client';
+import { StaffBookingDetailDTO } from './dto/staff-booking-detail.dto';
 @Injectable()
 export class StaffBookingService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -121,5 +122,38 @@ export class StaffBookingService {
       total: totalItems,
       totalPages,
     };
+  }
+
+  async getBookingById(bookingId: string): Promise<StaffBookingDetailDTO> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: {
+          include: { account: true },
+        },
+        vehicle: {
+          include: { vehicleModel: { include: { brand: true } } },
+        },
+        serviceCenter: true,
+        shift: true,
+        bookingDetails: {
+          include: {
+            service: true,
+            package: true,
+          },
+        },
+        bookingAssignments: {
+          include: {
+            employee: { include: { account: true } },
+            assigner: { include: { account: true } },
+          },
+        },
+      },
+    });
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+
+    return plainToInstance(StaffBookingDetailDTO, booking, { excludeExtraneousValues: true });
   }
 }
