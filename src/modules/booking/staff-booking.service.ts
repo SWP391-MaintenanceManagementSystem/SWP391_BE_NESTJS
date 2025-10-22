@@ -50,11 +50,13 @@ export class StaffBookingService {
       sortBy = 'createdAt',
       fromDate,
       toDate,
+      isPremium,
     } = filterOptions;
 
     const where: Prisma.BookingWhereInput = {
       ...(status && { status }),
       ...(centerId && { centerId }),
+      ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(shiftId && { shiftId }),
       ...(bookingDate && {
         bookingDate: {
@@ -114,7 +116,6 @@ export class StaffBookingService {
     ]);
 
     const totalPages = Math.ceil(totalItems / pageSize);
-
     return {
       data: bookings.map(booking => plainToInstance(StaffBookingDTO, booking)),
       page,

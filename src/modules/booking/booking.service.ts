@@ -190,10 +190,12 @@ export class BookingService {
       sortBy = 'createdAt',
       fromDate,
       toDate,
+      isPremium,
     } = filterOptions;
 
-    const where: Prisma.BookingWhereInput = {
+    let where: Prisma.BookingWhereInput = {
       ...(status && { status }),
+      ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(centerId && { centerId }),
       ...(shiftId && { shiftId }),
       ...(bookingDate && {
@@ -217,9 +219,7 @@ export class BookingService {
 
     switch (user.role) {
       case AccountRole.CUSTOMER:
-        where.customer = {
-          accountId: user.sub,
-        };
+        where = { ...where, customerId: user.sub };
         break;
       case AccountRole.STAFF:
         return this.staffBookingService.getBookings(filterOptions, user);
@@ -227,7 +227,6 @@ export class BookingService {
       default:
         break;
     }
-
     const [totalItems, bookings] = await this.prismaService.$transaction([
       this.prismaService.booking.count({ where }),
       this.prismaService.booking.findMany({

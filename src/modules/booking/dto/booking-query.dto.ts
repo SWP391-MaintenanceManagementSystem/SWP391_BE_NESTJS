@@ -1,5 +1,5 @@
 import { BookingStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Order } from 'src/common/sort/sort.config';
@@ -59,6 +59,14 @@ export class BookingQueryDTO {
   @IsOptional()
   @Type(() => Date)
   toDate?: Date;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  isPremium?: boolean;
 
   @ApiProperty({
     required: false,
