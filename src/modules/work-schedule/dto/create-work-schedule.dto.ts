@@ -14,37 +14,37 @@ import {
 } from 'class-validator';
 
 export class CreateWorkScheduleDTO {
-  @IsUUID(4, { message: 'Shift ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Shift ID is required and cannot be empty' })
   @ApiProperty({
     example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
   })
+  @IsUUID(4, { message: 'Shift ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Shift ID is required and cannot be empty' })
   shiftId: string;
 
-  @IsUUID(4, { message: 'Employee ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Employee ID is required and cannot be empty' })
   @ApiProperty({
-    example: 'c7a72f5e-98ab-40b2-bd53-6220cba91c7a',
+    example: 'a1b2c3d4-5678-9abc-def0-123456789abc',
   })
-  employeeId: string;
+  @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Service Center ID is required and cannot be empty' })
+  centerId: string;
 
-  // --- SINGLE ---
-  @ApiPropertyOptional({ example: '2025-10-09' })
-  @ValidateIf(o => !o.startDate && !o.endDate) // chỉ validate nếu không có start/endDate
-  @IsDateString({}, { message: 'Date must be a valid ISO date string' })
-  @IsOptional()
-  date?: string;
+  @ApiProperty({
+    type: [String],
+    example: ['c7a72f5e-98ab-40b2-bd53-6220cba91c7a', 'a1a72f5e-12ab-40b2-bd53-6220cba91c7b'],
+  })
+  @IsUUID(4, { each: true, message: 'Each employee ID must be a valid UUID' })
+  @ArrayMinSize(1, { message: 'At least one employee ID is required' })
+  @IsNotEmpty({ message: 'Employee IDs are required and cannot be empty' })
+  employeeIds: string[];
 
   // --- CYCLIC ---
   @ApiPropertyOptional({ example: '2025-10-11' })
-  @ValidateIf(o => !o.date) // chỉ validate nếu không có date đơn
-  @IsDateString()
-  @IsOptional()
-  startDate?: string;
+  @IsDateString({}, { message: 'Start date must be a valid date string (YYYY-MM-DD)' })
+  @IsNotEmpty({ message: 'Start date is required and cannot be empty' })
+  startDate: string;
 
   @ApiPropertyOptional({ example: '2025-10-17' })
-  @ValidateIf(o => !o.date)
-  @IsDateString()
+  @IsDateString({}, { message: 'End date must be a valid date string (YYYY-MM-DD)' })
   @IsOptional()
   endDate?: string;
 
@@ -53,7 +53,6 @@ export class CreateWorkScheduleDTO {
     description: 'Days of week to repeat (0=Sunday,...6=Saturday)',
     type: [Number],
   })
-  @ValidateIf(o => !o.date)
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(7)
