@@ -35,23 +35,30 @@ export class BookingAssignmentService {
 
     const missingEmployees = employeeIds.filter(id => !employees.find(e => e.accountId === id));
     if (missingEmployees.length) {
-      throw new BadRequestException(`Employees not found: ${missingEmployees.join(', ')}`);
+      throw new BadRequestException({
+        message: 'Some employees were not found',
+        errors: missingEmployees.map(id => `Employee with accountId ${id} was not found`),
+      });
     }
 
     const nonTechnicians = employees.filter(e => e.account.role !== AccountRole.TECHNICIAN);
     if (nonTechnicians.length) {
-      throw new BadRequestException(
-        `These employees are not technicians: ${nonTechnicians.map(e => e.accountId).join(', ')}`
-      );
+      throw new BadRequestException({
+        message: 'Some employees are not technicians',
+        errors: nonTechnicians.map(e => `Employee ${e.accountId} is not a technician`),
+      });
     }
 
     const notInShift = employees.filter(
       e => !e.workSchedules.some(ws => ws.shiftId === booking.shiftId)
     );
     if (notInShift.length) {
-      throw new BadRequestException(
-        `These employees are not assigned to the booking's shift: ${notInShift.map(e => e.accountId).join(', ')}`
-      );
+      throw new BadRequestException({
+        message: 'Some employees are not assigned to the booking shift',
+        errors: notInShift.map(
+          e => `Employee ${e.accountId} is not assigned to the booking's shift`
+        ),
+      });
     }
 
     const ONGOING_BOOKING_STATUSES = [
@@ -71,9 +78,10 @@ export class BookingAssignmentService {
     });
     const busyEmployees = ongoingBookings.map(b => b.employeeId);
     if (busyEmployees.length) {
-      throw new BadRequestException(
-        `Employees already have ongoing bookings: ${busyEmployees.join(', ')}`
-      );
+      throw new BadRequestException({
+        message: 'Some employees already have ongoing bookings',
+        errors: busyEmployees.map(id => `Employee with accountId ${id} is busy during this shift`),
+      });
     }
 
     const assignments = await this.prismaService.$transaction(async tx => {
