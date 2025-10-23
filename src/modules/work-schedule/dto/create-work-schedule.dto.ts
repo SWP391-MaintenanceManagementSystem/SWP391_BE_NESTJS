@@ -43,7 +43,7 @@ export class CreateWorkScheduleDTO {
   @IsNotEmpty({ message: 'Start date is required and cannot be empty' })
   startDate: string;
 
-  @ApiPropertyOptional({ example: '2025-10-17' })
+  @ApiPropertyOptional({ example: '' })
   @IsDateString({}, { message: 'End date must be a valid date string (YYYY-MM-DD)' })
   @IsOptional()
   endDate?: string;
