@@ -91,9 +91,6 @@ export class BookingService {
       throw new BadRequestException(`Packages not found: ${missing.join(', ')}`);
     }
 
-    const totalCost =
-      services.reduce((sum, s) => sum + s.price, 0) + packages.reduce((sum, p) => sum + p.price, 0);
-
     let warning: string | undefined = undefined;
     if (workSchedule.shift.maximumSlot) {
       const currentBookingCount = await this.prismaService.booking.count({
@@ -112,7 +109,7 @@ export class BookingService {
         bookingDate,
         shiftId: workSchedule.shiftId,
         customerId,
-        totalCost,
+        totalCost: 0,
         note,
         vehicleId,
         centerId,
@@ -136,9 +133,15 @@ export class BookingService {
     if (bookingDetailsData.length > 0) {
       await this.bookingDetailService.createManyBookingDetails(bookingDetailsData);
     }
+    const totalCost = await this.bookingDetailService.calculateTotalCost(createdBooking.id);
+
+    const updatedBooking = await this.prismaService.booking.update({
+      where: { id: createdBooking.id },
+      data: { totalCost },
+    });
 
     return {
-      booking: plainToInstance(BookingDTO, createdBooking),
+      booking: plainToInstance(BookingDTO, updatedBooking),
       warning,
     };
   }

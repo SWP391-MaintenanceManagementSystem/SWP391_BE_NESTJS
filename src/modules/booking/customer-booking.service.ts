@@ -5,14 +5,19 @@ import { startOfDay } from 'date-fns/startOfDay';
 import { endOfDay } from 'date-fns/endOfDay';
 import { CustomerBookingDetailDTO } from './dto/customer-booking-detail.dto';
 import { plainToInstance } from 'class-transformer';
+import { vnToUtcDate } from 'src/utils';
+import { BookingDetailService } from '../booking-detail/booking-detail.service';
 
 @Injectable()
 export class CustomerBookingService {
-  constructor(private readonly prismaService: PrismaService) {}
-
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly bookingDetailService: BookingDetailService
+  ) {}
   async updateBooking(bookingId: string, customerId: string, updateData: CustomerUpdateBookingDTO) {
     const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
+      include: { shift: { select: { centerId: true } } },
     });
 
     if (!booking) throw new BadRequestException('Booking not found');
@@ -21,38 +26,42 @@ export class CustomerBookingService {
     if (booking.status !== 'PENDING')
       throw new BadRequestException('Only pending bookings can be updated');
 
-    let shiftId = booking.shiftId;
-    let bookingDate = booking.bookingDate;
-    let vehicleId = booking.vehicleId;
+    const updatePayload = {
+      note: updateData.note ?? booking.note,
+      bookingDate: booking.bookingDate,
+      shiftId: booking.shiftId,
+      vehicleId: booking.vehicleId,
+      totalCost: booking.totalCost,
+    };
 
     if (updateData.bookingDate && updateData.bookingDate !== booking.bookingDate) {
       const workSchedule = await this.prismaService.workSchedule.findFirst({
         where: {
           date: {
-            gte: startOfDay(updateData.bookingDate),
-            lt: endOfDay(updateData.bookingDate),
+            gte: startOfDay(vnToUtcDate(updateData.bookingDate)),
+            lt: endOfDay(vnToUtcDate(updateData.bookingDate)),
           },
           shift: {
-            centerId: booking.centerId,
+            centerId: booking.shift.centerId,
             status: 'ACTIVE',
-            startTime: { lte: updateData.bookingDate },
-            endTime: { gt: updateData.bookingDate },
+            startTime: { lte: vnToUtcDate(updateData.bookingDate) },
+            endTime: { gt: vnToUtcDate(updateData.bookingDate) },
           },
         },
-        include: { shift: true },
+        select: { shiftId: true },
       });
+
       if (!workSchedule) throw new BadRequestException('No matching shift for the selected date');
-      shiftId = workSchedule.shiftId;
-      bookingDate = updateData.bookingDate;
+
+      updatePayload.bookingDate = updateData.bookingDate;
+      updatePayload.shiftId = workSchedule.shiftId;
     }
 
     if (updateData.vehicleId && updateData.vehicleId !== booking.vehicleId) {
-      vehicleId = updateData.vehicleId;
-
       const existingBooking = await this.prismaService.booking.findFirst({
         where: {
-          vehicleId,
-          shiftId,
+          vehicleId: updateData.vehicleId,
+          shiftId: updatePayload.shiftId,
           status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
           NOT: { id: bookingId },
         },
@@ -63,19 +72,24 @@ export class CustomerBookingService {
           'This vehicle is already booked for the selected date and time'
         );
       }
+
+      updatePayload.vehicleId = updateData.vehicleId;
     }
 
-    const updatedBooking = await this.prismaService.booking.update({
+    if (updateData.serviceIds || updateData.packageIds) {
+      await this.bookingDetailService.updateBookingDetails(bookingId, {
+        services: updateData.serviceIds,
+        packages: updateData.packageIds,
+      });
+      updatePayload.totalCost = await this.bookingDetailService.calculateTotalCost(bookingId);
+    }
+
+    await this.prismaService.booking.update({
       where: { id: bookingId },
-      data: {
-        note: updateData.note ?? booking.note,
-        bookingDate,
-        shiftId,
-        vehicleId,
-      },
+      data: updatePayload,
     });
 
-    return updatedBooking;
+    return this.getBookingById(bookingId, customerId);
   }
 
   async getBookingById(bookingId: string, userId: string) {

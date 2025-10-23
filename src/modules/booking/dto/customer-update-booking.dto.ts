@@ -24,4 +24,18 @@ export class CustomerUpdateBookingDTO {
     required: false,
   })
   vehicleId?: string;
+
+  @IsOptional()
+  @ApiProperty({
+    example: ['serviceId1', 'serviceId2'],
+    required: false,
+  })
+  serviceIds?: string[];
+
+  @IsOptional()
+  @ApiProperty({
+    example: ['packageId1', 'packageId2'],
+    required: false,
+  })
+  packageIds?: string[];
 }
