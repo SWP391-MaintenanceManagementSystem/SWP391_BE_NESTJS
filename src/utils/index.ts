@@ -45,13 +45,22 @@ const getVNDayOfWeek = (date: Date) => {
   return vnTime.getDay();
 };
 
+const isUTC = (date: Date) => date.getTimezoneOffset() === 0;
+
+const isVN = (date: Date) => date.getTimezoneOffset() === -420; // -7*60
+
 const utcToVNDate = (date: Date) => {
+  if (isVN(date) || isUTC(date)) {
+    return date;
+  }
   return toZonedTime(date, 'Asia/Ho_Chi_Minh');
 };
 
 const vnToUtcDate = (date: Date) => {
-  const utcDate = fromZonedTime(date, 'Asia/Ho_Chi_Minh');
-  return utcDate;
+  if (isVN(date) || isUTC(date)) {
+    return date;
+  }
+  return fromZonedTime(date, 'Asia/Ho_Chi_Minh');
 };
 
 const dateToString = (date: Date): string => {

@@ -38,11 +38,18 @@ export function buildVehicleOrderBy(
 export function buildBookingOrderBy(
   sortBy: string,
   order: Order
-): Prisma.BookingOrderByWithRelationInput {
+):
+  | Prisma.BookingOrderByWithRelationInput
+  | Prisma.Enumerable<Prisma.BookingOrderByWithRelationInput> {
+  if (sortBy === 'fullName') {
+    return [{ customer: { firstName: order } }, { customer: { lastName: order } }];
+  }
+
   const field = BOOKING_SORTABLE_FIELDS[sortBy];
 
   if (!field) {
     throw new BadRequestException(`Cannot sort by ${sortBy}`);
   }
-  return JSON.parse(JSON.stringify(field).replace(/"asc"/g, `"${order}"`));
+
+  return JSON.parse(JSON.stringify(field).replace(/"asc"| "desc"/g, `"${order}"`));
 }
