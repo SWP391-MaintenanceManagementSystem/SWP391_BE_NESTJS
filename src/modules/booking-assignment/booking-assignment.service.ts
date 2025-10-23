@@ -45,7 +45,7 @@ export class BookingAssignmentService {
     if (nonTechnicians.length) {
       throw new BadRequestException({
         message: 'Some employees are not technicians',
-        errors: nonTechnicians.map(e => `Employee ${e.accountId} is not a technician`),
+        errors: nonTechnicians.map(e => `Employee ${e.account.email} is not a technician`),
       });
     }
 
@@ -56,7 +56,7 @@ export class BookingAssignmentService {
       throw new BadRequestException({
         message: 'Some employees are not assigned to the booking shift',
         errors: notInShift.map(
-          e => `Employee ${e.accountId} is not assigned to the booking's shift`
+          e => `Employee ${e.account.email} is not assigned to the booking's shift`
         ),
       });
     }
@@ -76,11 +76,14 @@ export class BookingAssignmentService {
         },
       },
     });
-    const busyEmployees = ongoingBookings.map(b => b.employeeId);
+    const busyEmployees = ongoingBookings.map(b => {
+      const emp = employees.find(e => e.accountId === b.employeeId);
+      return emp?.account.email ?? b.employeeId;
+    });
     if (busyEmployees.length) {
       throw new BadRequestException({
         message: 'Some employees already have ongoing bookings',
-        errors: busyEmployees.map(id => `Employee with accountId ${id} is busy during this shift`),
+        errors: busyEmployees.map(email => `Employee ${email} is busy during this shift`),
       });
     }
 
