@@ -1,7 +1,7 @@
 import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { CreateEmployeeWithCenterDTO } from '../../dto/create-employee-with-center.dto';
+import { UpdateEmployeeWithCenterDTO } from '../../dto/update-employee-with-center.dto';
 
 export class CreateTechnicianDTO {
   @ApiProperty({
@@ -31,10 +31,10 @@ export class CreateTechnicianDTO {
   lastName: string;
 
   @ApiPropertyOptional({
-    type: CreateEmployeeWithCenterDTO,
+    type: UpdateEmployeeWithCenterDTO,
     description: 'Work center assignment',
   })
   @IsOptional()
-  @Type(() => CreateEmployeeWithCenterDTO)
-  workCenter?: CreateEmployeeWithCenterDTO;
+  @Type(() => UpdateEmployeeWithCenterDTO)
+  workCenter?: UpdateEmployeeWithCenterDTO;
 }

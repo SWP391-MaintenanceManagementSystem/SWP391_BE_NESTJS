@@ -33,81 +33,55 @@ export class WorkScheduleService {
       throw new ForbiddenException('Only ADMIN can create work schedule assignments');
     }
 
-    const { employeeId, shiftId, date, startDate, endDate, repeatDays } = createDto;
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const errors: Record<string, string> = {};
+    const { employeeIds, shiftId, centerId, startDate, endDate, repeatDays } = createDto;
+    const errors: Record<string, any> = {};
+
+    // --- Validate employeeIds ---
+    if (!employeeIds || employeeIds.length === 0) {
+      errors.employeeIds = 'At least one employee ID is required';
+    }
 
     // --- Determine mode: SINGLE or CYCLIC ---
-    const isSingleMode = !!date;
-    const isCyclicMode = !!(startDate && endDate && repeatDays);
+    const isSingleMode = !!startDate && (!endDate || startDate === endDate);
+    const isCyclicMode = !!startDate && !!endDate && startDate !== endDate && !!repeatDays?.length;
 
     if (!isSingleMode && !isCyclicMode) {
       errors.mode =
-        'Must provide either "date" for single schedule OR "startDate", "endDate", "repeatDays" for cyclic schedule';
-    }
-
-    if (isSingleMode && isCyclicMode) {
-      errors.mode =
-        'Cannot provide both single (date) and cyclic (startDate/endDate/repeatDays) parameters at the same time';
-    }
-
-    // --- Validate employeeId ---
-    let employee = null;
-    if (!employeeId || employeeId.trim() === '') {
-      errors.employeeId = 'Employee ID is required and cannot be empty';
-    } else if (!uuidRegex.test(employeeId)) {
-      errors.employeeId = 'Employee ID must be a valid UUID';
-    } else {
-      employee = await this.prismaService.employee.findUnique({
-        where: { accountId: employeeId },
-        include: { account: true },
-      });
-      if (!employee || !employee.account) {
-        errors.employeeId = `Employee with ID ${employeeId} not found`;
-      } else if (
-        employee.account.role !== AccountRole.TECHNICIAN &&
-        employee.account.role !== AccountRole.STAFF
-      ) {
-        errors.employeeId = `Only STAFF and TECHNICIAN employees can be assigned. This employee has role ${employee.account.role}`;
-      }
+        'Must provide either startDate for single schedule OR startDate, endDate, repeatDays for cyclic schedule';
     }
 
     // --- Validate shiftId ---
-    let shift = null;
-    if (!shiftId || shiftId.trim() === '') {
-      errors.shiftId = 'Shift ID is required and cannot be empty';
-    } else if (!uuidRegex.test(shiftId)) {
-      errors.shiftId = 'Shift ID must be a valid UUID';
-    } else {
-      shift = await this.prismaService.shift.findUnique({
-        where: { id: shiftId },
-        include: { serviceCenter: true },
-      });
-      if (!shift) {
-        errors.shiftId = `Shift with ID ${shiftId} not found`;
-      } else if (shift.status !== ShiftStatus.ACTIVE) {
-        errors.shiftId = `Cannot create work schedule for inactive shift. Shift status is ${shift.status}`;
-      }
+    const shift = await this.prismaService.shift.findUnique({
+      where: { id: shiftId },
+      include: { serviceCenter: true },
+    });
+    if (!shift) {
+      errors.shiftId = `Shift with ID ${shiftId} not found`;
+    } else if (shift.status !== ShiftStatus.ACTIVE) {
+      errors.shiftId = `Cannot create work schedule for inactive shift. Shift status is ${shift.status}`;
+    } else if (shift.centerId !== centerId) {
+      errors.shiftId = `Shift with ID ${shiftId} does not belong to service center with ID ${centerId}`;
     }
 
     // --- Validate based on mode ---
     let scheduleDates: Date[] = [];
 
     if (isSingleMode) {
-      // SINGLE MODE - validate single date
       try {
-        const parsedDate = stringToDate(date!);
-
-        // Check if date is in the past
+        if (endDate && endDate !== startDate) {
+          errors.date =
+            'For single schedule, startDate and endDate must be the same or endDate omitted';
+        }
+        const parsedDate = stringToDate(startDate!);
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0);
         if (parsedDate < today) {
-          errors.date = 'Cannot create work schedule for past dates';
+          errors.startDate = 'Cannot create work schedule for past dates';
         } else {
           scheduleDates = [parsedDate];
         }
       } catch (error) {
-        errors.date = `Invalid date format: "${date}". Expected format: YYYY-MM-DD`;
+        errors.startDate = `Invalid date format: ${startDate}. Expected format: YYYY-MM-DD`;
       }
     } else if (isCyclicMode) {
       // CYCLIC MODE - validate date range and repeat days
@@ -120,7 +94,7 @@ export class WorkScheduleService {
         try {
           start = stringToDate(startDate);
         } catch (error) {
-          errors.startDate = `Invalid start date format: "${startDate}". Expected format: YYYY-MM-DD`;
+          errors.startDate = `Invalid start date format: ${startDate}. Expected format: YYYY-MM-DD`;
         }
       }
 
@@ -130,16 +104,14 @@ export class WorkScheduleService {
         try {
           end = stringToDate(endDate);
         } catch (error) {
-          errors.endDate = `Invalid end date format: "${endDate}". Expected format: YYYY-MM-DD`;
+          errors.endDate = `Invalid end date format: ${endDate}. Expected format: YYYY-MM-DD`;
         }
       }
 
-      // Validate date range
       if (start && end && start > end) {
-        errors.dateRange = 'Start date must be before or equal to end date';
+        errors.dateRange = 'Start date must be before end date';
       }
 
-      // Validate repeatDays
       if (!repeatDays || !Array.isArray(repeatDays)) {
         errors.repeatDays = 'Repeat days is required and must be an array';
       } else if (repeatDays.length === 0) {
@@ -154,7 +126,6 @@ export class WorkScheduleService {
         }
       }
 
-      // Generate schedule dates
       if (start && end && repeatDays && repeatDays.length > 0 && Object.keys(errors).length === 0) {
         const ONE_DAY = 24 * 60 * 60 * 1000;
         for (let t = start.getTime(); t <= end.getTime(); t += ONE_DAY) {
@@ -174,163 +145,199 @@ export class WorkScheduleService {
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: errors,
+        errors,
       });
     }
 
-    // --- Check work center assignment for all dates ---
-    const minDate = scheduleDates[0];
-    const maxDate = scheduleDates[scheduleDates.length - 1];
+    // --- Validate all employees ---
+    const employeeValidations: { employeeId: string; toCreate: Date[] }[] = [];
 
-    // Find ANY active assignment (not filtered by date range yet)
-    const activeAssignment = await this.prismaService.workCenter.findFirst({
-      where: {
-        employeeId,
-        centerId: shift!.centerId,
-      },
-      orderBy: {
-        startDate: 'desc', // Get latest assignment
-      },
+    // Batch fetch employees to improve performance
+    const employees = await this.prismaService.employee.findMany({
+      where: { accountId: { in: employeeIds } },
+      include: { account: true },
     });
+    const employeeMap = new Map(employees.map(e => [e.accountId, e]));
 
-    // Check if assignment exists at all
-    if (!activeAssignment) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: {
-          workCenter: `Employee is not assigned to service center "${shift!.serviceCenter.name}". Please assign the employee to this service center first.`,
+    for (const employeeId of employeeIds) {
+      const employee = employeeMap.get(employeeId);
+      if (!employee || !employee.account) {
+        errors[employeeId] = `Employee with ID ${employeeId} not found`;
+        continue;
+      }
+      if (
+        employee.account.role !== AccountRole.TECHNICIAN &&
+        employee.account.role !== AccountRole.STAFF
+      ) {
+        errors[employeeId] =
+          `Only STAFF and TECHNICIAN employees can be assigned. This employee has role ${employee.account.role}`;
+        continue;
+      }
+
+      const minDate = scheduleDates[0];
+      const maxDate = scheduleDates[scheduleDates.length - 1];
+
+      const validShift = shift as NonNullable<typeof shift>;
+
+      const activeAssignment = await this.prismaService.workCenter.findFirst({
+        where: {
+          employeeId,
+          centerId: validShift.centerId,
+        },
+        orderBy: {
+          startDate: 'desc',
         },
       });
-    }
 
-    // Check if schedule dates START BEFORE assignment starts
-    if (minDate < activeAssignment.startDate) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: {
-          workCenter: `Work schedule start date (${dateToString(minDate)}) is before employee's assignment start date (${dateToString(activeAssignment.startDate)}) to service center "${shift!.serviceCenter.name}". Please adjust the work schedule start date to be on or after ${dateToString(activeAssignment.startDate)}.`,
+      if (!activeAssignment) {
+        errors[employeeId] = {
+          workCenter: `Employee is not assigned to service center ${validShift.serviceCenter.name}. Please assign the employee to this service center first.`,
+        };
+        continue;
+      }
+
+      if (minDate < activeAssignment.startDate) {
+        errors[employeeId] = {
+          workCenter: `Work schedule start date (${dateToString(minDate)}) is before employee's assignment start date (${dateToString(activeAssignment.startDate)}) to service center "${validShift.serviceCenter.name}". Please adjust the work schedule start date to be on or after ${dateToString(activeAssignment.startDate)}.`,
+        };
+        continue;
+      }
+
+      if (activeAssignment.endDate && maxDate > activeAssignment.endDate) {
+        errors[employeeId] = {
+          workCenter: `Work schedule end date (${dateToString(maxDate)}) is after employee's assignment end date (${dateToString(activeAssignment.endDate)}) to service center "${validShift.serviceCenter.name}". Please adjust the work schedule end date to be on or before ${dateToString(activeAssignment.endDate)} or extend the assignment.`,
+        };
+        continue;
+      }
+
+      const existingSchedules = await this.prismaService.workSchedule.findMany({
+        where: {
+          employeeId,
+          shiftId,
+          date: { in: scheduleDates },
         },
+        select: { date: true },
       });
-    }
 
-    // Check if schedule dates END AFTER assignment ends
-    if (activeAssignment.endDate && maxDate > activeAssignment.endDate) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: {
-          workCenter: `Work schedule end date (${dateToString(maxDate)}) is after employee's assignment end date (${dateToString(activeAssignment.endDate)}) to service center "${shift!.serviceCenter.name}". Please adjust the work schedule end date to be on or before ${dateToString(activeAssignment.endDate)} or extend the assignment.`,
-        },
+      const existingDates = new Set(existingSchedules.map(e => e.date.toISOString().slice(0, 10)));
+      const toCreate = scheduleDates.filter(d => {
+        const key = d.toISOString().slice(0, 10);
+        return !existingDates.has(key);
       });
-    }
 
-    // --- Check for existing schedules ---
-    const existingSchedules = await this.prismaService.workSchedule.findMany({
-      where: {
-        employeeId,
-        shiftId,
-        date: { in: scheduleDates },
-      },
-      select: { date: true },
-    });
-
-    const existingDates = new Set(existingSchedules.map(e => e.date.toISOString().slice(0, 10)));
-    const toCreate = scheduleDates.filter(d => {
-      const key = d.toISOString().slice(0, 10);
-      return !existingDates.has(key);
-    });
-
-    if (toCreate.length === 0) {
-      throw new ConflictException({
-        message: 'Validation failed',
-        errors: {
+      if (toCreate.length === 0) {
+        errors[employeeId] = {
           date: 'Work schedules already exist for all the specified dates for this employee and shift',
-        },
+        };
+        continue;
+      }
+
+      employeeValidations.push({ employeeId, toCreate });
+    }
+
+    // --- Throw all validation errors at once ---
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors,
       });
     }
 
-    // --- Create work schedules ---
-    await this.prismaService.workSchedule.createMany({
-      data: toCreate.map(date => ({
-        employeeId,
-        shiftId,
-        date,
-      })),
-    });
+    // --- Create work schedules in a transaction ---
+    const createdSchedules: WorkScheduleDTO[] = await this.prismaService.$transaction(
+      async prisma => {
+        const schedules: WorkScheduleDTO[] = [];
 
-    // --- Fetch created schedules ---
-    const created = await this.prismaService.workSchedule.findMany({
-      where: {
-        employeeId,
-        shiftId,
-        date: { in: toCreate },
-      },
-      include: {
-        employee: {
-          include: {
-            account: {
-              select: {
-                id: true,
-                email: true,
-                role: true,
-                phone: true,
-                avatar: true,
-                createdAt: true,
-                updatedAt: true,
-                employee: {
-                  select: {
-                    firstName: true,
-                    lastName: true,
-                    createdAt: true,
-                    updatedAt: true,
+        for (const { employeeId, toCreate } of employeeValidations) {
+          await prisma.workSchedule.createMany({
+            data: toCreate.map(date => ({
+              employeeId,
+              shiftId,
+              date,
+            })),
+          });
+
+          const created = await prisma.workSchedule.findMany({
+            where: {
+              employeeId,
+              shiftId,
+              date: { in: toCreate },
+            },
+            include: {
+              employee: {
+                include: {
+                  account: {
+                    select: {
+                      id: true,
+                      email: true,
+                      role: true,
+                      phone: true,
+                      avatar: true,
+                      createdAt: true,
+                      updatedAt: true,
+                      employee: {
+                        select: {
+                          firstName: true,
+                          lastName: true,
+                          createdAt: true,
+                          updatedAt: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              shift: {
+                select: {
+                  id: true,
+                  name: true,
+                  startTime: true,
+                  endTime: true,
+                  maximumSlot: true,
+                  status: true,
+                  createdAt: true,
+                  updatedAt: true,
+                  serviceCenter: {
+                    select: {
+                      id: true,
+                      name: true,
+                      address: true,
+                      status: true,
+                      createdAt: true,
+                      updatedAt: true,
+                    },
                   },
                 },
               },
             },
-          },
-        },
-        shift: {
-          select: {
-            id: true,
-            name: true,
-            startTime: true,
-            endTime: true,
-            maximumSlot: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
-            serviceCenter: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                status: true,
-                createdAt: true,
-                updatedAt: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: { date: 'asc' },
-    });
+            orderBy: { date: 'asc' },
+          });
 
-    return created.map(ws =>
-      plainToInstance(
-        WorkScheduleDTO,
-        {
-          ...ws,
-          date: dateToString(ws.date),
-          shift: ws.shift
-            ? {
-                ...ws.shift,
-                startTime: dateToTimeString(utcToVNDate(ws.shift.startTime)),
-                endTime: dateToTimeString(utcToVNDate(ws.shift.endTime)),
-              }
-            : undefined,
-        },
-        { excludeExtraneousValues: true }
-      )
+          const formatted = created.map(ws =>
+            plainToInstance(
+              WorkScheduleDTO,
+              {
+                ...ws,
+                date: dateToString(ws.date),
+                shift: ws.shift
+                  ? {
+                      ...ws.shift,
+                      startTime: dateToTimeString(utcToVNDate(ws.shift.startTime)),
+                      endTime: dateToTimeString(utcToVNDate(ws.shift.endTime)),
+                    }
+                  : undefined,
+              },
+              { excludeExtraneousValues: true }
+            )
+          );
+          schedules.push(...formatted);
+        }
+
+        return schedules;
+      }
     );
+
+    return createdSchedules;
   }
 
   async getWorkSchedules(
@@ -732,41 +739,48 @@ export class WorkScheduleService {
     }
 
     // --- Check if employee has active work center assignment for the final date ---
-    const activeAssignment = await this.prismaService.workCenter.findFirst({
+    const activeAssignment = await this.prismaService.workCenter.findMany({
       where: {
         employeeId: finalEmployeeId,
-        centerId: finalShift.centerId,
+        startDate: { lte: parsedDate },
+        OR: [{ endDate: null }, { endDate: { gte: parsedDate } }],
       },
-      orderBy: {
-        startDate: 'desc',
-      },
+      include: { serviceCenter: true },
     });
 
-    if (!activeAssignment) {
+    const sameCenterWithShift = activeAssignment.find(a => a.centerId === finalShift.centerId);
+
+    if (!sameCenterWithShift) {
+      const availableCenters = activeAssignment.map(a => a.serviceCenter.name).join(', ');
+      const errorMsg =
+        activeAssignment.length > 0
+          ? `Employee is assigned to: ${availableCenters} on ${dateString}. Cannot update to shift at "${finalShift.serviceCenter.name}". Please choose a shift from an assigned service center or assign employee to this center first.`
+          : `Employee has no service center assignment on ${dateString}. Please assign to "${finalShift.serviceCenter.name}" first.`;
+
       throw new BadRequestException({
         message: 'Validation failed',
         errors: {
-          workCenter: `Employee is not assigned to service center "${finalShift.serviceCenter.name}". Please assign the employee to this service center first.`,
+          workCenter: errorMsg,
         },
       });
     }
 
     // Check if date is before assignment start
-    if (parsedDate < activeAssignment.startDate) {
+    if (parsedDate < sameCenterWithShift.startDate) {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: {
-          workCenter: `Work schedule date (${dateString}) is before employee's assignment start date (${dateToString(activeAssignment.startDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or after ${dateToString(activeAssignment.startDate)}.`,
+          workCenter: `Work schedule date (${dateString}) is before employee's assignment start date (${dateToString(sameCenterWithShift.startDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or after ${dateToString(sameCenterWithShift.startDate)}.`,
         },
       });
     }
 
     // Check if date is after assignment end
-    if (activeAssignment.endDate && parsedDate > activeAssignment.endDate) {
+    if (sameCenterWithShift.endDate && parsedDate > sameCenterWithShift.endDate) {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: {
-          workCenter: `Work schedule date (${dateString}) is after employee's assignment end date (${dateToString(activeAssignment.endDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or before ${dateToString(activeAssignment.endDate)} or extend the assignment.`,
+          workCenter: `Work schedule date (${dateString}) is after employee's assignment end date (${dateToString(sameCenterWithShift.endDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or before ${dateToString(sameCenterWithShift.endDate)} or extend the assignment.`,
         },
       });
     }
@@ -796,8 +810,6 @@ export class WorkScheduleService {
     const updated = await this.prismaService.workSchedule.update({
       where: { id },
       data: {
-        employeeId: finalEmployeeId,
-        shiftId: finalShiftId,
         date: parsedDate,
       },
       include: {
@@ -892,7 +904,18 @@ export class WorkScheduleService {
       }
     }
 
-    // --- Throw validation errors ---
+    // --- Validate date ---
+    let parsedDate: Date | null = null;
+    if (!date || date.trim() === '') {
+      errors.date = 'Date is required and cannot be empty';
+    } else {
+      try {
+        parsedDate = stringToDate(date);
+      } catch {
+        errors.date = `Invalid date format: "${date}". Expected format: YYYY-MM-DD`;
+      }
+    }
+
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
@@ -900,19 +923,10 @@ export class WorkScheduleService {
       });
     }
 
-    // ✅ Parse date separately - throw immediately if invalid
-    let parsedDate: Date;
-    try {
-      parsedDate = stringToDate(date);
-    } catch (error) {
-      throw new BadRequestException(`Invalid date format: "${date}". Expected format: YYYY-MM-DD`);
-    }
-
-    // --- Delete work schedule ---
     const result = await this.prismaService.workSchedule.deleteMany({
       where: {
         employeeId,
-        date: parsedDate,
+        date: parsedDate!,
       },
     });
 

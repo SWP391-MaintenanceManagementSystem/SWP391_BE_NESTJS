@@ -10,7 +10,6 @@ import { UpdateTechnicianDTO } from './technician/dto/update-technician.dto';
 import { UpdateStaffDTO } from './staff/dto/update-staff.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
 import { AccountStatus } from '@prisma/client';
-import { CreateEmployeeWithCenterDTO } from './dto/create-employee-with-center.dto';
 import { ConfigService } from '@nestjs/config';
 import { hashPassword } from 'src/utils';
 import { CreateTechnicianDTO } from './technician/dto/create-technician.dto';
@@ -210,7 +209,7 @@ export class EmployeeService {
     };
   }
 
-  async updateEmployeeWithWorkCenter(
+  async assignEmployeeToServiceCenter(
     employeeId: string,
     workCenterData: UpdateEmployeeWithCenterDTO
   ) {
@@ -237,7 +236,7 @@ export class EmployeeService {
       });
     }
 
-    const currentAssignment = employee.workCenters[0]; // Active assignment (nếu có)
+    const currentAssignment = employee.workCenters[0];
 
     if (!centerId) {
       if (!currentAssignment) {
@@ -271,25 +270,35 @@ export class EmployeeService {
       });
     }
 
-    const hasChanges =
-      !currentAssignment ||
-      currentAssignment.centerId !== centerId ||
-      (startDate &&
-        new Date(currentAssignment.startDate).toISOString().split('T')[0] !==
-          new Date(startDate).toISOString().split('T')[0]) ||
-      (endDate || null) !==
-        (currentAssignment.endDate ? currentAssignment.endDate.toISOString().split('T')[0] : null);
-
-    if (!hasChanges) {
-      return {
-        employeeId,
-        workCenter: {
-          id: currentAssignment?.serviceCenter?.id ?? null,
-          name: currentAssignment?.serviceCenter?.name ?? 'Not assigned',
-          address: currentAssignment?.serviceCenter?.address ?? null,
-          status: currentAssignment?.serviceCenter?.status ?? null,
-        },
-      };
+    if (currentAssignment) {
+      if (currentAssignment.centerId === centerId) {
+        const updatedAssignment = await this.prisma.workCenter.update({
+          where: { id: currentAssignment.id },
+          data: {
+            startDate: startDate ? new Date(startDate) : currentAssignment.startDate,
+            endDate:
+              endDate === null || endDate === ''
+                ? null
+                : endDate
+                  ? new Date(endDate)
+                  : currentAssignment.endDate,
+          },
+          include: {
+            serviceCenter: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                status: true,
+              },
+            },
+          },
+        });
+        return {
+          employeeId,
+          workCenter: updatedAssignment.serviceCenter,
+        };
+      }
     }
 
     if (currentAssignment && currentAssignment.centerId !== centerId) {
@@ -466,7 +475,7 @@ export class EmployeeService {
       await this.prisma.employee.update({ where: { accountId: employeeId }, data: employeeData });
 
     // Update work center assignment if provided
-    if (workCenter) await this.updateEmployeeWithWorkCenter(employeeId, workCenter);
+    if (workCenter) await this.assignEmployeeToServiceCenter(employeeId, workCenter);
 
     // Fetch latest data
     const updated = await this.prisma.account.findUnique({
@@ -710,7 +719,7 @@ export class EmployeeService {
 
     // Assign work center if provided
     if (workCenter) {
-      await this.updateEmployeeWithWorkCenter(result, workCenter);
+      await this.assignEmployeeToServiceCenter(result, workCenter);
     }
 
     // Fetch complete employee data (same as getEmployees logic)
