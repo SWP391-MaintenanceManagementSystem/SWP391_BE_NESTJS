@@ -42,8 +42,8 @@ export class WorkScheduleService {
     }
 
     // --- Determine mode: SINGLE or CYCLIC ---
-    const isSingleMode = !!startDate && (!endDate || startDate === endDate);
-    const isCyclicMode = !!startDate && !!endDate && startDate !== endDate && !!repeatDays?.length;
+    const isSingleMode = !!startDate && (!endDate || endDate === startDate || endDate === '');
+    const isCyclicMode = !!startDate && (endDate || endDate === '') && Array.isArray(repeatDays);
 
     if (!isSingleMode && !isCyclicMode) {
       errors.mode =
