@@ -243,7 +243,7 @@ export class WorkScheduleService {
       throw new ConflictException({
         message: 'Validation failed',
         errors: {
-          schedule: `Work schedule${scheduleDates.length > 1 ? 's' : ''} already exist${scheduleDates.length === 1 ? 's' : ''} for this employee and shift on the specified date${scheduleDates.length > 1 ? 's' : ''}`,
+          date: 'Work schedules already exist for all the specified dates for this employee and shift',
         },
       });
     }
@@ -786,7 +786,7 @@ export class WorkScheduleService {
         throw new ConflictException({
           message: 'Validation failed',
           errors: {
-            schedule: `Work schedule already exists for this employee on ${dateString} for this shift`,
+            date: 'Work schedules already exist for all the specified dates for this employee and shift',
           },
         });
       }
