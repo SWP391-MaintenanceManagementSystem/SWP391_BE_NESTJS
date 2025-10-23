@@ -1,5 +1,6 @@
 import { Expose, Transform, Type } from 'class-transformer';
 import { BookingDetailStatus, BookingStatus } from '@prisma/client';
+import { utcToVNDate } from 'src/utils';
 class CustomerInfo {
   @Expose()
   firstName: string;
@@ -48,9 +49,11 @@ class ShiftInfo {
   name: string;
 
   @Expose()
+  @Transform(({ obj }) => utcToVNDate(obj.startTime))
   startTime: Date;
 
   @Expose()
+  @Transform(({ obj }) => utcToVNDate(obj.endTime))
   endTime: Date;
 }
 
@@ -107,6 +110,7 @@ export class CustomerBookingDetailDTO {
   id: string;
 
   @Expose()
+  @Transform(({ obj }) => utcToVNDate(obj.bookingDate))
   bookingDate: Date;
 
   @Expose()

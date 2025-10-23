@@ -47,9 +47,9 @@ export const BOOKING_SORTABLE_FIELDS: SortableFields<Prisma.BookingOrderByWithRe
   createdAt: { createdAt: 'asc' },
   bookingDate: { bookingDate: 'asc' },
   status: { status: 'asc' },
-  customer: {
-    customer: { firstName: 'asc', lastName: 'asc', account: { email: 'asc' } },
-  },
+  firstName: { customer: { firstName: 'asc' } },
+  lastName: { customer: { lastName: 'asc' } },
+  email: { customer: { account: { email: 'asc' } } },
   vehicle: { vehicle: { licensePlate: 'asc', vin: 'asc', vehicleModel: { name: 'asc' } } },
   center: { serviceCenter: { name: 'asc' } },
 };

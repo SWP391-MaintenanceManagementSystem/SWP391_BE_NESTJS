@@ -11,6 +11,7 @@ import { BookingQueryDTO } from './dto/booking-query.dto';
 import { JWT_Payload } from 'src/common/types';
 import { Prisma } from '@prisma/client';
 import { StaffBookingDetailDTO } from './dto/staff-booking-detail.dto';
+import { vnToUtcDate } from 'src/utils';
 @Injectable()
 export class StaffBookingService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -60,18 +61,18 @@ export class StaffBookingService {
       ...(shiftId && { shiftId }),
       ...(bookingDate && {
         bookingDate: {
-          gte: dateFns.startOfDay(bookingDate),
-          lte: dateFns.endOfDay(bookingDate),
+          gte: dateFns.startOfDay(vnToUtcDate(bookingDate)),
+          lte: dateFns.endOfDay(vnToUtcDate(bookingDate)),
         },
       }),
       ...(fromDate && {
         bookingDate: {
-          gte: dateFns.startOfDay(fromDate),
+          gte: dateFns.startOfDay(vnToUtcDate(fromDate)),
         },
       }),
       ...(toDate && {
         bookingDate: {
-          lte: dateFns.endOfDay(toDate),
+          lte: dateFns.endOfDay(vnToUtcDate(toDate)),
         },
       }),
       ...buildBookingSearch(search),

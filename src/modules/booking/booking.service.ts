@@ -19,6 +19,7 @@ import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
 import { StaffBookingDTO } from './dto/staff-booking.dto';
 import { TechnicianBookingService } from './technician-booking.service';
+import { vnToUtcDate } from 'src/utils';
 @Injectable()
 export class BookingService {
   constructor(
@@ -41,15 +42,18 @@ export class BookingService {
       serviceIds = [],
       packageIds = [],
     } = bookingData;
-
+    const utcBookingDate = vnToUtcDate(bookingDate);
     const workSchedule = await this.prismaService.workSchedule.findFirst({
       where: {
-        date: { gte: dateFns.startOfDay(bookingDate), lt: dateFns.endOfDay(bookingDate) },
+        date: {
+          gte: dateFns.startOfDay(utcBookingDate),
+          lt: dateFns.endOfDay(utcBookingDate),
+        },
         shift: {
           centerId,
           status: 'ACTIVE',
-          startTime: { lte: bookingDate },
-          endTime: { gt: bookingDate },
+          startTime: { lte: utcBookingDate },
+          endTime: { gt: utcBookingDate },
         },
       },
       include: { shift: true },
@@ -192,7 +196,6 @@ export class BookingService {
       toDate,
       isPremium,
     } = filterOptions;
-
     let where: Prisma.BookingWhereInput = {
       ...(status && { status }),
       ...(isPremium !== undefined && { customer: { isPremium } }),
@@ -200,18 +203,18 @@ export class BookingService {
       ...(shiftId && { shiftId }),
       ...(bookingDate && {
         bookingDate: {
-          gte: dateFns.startOfDay(bookingDate),
-          lte: dateFns.endOfDay(bookingDate),
+          gte: dateFns.startOfDay(vnToUtcDate(bookingDate)),
+          lte: dateFns.endOfDay(vnToUtcDate(bookingDate)),
         },
       }),
       ...(fromDate && {
         bookingDate: {
-          gte: dateFns.startOfDay(fromDate),
+          gte: dateFns.startOfDay(vnToUtcDate(fromDate)),
         },
       }),
       ...(toDate && {
         bookingDate: {
-          lte: dateFns.endOfDay(toDate),
+          lte: dateFns.endOfDay(vnToUtcDate(toDate)),
         },
       }),
       ...buildBookingSearch(search),

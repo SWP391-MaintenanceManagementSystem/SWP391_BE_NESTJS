@@ -1,4 +1,5 @@
-import { Expose } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
+import { utcToVNDate } from 'src/utils';
 
 export class BookingDTO {
   @Expose()
@@ -14,6 +15,7 @@ export class BookingDTO {
   @Expose()
   totalCost: number;
   @Expose()
+  @Transform(({ obj }) => utcToVNDate(obj.bookingDate))
   bookingDate: Date;
   @Expose()
   status: string;
