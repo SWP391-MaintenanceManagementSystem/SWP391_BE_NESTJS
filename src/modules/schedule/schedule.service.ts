@@ -18,7 +18,7 @@ export class ScheduleService {
   //     this.logger.debug('Cron job chạy mỗi 5 giây');
   // }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_HOUR, { timeZone: 'Asia/Ho_Chi_Minh' })
   async handleRemoveExpireToken() {
     this.logger.debug('DELETE EXPIRED TOKEN');
     await this.prisma.token.deleteMany({
@@ -30,7 +30,7 @@ export class ScheduleService {
     });
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Asia/Ho_Chi_Minh' })
   async handleExpireMembership() {
     this.logger.debug('EXPIRE MEMBERSHIP');
     const now = new Date();
@@ -59,7 +59,7 @@ export class ScheduleService {
     this.logger.debug(`Expired ${updated.count} memberships`);
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT, { timeZone: 'Asia/Ho_Chi_Minh' })
   async handleSendRenewMembershipEmail() {
     this.logger.debug('SEND REMIND RENEW MEMBERSHIP EMAIL');
     const now = new Date();

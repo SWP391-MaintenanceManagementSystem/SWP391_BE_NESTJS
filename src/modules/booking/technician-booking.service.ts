@@ -8,6 +8,7 @@ import { TechnicianBookingQueryDTO } from './dto/technician-booking-query.dto';
 import { TechnicianBookingDTO } from './dto/technician-booking.dto';
 import { TechnicianBookingDetailDTO } from './dto/technician-booking-detail.dto';
 import { buildBookingOrderBy } from 'src/common/sort/sort.util';
+import { parseDate } from 'src/utils';
 
 @Injectable()
 export class TechnicianBookingService {
@@ -20,15 +21,19 @@ export class TechnicianBookingService {
     const { status, search, fromDate, toDate, centerId } = filter;
 
     const dateFilter: Prisma.BookingWhereInput = {};
-    if (fromDate && toDate) {
+    // Convert string dates to Date objects for database comparison
+    const parsedFromDate = fromDate ? parseDate(fromDate) : null;
+    const parsedToDate = toDate ? parseDate(toDate) : null;
+
+    if (parsedFromDate && parsedToDate) {
       dateFilter.bookingDate = {
-        gte: dateFns.startOfDay(fromDate),
-        lte: dateFns.endOfDay(toDate),
+        gte: dateFns.startOfDay(parsedFromDate),
+        lte: dateFns.endOfDay(parsedToDate),
       };
-    } else if (fromDate) {
-      dateFilter.bookingDate = { gte: dateFns.startOfDay(fromDate) };
-    } else if (toDate) {
-      dateFilter.bookingDate = { lte: dateFns.endOfDay(toDate) };
+    } else if (parsedFromDate) {
+      dateFilter.bookingDate = { gte: dateFns.startOfDay(parsedFromDate) };
+    } else if (parsedToDate) {
+      dateFilter.bookingDate = { lte: dateFns.endOfDay(parsedToDate) };
     }
 
     return {

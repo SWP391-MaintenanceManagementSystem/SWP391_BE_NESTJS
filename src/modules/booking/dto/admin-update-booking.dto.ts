@@ -1,7 +1,7 @@
 import { BookingStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
-  IsDate,
+  IsDateString,
   IsEnum,
   IsOptional,
   IsPositive,
@@ -20,10 +20,12 @@ export class AdminUpdateBookingDTO {
   note?: string;
 
   @IsOptional()
-  @IsDate({ message: 'bookingDate must be a valid Date' })
-  @Type(() => Date)
-  @ApiPropertyOptional({ example: '2025-10-08T13:30:00Z' })
-  bookingDate?: Date;
+  @IsDateString({}, { message: 'bookingDate must be a valid ISO 8601 date string' })
+  @ApiPropertyOptional({
+    example: '2025-10-08T13:30:00Z',
+    description: 'Booking date and time in ISO 8601 format',
+  })
+  bookingDate?: string;
 
   @IsOptional()
   @IsUUID('4')

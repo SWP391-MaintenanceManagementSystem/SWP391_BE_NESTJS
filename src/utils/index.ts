@@ -45,21 +45,11 @@ const getVNDayOfWeek = (date: Date) => {
   return vnTime.getDay();
 };
 
-const isUTC = (date: Date) => date.getTimezoneOffset() === 0;
-
-const isVN = (date: Date) => date.getTimezoneOffset() === -420; // -7*60
-
 const utcToVNDate = (date: Date) => {
-  if (isVN(date) || isUTC(date)) {
-    return date;
-  }
   return toZonedTime(date, 'Asia/Ho_Chi_Minh');
 };
 
 const vnToUtcDate = (date: Date) => {
-  if (isVN(date) || isUTC(date)) {
-    return date;
-  }
   return fromZonedTime(date, 'Asia/Ho_Chi_Minh');
 };
 
@@ -71,6 +61,31 @@ const stringToDate = (dateStr: string): Date => {
   const d = new Date(dateStr);
   d.setUTCHours(0, 0, 0, 0);
   return d;
+};
+
+// Convert Date to ISO string (YYYY-MM-DDTHH:mm:ss.sssZ)
+const dateToISOString = (date: Date | null | undefined): string | null => {
+  if (!date) return null;
+  return date.toISOString();
+};
+
+// Convert ISO string to Date
+const isoStringToDate = (dateStr: string | null | undefined): Date | null => {
+  if (!dateStr) return null;
+  return new Date(dateStr);
+};
+
+// Convert Date to local datetime string (YYYY-MM-DDTHH:mm:ss)
+const dateToLocalString = (date: Date | null | undefined): string | null => {
+  if (!date) return null;
+  return date.toISOString().slice(0, 19); // Remove milliseconds and Z
+};
+
+// Convert string to Date, handling both ISO and local formats
+const parseDate = (dateStr: string | Date | null | undefined): Date | null => {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return dateStr;
+  return new Date(dateStr);
 };
 
 const timeStringToDate = (time: string): Date => {
@@ -91,6 +106,10 @@ export {
   vnToUtcDate,
   dateToString,
   stringToDate,
+  dateToISOString,
+  isoStringToDate,
+  dateToLocalString,
+  parseDate,
   timeStringToDate,
   dateToTimeString,
 };

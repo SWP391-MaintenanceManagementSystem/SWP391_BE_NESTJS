@@ -11,7 +11,7 @@ import { BookingQueryDTO } from './dto/booking-query.dto';
 import { JWT_Payload } from 'src/common/types';
 import { Prisma } from '@prisma/client';
 import { StaffBookingDetailDTO } from './dto/staff-booking-detail.dto';
-import { vnToUtcDate } from 'src/utils';
+import { parseDate } from 'src/utils';
 @Injectable()
 export class StaffBookingService {
   constructor(private readonly prismaService: PrismaService) {}
@@ -54,16 +54,21 @@ export class StaffBookingService {
       isPremium,
     } = filterOptions;
 
+    // Convert string dates to Date objects for database comparison
     const dateFilter: Prisma.BookingWhereInput = {};
-    if (fromDate && toDate) {
+    const parsedFromDate = fromDate ? parseDate(fromDate) : null;
+    const parsedToDate = toDate ? parseDate(toDate) : null;
+    const parsedBookingDate = bookingDate ? parseDate(bookingDate) : null;
+
+    if (parsedFromDate && parsedToDate) {
       dateFilter.bookingDate = {
-        gte: dateFns.startOfDay(fromDate),
-        lte: dateFns.endOfDay(toDate),
+        gte: dateFns.startOfDay(parsedFromDate),
+        lte: dateFns.endOfDay(parsedToDate),
       };
-    } else if (fromDate) {
-      dateFilter.bookingDate = { gte: dateFns.startOfDay(vnToUtcDate(fromDate)) };
-    } else if (toDate) {
-      dateFilter.bookingDate = { lte: dateFns.endOfDay(vnToUtcDate(toDate)) };
+    } else if (parsedFromDate) {
+      dateFilter.bookingDate = { gte: dateFns.startOfDay(parsedFromDate) };
+    } else if (parsedToDate) {
+      dateFilter.bookingDate = { lte: dateFns.endOfDay(parsedToDate) };
     }
 
     const where: Prisma.BookingWhereInput = {
@@ -71,10 +76,10 @@ export class StaffBookingService {
       ...(centerId && { centerId }),
       ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(shiftId && { shiftId }),
-      ...(bookingDate && {
+      ...(parsedBookingDate && {
         bookingDate: {
-          gte: dateFns.startOfDay(vnToUtcDate(bookingDate)),
-          lte: dateFns.endOfDay(vnToUtcDate(bookingDate)),
+          gte: dateFns.startOfDay(parsedBookingDate),
+          lte: dateFns.endOfDay(parsedBookingDate),
         },
       }),
       ...dateFilter,

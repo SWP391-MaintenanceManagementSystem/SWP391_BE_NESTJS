@@ -12,13 +12,7 @@ import { WorkScheduleDTO } from './dto/work-schedule.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma, ShiftStatus } from '@prisma/client';
-import {
-  dateToString,
-  stringToDate,
-  dateToTimeString,
-  timeStringToDate,
-  utcToVNDate,
-} from 'src/utils';
+import { dateToString, stringToDate, dateToTimeString } from 'src/utils';
 import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
 
 @Injectable()
@@ -319,8 +313,8 @@ export class WorkScheduleService {
                 shift: ws.shift
                   ? {
                       ...ws.shift,
-                      startTime: dateToTimeString(utcToVNDate(ws.shift.startTime)),
-                      endTime: dateToTimeString(utcToVNDate(ws.shift.endTime)),
+                      startTime: dateToTimeString(ws.shift.startTime),
+                      endTime: dateToTimeString(ws.shift.endTime),
                     }
                   : undefined,
               },
@@ -492,8 +486,8 @@ export class WorkScheduleService {
             shift: ws.shift
               ? {
                   ...ws.shift,
-                  startTime: dateToTimeString(utcToVNDate(ws.shift.startTime)),
-                  endTime: dateToTimeString(utcToVNDate(ws.shift.endTime)),
+                  startTime: dateToTimeString(ws.shift.startTime),
+                  endTime: dateToTimeString(ws.shift.endTime),
                 }
               : undefined,
           },
@@ -600,8 +594,8 @@ export class WorkScheduleService {
           ? {
               ...workSchedule.shift,
 
-              startTime: dateToTimeString(utcToVNDate(workSchedule.shift.startTime)),
-              endTime: dateToTimeString(utcToVNDate(workSchedule.shift.endTime)),
+              startTime: dateToTimeString(workSchedule.shift.startTime),
+              endTime: dateToTimeString(workSchedule.shift.endTime),
             }
           : undefined,
       },
@@ -873,8 +867,8 @@ export class WorkScheduleService {
         shift: updated.shift
           ? {
               ...updated.shift,
-              startTime: dateToTimeString(utcToVNDate(updated.shift.startTime)),
-              endTime: dateToTimeString(utcToVNDate(updated.shift.endTime)),
+              startTime: dateToTimeString(updated.shift.startTime),
+              endTime: dateToTimeString(updated.shift.endTime),
             }
           : undefined,
       },

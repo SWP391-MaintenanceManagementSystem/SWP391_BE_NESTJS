@@ -1,4 +1,4 @@
-import { Exclude, Expose, Type } from 'class-transformer';
+import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { BookingDetailDTO } from 'src/modules/booking-detail/dto/booking-detail.dto';
@@ -37,7 +37,8 @@ export class BookingWithDetailsDTO {
   @Expose()
   totalCost: number;
   @Expose()
-  bookingDate: Date;
+  @Transform(({ obj }) => obj.bookingDate.toISOString().split('Z')[0])
+  bookingDate: string;
   @Expose()
   status: string;
   @Expose()

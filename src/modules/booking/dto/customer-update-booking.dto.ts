@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsDate, IsOptional } from 'class-validator';
+import { IsDateString, IsOptional } from 'class-validator';
 
 export class CustomerUpdateBookingDTO {
   @IsOptional()
@@ -9,14 +8,15 @@ export class CustomerUpdateBookingDTO {
     required: false,
   })
   note?: string;
+
   @IsOptional()
-  @IsDate()
-  @Type(() => Date)
+  @IsDateString()
   @ApiProperty({
     example: '2025-10-08T13:30:00Z',
     required: false,
+    description: 'Booking date and time in ISO 8601 format',
   })
-  bookingDate?: Date;
+  bookingDate?: string;
 
   @IsOptional()
   @ApiProperty({

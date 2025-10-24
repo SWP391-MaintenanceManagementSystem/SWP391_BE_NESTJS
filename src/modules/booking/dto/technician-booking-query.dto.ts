@@ -1,16 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { BookingStatus } from '@prisma/client';
 import { Type } from 'class-transformer';
-import {
-  IsDate,
-  IsEnum,
-  IsInt,
-  IsOptional,
-  IsPositive,
-  IsString,
-  IsUUID,
-  Min,
-} from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsPositive, IsString, IsUUID, Min } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
 
 export class TechnicianBookingQueryDTO {
@@ -40,22 +31,20 @@ export class TechnicianBookingQueryDTO {
   search?: string;
 
   @IsOptional()
-  @IsDate({ message: 'fromDate must be a valid Date' })
-  @Type(() => Date)
+  @IsString()
   @ApiPropertyOptional({
-    description: 'Filter bookings from this date',
+    description: 'Filter bookings from this date (ISO 8601 format)',
     example: '2025-10-01T00:00:00Z',
   })
-  fromDate?: Date;
+  fromDate?: string;
 
   @IsOptional()
-  @IsDate({ message: 'toDate must be a valid Date' })
-  @Type(() => Date)
+  @IsString()
   @ApiPropertyOptional({
-    description: 'Filter bookings until this date',
+    description: 'Filter bookings until this date (ISO 8601 format)',
     example: '2025-10-31T23:59:59Z',
   })
-  toDate?: Date;
+  toDate?: string;
 
   @IsOptional()
   @IsUUID('4')

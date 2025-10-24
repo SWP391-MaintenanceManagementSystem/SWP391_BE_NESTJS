@@ -5,9 +5,8 @@ import { startOfDay } from 'date-fns/startOfDay';
 import { endOfDay } from 'date-fns/endOfDay';
 import { CustomerBookingDetailDTO } from './dto/customer-booking-detail.dto';
 import { plainToInstance } from 'class-transformer';
-import { vnToUtcDate } from 'src/utils';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
-
+import { parseDate } from 'src/utils';
 @Injectable()
 export class CustomerBookingService {
   constructor(
@@ -34,27 +33,36 @@ export class CustomerBookingService {
       totalCost: booking.totalCost,
     };
 
-    if (updateData.bookingDate && updateData.bookingDate !== booking.bookingDate) {
-      const workSchedule = await this.prismaService.workSchedule.findFirst({
-        where: {
-          date: {
-            gte: startOfDay(vnToUtcDate(updateData.bookingDate)),
-            lt: endOfDay(vnToUtcDate(updateData.bookingDate)),
-          },
-          shift: {
-            centerId: booking.shift.centerId,
-            status: 'ACTIVE',
-            startTime: { lte: vnToUtcDate(updateData.bookingDate) },
-            endTime: { gt: vnToUtcDate(updateData.bookingDate) },
-          },
-        },
-        select: { shiftId: true },
-      });
+    if (updateData.bookingDate) {
+      // Convert string date to Date object
+      const parsedBookingDate = parseDate(updateData.bookingDate);
+      if (!parsedBookingDate) {
+        throw new BadRequestException('Invalid booking date format');
+      }
 
-      if (!workSchedule) throw new BadRequestException('No matching shift for the selected date');
+      // Only update if the date actually changed
+      if (parsedBookingDate.getTime() !== booking.bookingDate.getTime()) {
+        const workSchedule = await this.prismaService.workSchedule.findFirst({
+          where: {
+            date: {
+              gte: startOfDay(parsedBookingDate),
+              lt: endOfDay(parsedBookingDate),
+            },
+            shift: {
+              centerId: booking.shift.centerId,
+              status: 'ACTIVE',
+              startTime: { lte: parsedBookingDate },
+              endTime: { gt: parsedBookingDate },
+            },
+          },
+          select: { shiftId: true },
+        });
 
-      updatePayload.bookingDate = updateData.bookingDate;
-      updatePayload.shiftId = workSchedule.shiftId;
+        if (!workSchedule) throw new BadRequestException('No matching shift for the selected date');
+
+        updatePayload.bookingDate = parsedBookingDate;
+        updatePayload.shiftId = workSchedule.shiftId;
+      }
     }
 
     if (updateData.vehicleId && updateData.vehicleId !== booking.vehicleId) {

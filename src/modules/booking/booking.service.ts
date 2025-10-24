@@ -14,12 +14,12 @@ import { JWT_Payload } from 'src/common/types';
 import { CustomerUpdateBookingDTO } from './dto/customer-update-booking.dto';
 import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
 import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
+import { parseDate } from 'src/utils';
 import { CustomerBookingService } from './customer-booking.service';
 import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
 import { StaffBookingDTO } from './dto/staff-booking.dto';
 import { TechnicianBookingService } from './technician-booking.service';
-import { vnToUtcDate } from 'src/utils';
 @Injectable()
 export class BookingService {
   constructor(
@@ -42,18 +42,26 @@ export class BookingService {
       serviceIds = [],
       packageIds = [],
     } = bookingData;
-    const utcBookingDate = vnToUtcDate(bookingDate);
+
+    // Convert string date to Date object for database operations
+    const parsedBookingDate = parseDate(bookingDate);
+    if (!parsedBookingDate) {
+      throw new BadRequestException('Invalid booking date format');
+    }
+
+    const bookingTime = dateFns.format(parsedBookingDate, 'HH:mm:ss');
+    const bookingTimeAsDate = new Date(`1970-01-01T${bookingTime}`);
     const workSchedule = await this.prismaService.workSchedule.findFirst({
       where: {
         date: {
-          gte: dateFns.startOfDay(utcBookingDate),
-          lt: dateFns.endOfDay(utcBookingDate),
+          gte: dateFns.startOfDay(parsedBookingDate),
+          lt: dateFns.endOfDay(parsedBookingDate),
         },
         shift: {
           centerId,
           status: 'ACTIVE',
-          startTime: { lte: utcBookingDate },
-          endTime: { gt: utcBookingDate },
+          startTime: { lte: bookingTimeAsDate },
+          endTime: { gt: bookingTimeAsDate },
         },
       },
       include: { shift: true },
@@ -106,7 +114,7 @@ export class BookingService {
 
     const createdBooking = await this.prismaService.booking.create({
       data: {
-        bookingDate,
+        bookingDate: parsedBookingDate,
         shiftId: workSchedule.shiftId,
         customerId,
         totalCost: 0,
@@ -200,26 +208,32 @@ export class BookingService {
       isPremium,
     } = filterOptions;
 
+    // Convert string dates to Date objects for database comparison
     const dateFilter: Prisma.BookingWhereInput = {};
-    if (fromDate && toDate) {
+    const parsedFromDate = fromDate ? parseDate(fromDate) : null;
+    const parsedToDate = toDate ? parseDate(toDate) : null;
+    const parsedBookingDate = bookingDate ? parseDate(bookingDate) : null;
+
+    if (parsedFromDate && parsedToDate) {
       dateFilter.bookingDate = {
-        gte: dateFns.startOfDay(fromDate),
-        lte: dateFns.endOfDay(toDate),
+        gte: dateFns.startOfDay(parsedFromDate),
+        lte: dateFns.endOfDay(parsedToDate),
       };
-    } else if (fromDate) {
-      dateFilter.bookingDate = { gte: dateFns.startOfDay(vnToUtcDate(fromDate)) };
-    } else if (toDate) {
-      dateFilter.bookingDate = { lte: dateFns.endOfDay(vnToUtcDate(toDate)) };
+    } else if (parsedFromDate) {
+      dateFilter.bookingDate = { gte: dateFns.startOfDay(parsedFromDate) };
+    } else if (parsedToDate) {
+      dateFilter.bookingDate = { lte: dateFns.endOfDay(parsedToDate) };
     }
+
     let where: Prisma.BookingWhereInput = {
       ...(status && { status }),
       ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(centerId && { centerId }),
       ...(shiftId && { shiftId }),
-      ...(bookingDate && {
+      ...(parsedBookingDate && {
         bookingDate: {
-          gte: dateFns.startOfDay(vnToUtcDate(bookingDate)),
-          lte: dateFns.endOfDay(vnToUtcDate(bookingDate)),
+          gte: dateFns.startOfDay(parsedBookingDate),
+          lte: dateFns.endOfDay(parsedBookingDate),
         },
       }),
       ...dateFilter,

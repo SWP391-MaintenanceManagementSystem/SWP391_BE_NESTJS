@@ -12,7 +12,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { ShiftStatus, Prisma } from '@prisma/client';
-import { utcToVNDate, vnToUtcDate, timeStringToDate, dateToTimeString } from 'src/utils';
+import { timeStringToDate, dateToTimeString } from 'src/utils';
 
 @Injectable()
 export class ShiftService {
@@ -20,8 +20,8 @@ export class ShiftService {
 
   private validateTimes(startTimeStr: string, endTimeStr: string): string | null {
     // --- Convert to Date ---
-    const start = vnToUtcDate(timeStringToDate(startTimeStr));
-    const end = vnToUtcDate(timeStringToDate(endTimeStr));
+    const start = timeStringToDate(startTimeStr);
+    const end = timeStringToDate(endTimeStr);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return 'Invalid time value';
@@ -63,8 +63,8 @@ export class ShiftService {
   }
 
   async createShift(shift: CreateShiftDTO): Promise<ShiftDTO> {
-    const startTime = vnToUtcDate(timeStringToDate(shift.startTime));
-    const endTime = vnToUtcDate(timeStringToDate(shift.endTime));
+    const startTime = timeStringToDate(shift.startTime);
+    const endTime = timeStringToDate(shift.endTime);
     const errors: Record<string, string> = {};
 
     // --- Validate start/end time logic (overnight check) ---
@@ -210,8 +210,8 @@ export class ShiftService {
 
     const formatted = shifts.map(s => ({
       ...s,
-      startTime: dateToTimeString(utcToVNDate(s.startTime)),
-      endTime: dateToTimeString(utcToVNDate(s.endTime)),
+      startTime: dateToTimeString(s.startTime),
+      endTime: dateToTimeString(s.endTime),
       serviceCenter: s.serviceCenter
         ? {
             id: s.serviceCenter.id,
@@ -242,8 +242,8 @@ export class ShiftService {
     });
     const formatted = shifts.map(s => ({
       ...s,
-      startTime: dateToTimeString(utcToVNDate(s.startTime)),
-      endTime: dateToTimeString(utcToVNDate(s.endTime)),
+      startTime: dateToTimeString(s.startTime),
+      endTime: dateToTimeString(s.endTime),
       serviceCenter: s.serviceCenter
         ? {
             id: s.serviceCenter.id,
@@ -310,7 +310,7 @@ export class ShiftService {
           errors.startTime = 'Start time must be in format HH:MM:SS';
         } else {
           try {
-            finalStartTime = vnToUtcDate(timeStringToDate(update.startTime));
+            finalStartTime = timeStringToDate(update.startTime);
             data.startTime = finalStartTime;
           } catch (error) {
             errors.startTime = 'Invalid start time format';
@@ -327,7 +327,7 @@ export class ShiftService {
           errors.endTime = 'End time must be in format HH:MM:SS';
         } else {
           try {
-            finalEndTime = vnToUtcDate(timeStringToDate(update.endTime));
+            finalEndTime = timeStringToDate(update.endTime);
             data.endTime = finalEndTime;
           } catch (error) {
             errors.endTime = 'Invalid end time format';
@@ -469,8 +469,8 @@ export class ShiftService {
       ShiftDTO,
       {
         ...updated,
-        startTime: dateToTimeString(utcToVNDate(updated.startTime)),
-        endTime: dateToTimeString(utcToVNDate(updated.endTime)),
+        startTime: dateToTimeString(updated.startTime),
+        endTime: dateToTimeString(updated.endTime),
         serviceCenter: updated.serviceCenter
           ? {
               id: updated.serviceCenter.id,

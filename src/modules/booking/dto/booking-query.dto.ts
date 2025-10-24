@@ -39,26 +39,27 @@ export class BookingQueryDTO {
 
   @ApiProperty({
     required: false,
+    description: 'Filter bookings on this specific date (ISO 8601 format)',
   })
   @IsOptional()
-  @Type(() => Date)
-  bookingDate?: Date;
+  @IsString()
+  bookingDate?: string;
 
   @ApiProperty({
     required: false,
-    description: 'Filter bookings from this date (yyyy-mm-dd)',
+    description: 'Filter bookings from this date (ISO 8601 format)',
   })
   @IsOptional()
-  @Type(() => Date)
-  fromDate?: Date;
+  @IsString()
+  fromDate?: string;
 
   @ApiProperty({
     required: false,
-    description: 'Filter bookings until this date (yyyy-mm-dd)',
+    description: 'Filter bookings until this date (ISO 8601 format)',
   })
   @IsOptional()
-  @Type(() => Date)
-  toDate?: Date;
+  @IsString()
+  toDate?: string;
 
   @IsOptional()
   @Transform(({ value }) => {
