@@ -44,21 +44,14 @@ export class CreateWorkScheduleDTO {
   startDate: string;
 
   @ApiPropertyOptional({ example: '' })
-  @IsDateString({}, { message: 'End date must be a valid date string (YYYY-MM-DD)' })
   @IsOptional()
   endDate?: string;
 
   @ApiPropertyOptional({
-    example: [1, 3, 5],
+    example: [],
     description: 'Days of week to repeat (0=Sunday,...6=Saturday)',
     type: [Number],
   })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(7)
-  @IsInt({ each: true })
-  @Min(0, { each: true })
-  @Max(6, { each: true })
   @IsOptional()
   repeatDays?: number[];
 }
