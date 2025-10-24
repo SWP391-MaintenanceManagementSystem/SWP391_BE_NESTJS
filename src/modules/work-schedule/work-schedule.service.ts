@@ -43,11 +43,16 @@ export class WorkScheduleService {
 
     // --- Determine mode: SINGLE or CYCLIC ---
     const isSingleMode = !!startDate && (!endDate || endDate === startDate || endDate === '');
-    const isCyclicMode = !!startDate && (endDate || endDate === '') && Array.isArray(repeatDays);
+    const isCyclicMode =
+      !!startDate &&
+      endDate &&
+      endDate !== '' &&
+      endDate !== startDate &&
+      Array.isArray(repeatDays);
 
     if (!isSingleMode && !isCyclicMode) {
       errors.mode =
-        'Must provide either startDate for single schedule OR startDate, endDate, repeatDays for cyclic schedule';
+        'Must provide either startDate for single schedule OR startDate, a valid endDate, and repeatDays for cyclic schedule';
     }
 
     // --- Validate shiftId ---
@@ -88,32 +93,24 @@ export class WorkScheduleService {
       let start: Date | null = null;
       let end: Date | null = null;
 
-      if (!startDate || startDate.trim() === '') {
-        errors.startDate = 'Start date is required and cannot be empty';
-      } else {
-        try {
-          start = stringToDate(startDate);
-        } catch (error) {
-          errors.startDate = `Invalid start date format: ${startDate}. Expected format: YYYY-MM-DD`;
-        }
+      try {
+        start = stringToDate(startDate!);
+      } catch (error) {
+        errors.startDate = `Invalid start date format: ${startDate}. Expected format: YYYY-MM-DD`;
       }
 
-      if (!endDate || endDate.trim() === '') {
-        errors.endDate = 'End date is required and cannot be empty';
-      } else {
-        try {
-          end = stringToDate(endDate);
-        } catch (error) {
-          errors.endDate = `Invalid end date format: ${endDate}. Expected format: YYYY-MM-DD`;
-        }
+      try {
+        end = stringToDate(endDate!);
+      } catch (error) {
+        errors.endDate = `Invalid end date format: ${endDate}. Expected format: YYYY-MM-DD`;
       }
 
       if (start && end && start > end) {
         errors.dateRange = 'Start date must be before end date';
       }
 
-      if (!repeatDays || !Array.isArray(repeatDays)) {
-        errors.repeatDays = 'Repeat days is required and must be an array';
+      if (!Array.isArray(repeatDays)) {
+        errors.repeatDays = 'Repeat days must be an array';
       } else if (repeatDays.length === 0) {
         errors.repeatDays = 'At least one repeat day is required';
       } else if (repeatDays.length > 7) {
@@ -345,7 +342,7 @@ export class WorkScheduleService {
     userRole: AccountRole,
     employeeId?: string
   ): Promise<PaginationResponse<WorkScheduleDTO>> {
-    let { page = 1, pageSize = 10, sortBy = 'date', orderBy = 'desc' } = filter;
+    let { page = 1, pageSize = 10, sortBy = 'createdAt', orderBy = 'desc' } = filter;
     if (page < 1) page = 1;
     if (pageSize < 1) pageSize = 10;
 
@@ -412,13 +409,16 @@ export class WorkScheduleService {
       where.OR = where.OR ? [...where.OR, ...roleRestriction] : roleRestriction;
     }
 
-    const orderByClause: Prisma.WorkScheduleOrderByWithRelationInput = {};
+    const orderByClause: Prisma.WorkScheduleOrderByWithRelationInput[] = [];
     if (sortBy === 'employee') {
-      orderByClause.employee = { firstName: orderBy };
+      orderByClause.push({ employee: { firstName: orderBy } }, { id: 'asc' });
     } else if (sortBy === 'shift') {
-      orderByClause.shift = { name: orderBy };
+      orderByClause.push({ shift: { name: orderBy } }, { id: 'asc' });
     } else {
-      orderByClause[sortBy as keyof Prisma.WorkScheduleOrderByWithRelationInput] = orderBy;
+      orderByClause.push(
+        { [sortBy as keyof Prisma.WorkScheduleOrderByWithRelationInput]: orderBy },
+        { id: 'asc' }
+      );
     }
 
     const [workSchedules, total] = await this.prismaService.$transaction([
@@ -700,6 +700,8 @@ export class WorkScheduleService {
         });
         if (!targetShift) {
           errors.shiftId = `Shift with ID ${shiftId} not found`;
+        } else if (targetShift.centerId !== existingSchedule.shift.centerId) {
+          errors.shiftId = `Shift with ID ${shiftId} does not belong to service center with ID ${existingSchedule.shift.centerId}`;
         } else if (targetShift.status !== ShiftStatus.ACTIVE) {
           errors.shiftId = `Cannot update to inactive shift. Shift status is ${targetShift.status}`;
         } else {
@@ -810,6 +812,8 @@ export class WorkScheduleService {
     const updated = await this.prismaService.workSchedule.update({
       where: { id },
       data: {
+        employeeId: finalEmployeeId,
+        shiftId: finalShiftId,
         date: parsedDate,
       },
       include: {
