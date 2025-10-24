@@ -494,7 +494,6 @@ export class WorkScheduleService {
       this.prismaService.workSchedule.count({ where }),
     ]);
 
-    // Nếu sortBy là fullName thì sort lại ở BE cho chính xác
     let sortedSchedules = workSchedules;
     if (sortBy === 'fullName') {
       sortedSchedules = [...workSchedules].sort((a, b) => {
