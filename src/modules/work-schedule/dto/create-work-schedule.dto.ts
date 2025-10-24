@@ -6,11 +6,6 @@ import {
   IsOptional,
   IsArray,
   ArrayMinSize,
-  ArrayMaxSize,
-  IsInt,
-  Min,
-  Max,
-  ValidateIf,
 } from 'class-validator';
 
 export class CreateWorkScheduleDTO {

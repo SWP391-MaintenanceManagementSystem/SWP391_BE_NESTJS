@@ -58,7 +58,7 @@ export class WorkScheduleService {
       errors.shiftId = `Shift with ID ${shiftId} not found`;
     } else if (shift.status !== ShiftStatus.ACTIVE) {
       errors.shiftId = `Cannot create work schedule for inactive shift. Shift status is ${shift.status}`;
-    } else if (shift.centerId !== centerId) {
+    } else if (shift.serviceCenter.id !== centerId) {
       errors.shiftId = `Shift with ID ${shiftId} does not belong to service center with ID ${centerId}`;
     }
 
@@ -173,7 +173,8 @@ export class WorkScheduleService {
       const activeAssignment = await this.prismaService.workCenter.findFirst({
         where: {
           employeeId,
-          centerId: validShift.centerId,
+          centerId: validShift.serviceCenter.id,
+          OR: [{ endDate: null }, { endDate: { gte: minDate } }],
         },
         orderBy: {
           startDate: 'desc',
@@ -189,7 +190,7 @@ export class WorkScheduleService {
 
       if (minDate < activeAssignment.startDate) {
         errors[employeeId] = {
-          workCenter: `Work schedule start date (${dateToString(minDate)}) is before employee's assignment start date (${dateToString(activeAssignment.startDate)}) to service center "${validShift.serviceCenter.name}". Please adjust the work schedule start date to be on or after ${dateToString(activeAssignment.startDate)}.`,
+          workCenter: `Work schedule start date (${dateToString(minDate)}) is before employee's assignment start date (${dateToString(activeAssignment.startDate)}) to service center ${validShift.serviceCenter.name}. Please adjust the work schedule start date to be on or after ${dateToString(activeAssignment.startDate)}.`,
         };
         continue;
       }
@@ -201,6 +202,16 @@ export class WorkScheduleService {
         continue;
       }
 
+      if (activeAssignment.endDate !== null) {
+        errors[employeeId] = {
+          workCenter: `Employee's assignment to service center "${validShift.serviceCenter.name}" has already ended on ${dateToString(
+            activeAssignment.endDate
+          )}. Please choose another employee who is still assigned to this service center.`,
+        };
+        continue;
+      }
+
+      // --- Check for existing schedules to avoid duplicates ---
       const existingSchedules = await this.prismaService.workSchedule.findMany({
         where: {
           employeeId,
@@ -408,6 +419,12 @@ export class WorkScheduleService {
       orderByClause.push({ employee: { firstName: orderBy } }, { id: 'asc' });
     } else if (sortBy === 'shift') {
       orderByClause.push({ shift: { name: orderBy } }, { id: 'asc' });
+    } else if (sortBy === 'fullName') {
+      orderByClause.push(
+        { employee: { firstName: orderBy } },
+        { employee: { lastName: orderBy } },
+        { id: 'asc' }
+      );
     } else {
       orderByClause.push(
         { [sortBy as keyof Prisma.WorkScheduleOrderByWithRelationInput]: orderBy },
@@ -475,6 +492,17 @@ export class WorkScheduleService {
       }),
       this.prismaService.workSchedule.count({ where }),
     ]);
+
+    let sortedSchedules = workSchedules;
+    if (sortBy === 'fullName') {
+      sortedSchedules = [...workSchedules].sort((a, b) => {
+        const aEmp = a.employee?.account?.employee;
+        const bEmp = b.employee?.account?.employee;
+        const fullA = `${aEmp?.firstName ?? ''} ${aEmp?.lastName ?? ''}`.trim().toLowerCase();
+        const fullB = `${bEmp?.firstName ?? ''} ${bEmp?.lastName ?? ''}`.trim().toLowerCase();
+        return orderBy === 'asc' ? fullA.localeCompare(fullB) : fullB.localeCompare(fullA);
+      });
+    }
 
     return {
       data: workSchedules.map(ws =>
@@ -682,22 +710,38 @@ export class WorkScheduleService {
     }
 
     // --- Validate newShiftId (if provided) ---
-    if (shiftId !== undefined) {
-      if (!shiftId || shiftId.trim() === '') {
-        errors.shiftId = 'Shift ID cannot be empty';
-      } else if (!uuidRegex.test(shiftId)) {
-        errors.shiftId = 'Shift ID must be a valid UUID';
+    if (!shiftId || shiftId.trim() === '') {
+      errors.shiftId = 'Shift ID cannot be empty';
+    } else if (!uuidRegex.test(shiftId)) {
+      errors.shiftId = 'Shift ID must be a valid UUID';
+    } else {
+      const targetShift = await this.prismaService.shift.findUnique({
+        where: { id: shiftId },
+        include: { serviceCenter: true },
+      });
+      if (!targetShift) {
+        errors.shiftId = `Shift with ID ${shiftId} not found`;
+      } else if (targetShift.status !== ShiftStatus.ACTIVE) {
+        errors.shiftId = `Cannot update to inactive shift. Shift status is ${targetShift.status}`;
       } else {
-        const targetShift = await this.prismaService.shift.findUnique({
-          where: { id: shiftId },
+        // Check if shift belongs to a service center where employee is assigned
+        const activeAssignment = await this.prismaService.workCenter.findMany({
+          where: {
+            employeeId: finalEmployeeId,
+            startDate: { lte: parsedDate },
+            OR: [{ endDate: null }, { endDate: { gte: parsedDate } }],
+          },
           include: { serviceCenter: true },
         });
-        if (!targetShift) {
-          errors.shiftId = `Shift with ID ${shiftId} not found`;
-        } else if (targetShift.centerId !== existingSchedule.shift.centerId) {
-          errors.shiftId = `Shift with ID ${shiftId} does not belong to service center with ID ${existingSchedule.shift.centerId}`;
-        } else if (targetShift.status !== ShiftStatus.ACTIVE) {
-          errors.shiftId = `Cannot update to inactive shift. Shift status is ${targetShift.status}`;
+        const sameCenterWithShift = activeAssignment.find(
+          a => a.centerId === targetShift.serviceCenter.id
+        );
+        if (!sameCenterWithShift) {
+          const availableCenters = activeAssignment.map(a => a.serviceCenter.name).join(', ');
+          errors.shiftId =
+            activeAssignment.length > 0
+              ? `Shift with ID ${shiftId} belongs to service center ${targetShift.serviceCenter.name}, but employee is assigned to: ${availableCenters} on ${dateString}`
+              : `Shift with ID ${shiftId} belongs to service center ${targetShift.serviceCenter.name}, but employee has no service center assignment on ${dateString}`;
         } else {
           finalShiftId = shiftId;
           finalShift = targetShift;
@@ -739,7 +783,7 @@ export class WorkScheduleService {
       where: {
         employeeId: finalEmployeeId,
         startDate: { lte: parsedDate },
-        OR: [{ endDate: null }, { endDate: { gte: parsedDate } }],
+        endDate: null,
       },
       include: { serviceCenter: true },
     });
@@ -750,8 +794,8 @@ export class WorkScheduleService {
       const availableCenters = activeAssignment.map(a => a.serviceCenter.name).join(', ');
       const errorMsg =
         activeAssignment.length > 0
-          ? `Employee is assigned to: ${availableCenters} on ${dateString}. Cannot update to shift at "${finalShift.serviceCenter.name}". Please choose a shift from an assigned service center or assign employee to this center first.`
-          : `Employee has no service center assignment on ${dateString}. Please assign to "${finalShift.serviceCenter.name}" first.`;
+          ? `Employee is assigned to: ${availableCenters} on ${dateString}. Cannot update to shift at ${finalShift.serviceCenter.name}. Please choose a shift from an assigned service center or assign employee to this center first.`
+          : `Employee has no service center assignment on ${dateString}. Please assign to ${finalShift.serviceCenter.name} first.`;
 
       throw new BadRequestException({
         message: 'Validation failed',
@@ -766,17 +810,27 @@ export class WorkScheduleService {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: {
-          workCenter: `Work schedule date (${dateString}) is before employee's assignment start date (${dateToString(sameCenterWithShift.startDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or after ${dateToString(sameCenterWithShift.startDate)}.`,
+          workCenter: `Work schedule date (${dateString}) is before employee's assignment start date (${dateToString(sameCenterWithShift.startDate)}) to service center ${finalShift.serviceCenter.name}. Please adjust the date to be on or after ${dateToString(sameCenterWithShift.startDate)}.`,
         },
       });
     }
 
-    // Check if date is after assignment end
     if (sameCenterWithShift.endDate && parsedDate > sameCenterWithShift.endDate) {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: {
-          workCenter: `Work schedule date (${dateString}) is after employee's assignment end date (${dateToString(sameCenterWithShift.endDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or before ${dateToString(sameCenterWithShift.endDate)} or extend the assignment.`,
+          workCenter: `Work schedule date (${dateString}) is after employee's assignment end date (${dateToString(sameCenterWithShift.endDate)}) to service center ${finalShift.serviceCenter.name}. Please adjust the date to be on or before ${dateToString(sameCenterWithShift.endDate)}.`,
+        },
+      });
+    }
+
+    if (sameCenterWithShift.endDate !== null) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: {
+          workCenter: `Employee's assignment to service center ${finalShift.serviceCenter.name} has already ended on ${dateToString(
+            sameCenterWithShift.endDate
+          )}. Please choose another employee who is still assigned to this service center.`,
         },
       });
     }
