@@ -11,6 +11,7 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
+import { Order } from 'src/common/sort/sort.config';
 
 export class TechnicianBookingQueryDTO {
   @IsOptional()
@@ -88,22 +89,18 @@ export class TechnicianBookingQueryDTO {
   })
   pageSize?: number;
 
+  @ApiPropertyOptional({
+    required: false,
+  })
   @IsOptional()
   @IsString()
-  @ApiPropertyOptional({
-    description: 'Field to sort by',
-    example: 'bookingDate',
-    default: 'bookingDate',
-  })
   sortBy?: string;
 
-  @IsOptional()
-  @IsString()
   @ApiPropertyOptional({
-    description: 'Sort order',
-    example: 'desc',
-    enum: ['asc', 'desc'],
-    default: 'desc',
+    required: false,
+    description: 'Sort order direction: ASC or DESC',
   })
-  orderBy?: string;
+  @IsOptional()
+  @Type(() => String)
+  orderBy?: Order;
 }

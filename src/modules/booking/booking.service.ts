@@ -199,6 +199,18 @@ export class BookingService {
       toDate,
       isPremium,
     } = filterOptions;
+
+    const dateFilter: Prisma.BookingWhereInput = {};
+    if (fromDate && toDate) {
+      dateFilter.bookingDate = {
+        gte: dateFns.startOfDay(fromDate),
+        lte: dateFns.endOfDay(toDate),
+      };
+    } else if (fromDate) {
+      dateFilter.bookingDate = { gte: dateFns.startOfDay(vnToUtcDate(fromDate)) };
+    } else if (toDate) {
+      dateFilter.bookingDate = { lte: dateFns.endOfDay(vnToUtcDate(toDate)) };
+    }
     let where: Prisma.BookingWhereInput = {
       ...(status && { status }),
       ...(isPremium !== undefined && { customer: { isPremium } }),
@@ -210,16 +222,7 @@ export class BookingService {
           lte: dateFns.endOfDay(vnToUtcDate(bookingDate)),
         },
       }),
-      ...(fromDate && {
-        bookingDate: {
-          gte: dateFns.startOfDay(vnToUtcDate(fromDate)),
-        },
-      }),
-      ...(toDate && {
-        bookingDate: {
-          lte: dateFns.endOfDay(vnToUtcDate(toDate)),
-        },
-      }),
+      ...dateFilter,
       ...buildBookingSearch(search),
     };
 

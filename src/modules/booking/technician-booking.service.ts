@@ -7,6 +7,7 @@ import * as dateFns from 'date-fns';
 import { TechnicianBookingQueryDTO } from './dto/technician-booking-query.dto';
 import { TechnicianBookingDTO } from './dto/technician-booking.dto';
 import { TechnicianBookingDetailDTO } from './dto/technician-booking-detail.dto';
+import { buildBookingOrderBy } from 'src/common/sort/sort.util';
 
 @Injectable()
 export class TechnicianBookingService {
@@ -18,6 +19,18 @@ export class TechnicianBookingService {
   ): Prisma.BookingWhereInput {
     const { status, search, fromDate, toDate, centerId } = filter;
 
+    const dateFilter: Prisma.BookingWhereInput = {};
+    if (fromDate && toDate) {
+      dateFilter.bookingDate = {
+        gte: dateFns.startOfDay(fromDate),
+        lte: dateFns.endOfDay(toDate),
+      };
+    } else if (fromDate) {
+      dateFilter.bookingDate = { gte: dateFns.startOfDay(fromDate) };
+    } else if (toDate) {
+      dateFilter.bookingDate = { lte: dateFns.endOfDay(toDate) };
+    }
+
     return {
       bookingAssignments: {
         some: {
@@ -26,8 +39,7 @@ export class TechnicianBookingService {
       },
       ...(status && { status }),
       ...(centerId && { centerId }),
-      ...(fromDate && { bookingDate: { gte: dateFns.startOfDay(fromDate) } }),
-      ...(toDate && { bookingDate: { lte: dateFns.endOfDay(toDate) } }),
+      ...dateFilter,
       ...(search && {
         OR: [
           {
@@ -97,7 +109,7 @@ export class TechnicianBookingService {
         where,
         skip: (page - 1) * pageSize,
         take: pageSize,
-        orderBy: { [sortBy]: orderBy },
+        orderBy: buildBookingOrderBy(sortBy, orderBy),
         include: this.bookingInclude,
       }),
     ]);
