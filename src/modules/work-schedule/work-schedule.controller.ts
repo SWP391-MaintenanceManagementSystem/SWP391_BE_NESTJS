@@ -17,11 +17,8 @@ import { RoleGuard } from 'src/common/guard/role.guard';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
-import { CreateCyclicWorkScheduleDTO } from './dto/create-cyclic-work-schedule.dto';
-import { UpdateCyclicWorkScheduleDTO } from './dto/update-cyclic-work-schedule.dto';
 import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
 import { CreateWorkScheduleDTO } from './dto/create-work-schedule.dto';
-import { create } from 'domain';
 
 @ApiTags('Work Schedules')
 @Controller('api/work-schedules')
@@ -72,7 +69,7 @@ export class WorkScheduleController {
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: UpdateWorkScheduleDTO })
   async updateWorkSchedule(
-    @Param('id', ParseUUIDPipe) id: string, // ✅ Changed parameter
+    @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateWorkScheduleDTO,
     @CurrentUser() user: any
   ) {
