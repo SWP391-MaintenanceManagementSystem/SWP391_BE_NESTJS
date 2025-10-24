@@ -180,6 +180,7 @@ export class WorkScheduleService {
         where: {
           employeeId,
           centerId: validShift.centerId,
+          endDate: null,
         },
         orderBy: {
           startDate: 'desc',
@@ -195,18 +196,23 @@ export class WorkScheduleService {
 
       if (minDate < activeAssignment.startDate) {
         errors[employeeId] = {
-          workCenter: `Work schedule start date (${dateToString(minDate)}) is before employee's assignment start date (${dateToString(activeAssignment.startDate)}) to service center "${validShift.serviceCenter.name}". Please adjust the work schedule start date to be on or after ${dateToString(activeAssignment.startDate)}.`,
+          workCenter: `Work schedule start date (${dateToString(minDate)}) is before employee's assignment start date (${dateToString(activeAssignment.startDate)}) to service center ${validShift.serviceCenter.name}. Please adjust the work schedule start date to be on or after ${dateToString(activeAssignment.startDate)}.`,
         };
         continue;
       }
 
-      if (activeAssignment.endDate && maxDate > activeAssignment.endDate) {
-        errors[employeeId] = {
-          workCenter: `Work schedule end date (${dateToString(maxDate)}) is after employee's assignment end date (${dateToString(activeAssignment.endDate)}) to service center "${validShift.serviceCenter.name}". Please adjust the work schedule end date to be on or before ${dateToString(activeAssignment.endDate)} or extend the assignment.`,
-        };
-        continue;
+      if (activeAssignment.endDate !== null) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: {
+            workCenter: `Employee's assignment to service center "${validShift.serviceCenter.name}" has already ended on ${dateToString(
+              activeAssignment.endDate
+            )}. Please choose another employee who is still assigned to this service center.`,
+          },
+        });
       }
 
+      // --- Check for existing schedules to avoid duplicates ---
       const existingSchedules = await this.prismaService.workSchedule.findMany({
         where: {
           employeeId,
@@ -414,6 +420,12 @@ export class WorkScheduleService {
       orderByClause.push({ employee: { firstName: orderBy } }, { id: 'asc' });
     } else if (sortBy === 'shift') {
       orderByClause.push({ shift: { name: orderBy } }, { id: 'asc' });
+    } else if (sortBy === 'fullName') {
+      orderByClause.push(
+        { employee: { firstName: orderBy } },
+        { employee: { lastName: orderBy } },
+        { id: 'asc' }
+      );
     } else {
       orderByClause.push(
         { [sortBy as keyof Prisma.WorkScheduleOrderByWithRelationInput]: orderBy },
@@ -481,6 +493,18 @@ export class WorkScheduleService {
       }),
       this.prismaService.workSchedule.count({ where }),
     ]);
+
+    // Nếu sortBy là fullName thì sort lại ở BE cho chính xác
+    let sortedSchedules = workSchedules;
+    if (sortBy === 'fullName') {
+      sortedSchedules = [...workSchedules].sort((a, b) => {
+        const aEmp = a.employee?.account?.employee;
+        const bEmp = b.employee?.account?.employee;
+        const fullA = `${aEmp?.firstName ?? ''} ${aEmp?.lastName ?? ''}`.trim().toLowerCase();
+        const fullB = `${bEmp?.firstName ?? ''} ${bEmp?.lastName ?? ''}`.trim().toLowerCase();
+        return orderBy === 'asc' ? fullA.localeCompare(fullB) : fullB.localeCompare(fullA);
+      });
+    }
 
     return {
       data: workSchedules.map(ws =>
@@ -745,7 +769,7 @@ export class WorkScheduleService {
       where: {
         employeeId: finalEmployeeId,
         startDate: { lte: parsedDate },
-        OR: [{ endDate: null }, { endDate: { gte: parsedDate } }],
+        endDate: null,
       },
       include: { serviceCenter: true },
     });
@@ -756,8 +780,8 @@ export class WorkScheduleService {
       const availableCenters = activeAssignment.map(a => a.serviceCenter.name).join(', ');
       const errorMsg =
         activeAssignment.length > 0
-          ? `Employee is assigned to: ${availableCenters} on ${dateString}. Cannot update to shift at "${finalShift.serviceCenter.name}". Please choose a shift from an assigned service center or assign employee to this center first.`
-          : `Employee has no service center assignment on ${dateString}. Please assign to "${finalShift.serviceCenter.name}" first.`;
+          ? `Employee is assigned to: ${availableCenters} on ${dateString}. Cannot update to shift at ${finalShift.serviceCenter.name}. Please choose a shift from an assigned service center or assign employee to this center first.`
+          : `Employee has no service center assignment on ${dateString}. Please assign to ${finalShift.serviceCenter.name} first.`;
 
       throw new BadRequestException({
         message: 'Validation failed',
@@ -772,17 +796,18 @@ export class WorkScheduleService {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: {
-          workCenter: `Work schedule date (${dateString}) is before employee's assignment start date (${dateToString(sameCenterWithShift.startDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or after ${dateToString(sameCenterWithShift.startDate)}.`,
+          workCenter: `Work schedule date (${dateString}) is before employee's assignment start date (${dateToString(sameCenterWithShift.startDate)}) to service center ${finalShift.serviceCenter.name}. Please adjust the date to be on or after ${dateToString(sameCenterWithShift.startDate)}.`,
         },
       });
     }
 
-    // Check if date is after assignment end
-    if (sameCenterWithShift.endDate && parsedDate > sameCenterWithShift.endDate) {
+    if (sameCenterWithShift.endDate !== null) {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: {
-          workCenter: `Work schedule date (${dateString}) is after employee's assignment end date (${dateToString(sameCenterWithShift.endDate)}) to service center "${finalShift.serviceCenter.name}". Please adjust the date to be on or before ${dateToString(sameCenterWithShift.endDate)} or extend the assignment.`,
+          workCenter: `Employee's assignment to service center ${finalShift.serviceCenter.name} has already ended on ${dateToString(
+            sameCenterWithShift.endDate
+          )}. Please choose another employee who is still assigned to this service center.`,
         },
       });
     }
