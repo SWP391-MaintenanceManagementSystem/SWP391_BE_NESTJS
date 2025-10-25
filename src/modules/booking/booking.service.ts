@@ -44,11 +44,14 @@ export class BookingService {
     } = bookingData;
 
     const parsedBookingDate = parseDate(bookingDate);
+
     if (!parsedBookingDate) {
       throw new BadRequestException('Invalid booking date format');
     }
 
-    const bookingTime = dateFns.format(bookingDate, 'HH:mm:ss');
+    const timePart = bookingDate.split('T')[1];
+    const bookingTime = timePart.substring(0, 8);
+
     const bookingTimeAsDate = localTimeToDate(bookingTime);
     const workSchedule = await this.prismaService.workSchedule.findFirst({
       where: {

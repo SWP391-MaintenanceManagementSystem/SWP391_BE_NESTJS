@@ -39,9 +39,9 @@ export class CustomerBookingService {
         throw new BadRequestException('Invalid booking date format');
       }
 
-      // Only update if the date actually changed
       if (parsedBookingDate.getTime() !== booking.bookingDate.getTime()) {
-        const bookingTime = dateFns.format(updateData.bookingDate, 'HH:mm:ss');
+        const timePart = updateData.bookingDate.split('T')[1];
+        const bookingTime = timePart.substring(0, 8);
         const bookingTimeAsDate = localTimeToDate(bookingTime);
         const workSchedule = await this.prismaService.workSchedule.findFirst({
           where: {

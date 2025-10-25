@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { Method, ReferenceType, TransactionStatus } from '@prisma/client';
+import { Booking, Method, ReferenceType, TransactionStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import Stripe from 'stripe';
 import { SubscriptionService } from '../subscription/subscription.service';
@@ -14,7 +14,7 @@ import { plainToInstance } from 'class-transformer';
 import { TransactionDTO } from './dto/transaction.dto';
 
 // todo import Booking
-type PaymentReference = MembershipDTO;
+type PaymentReference = MembershipDTO | Booking;
 
 @Injectable()
 export class PaymentService {
@@ -41,11 +41,11 @@ export class PaymentService {
         }
         break;
       case ReferenceType.BOOKING:
-        const booking = await this.prismaService.booking.findUnique({
-          where: { id: referenceId },
+        reference = await this.prismaService.booking.findUnique({
+          where: { id: referenceId, status: 'COMPLETED', customerId },
         });
-        if (!booking) {
-          throw new NotFoundException('Booking not found');
+        if (!reference) {
+          throw new NotFoundException('Booking not found or not completed');
         }
         break;
       default:
