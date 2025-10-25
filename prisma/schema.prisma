@@ -176,6 +176,7 @@ model Employee {
   certificates       EmployeeCertificate[]
   bookingAssignments BookingAssignment[]   @relation("AssignedEmployee")
   assignedByBookings BookingAssignment[]   @relation("AssignerEmployee")
+  VehicleHandover    VehicleHandover[]
 
   @@map("employees")
 }
@@ -242,6 +243,7 @@ model Booking {
   status      BookingStatus @default(PENDING)
   note        String?
   bookingDate DateTime      @map("booking_date") @db.Timestamptz
+  handoverId  String?       @unique @map("handover_id")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -249,6 +251,7 @@ model Booking {
   vehicle            Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   serviceCenter      ServiceCenter       @relation(fields: [centerId], references: [id], onDelete: Cascade)
   shift              Shift               @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  handover           VehicleHandover?
   bookingDetails     BookingDetail[]
   bookingAssignments BookingAssignment[]
 
@@ -395,7 +398,7 @@ model Shift {
   name        String
   startTime   DateTime    @map("start_time") @db.Time
   endTime     DateTime    @map("end_time") @db.Time
-  maximumSlot Int        @map("maximum_slot")
+  maximumSlot Int         @map("maximum_slot")
   status      ShiftStatus @default(ACTIVE)
   centerId    String      @map("center_id")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
@@ -516,4 +519,21 @@ model Notification {
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model VehicleHandover {
+  id          String   @id @default(uuid())
+  bookingId   String   @unique
+  odometer    Int
+  note        String?
+  description String?
+  staffId     String   @map("staff_id")
+  date        DateTime @db.Timestamptz
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  staff   Employee @relation(fields: [staffId], references: [accountId], onDelete: Cascade)
+
+  @@map("vehicle_handovers")
 }
