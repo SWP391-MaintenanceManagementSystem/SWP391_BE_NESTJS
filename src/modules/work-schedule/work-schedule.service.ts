@@ -14,6 +14,7 @@ import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma, ShiftStatus } from '@prisma/client';
 import { dateToString, stringToDate, dateToTimeString } from 'src/utils';
 import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
+import { min } from 'class-validator';
 
 @Injectable()
 export class WorkScheduleService {
@@ -174,7 +175,8 @@ export class WorkScheduleService {
         where: {
           employeeId,
           centerId: validShift.serviceCenter.id,
-          OR: [{ endDate: null }, { endDate: { gte: minDate } }],
+          startDate: { lte: minDate },
+          OR: [{ endDate: null }, { endDate: { gte: maxDate } }],
         },
         orderBy: {
           startDate: 'desc',
@@ -198,15 +200,6 @@ export class WorkScheduleService {
       if (activeAssignment.endDate && maxDate > activeAssignment.endDate) {
         errors[employeeId] = {
           workCenter: `Work schedule end date (${dateToString(maxDate)}) is after employee's assignment end date (${dateToString(activeAssignment.endDate)}) to service center "${validShift.serviceCenter.name}". Please adjust the work schedule end date to be on or before ${dateToString(activeAssignment.endDate)} or extend the assignment.`,
-        };
-        continue;
-      }
-
-      if (activeAssignment.endDate !== null) {
-        errors[employeeId] = {
-          workCenter: `Employee's assignment to service center "${validShift.serviceCenter.name}" has already ended on ${dateToString(
-            activeAssignment.endDate
-          )}. Please choose another employee who is still assigned to this service center.`,
         };
         continue;
       }
@@ -783,7 +776,7 @@ export class WorkScheduleService {
       where: {
         employeeId: finalEmployeeId,
         startDate: { lte: parsedDate },
-        endDate: null,
+        OR: [{ endDate: null }, { endDate: { gte: parsedDate } }],
       },
       include: { serviceCenter: true },
     });
@@ -820,17 +813,6 @@ export class WorkScheduleService {
         message: 'Validation failed',
         errors: {
           workCenter: `Work schedule date (${dateString}) is after employee's assignment end date (${dateToString(sameCenterWithShift.endDate)}) to service center ${finalShift.serviceCenter.name}. Please adjust the date to be on or before ${dateToString(sameCenterWithShift.endDate)}.`,
-        },
-      });
-    }
-
-    if (sameCenterWithShift.endDate !== null) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: {
-          workCenter: `Employee's assignment to service center ${finalShift.serviceCenter.name} has already ended on ${dateToString(
-            sameCenterWithShift.endDate
-          )}. Please choose another employee who is still assigned to this service center.`,
         },
       });
     }
