@@ -1,5 +1,7 @@
 import { Expose, Transform, Type } from 'class-transformer';
-
+import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns/format';
+import { VN_DATE_TIME_FORMAT, VN_TIMEZONE } from 'src/common/constants';
 class VehicleInfo {
   @Expose()
   id: string;
@@ -65,7 +67,10 @@ export class StaffBookingDTO {
   @Expose()
   totalCost: number;
   @Expose()
-  @Transform(({ obj }) => obj.bookingDate.toISOString())
+  @Transform(({ obj }) => {
+    const localDate = toZonedTime(obj.bookingDate, VN_TIMEZONE);
+    return format(localDate, VN_DATE_TIME_FORMAT);
+  })
   bookingDate: string;
   @Expose()
   status: string;

@@ -1,5 +1,8 @@
 import { Expose, Transform, Type } from 'class-transformer';
 import { BookingDetailStatus, BookingStatus } from '@prisma/client';
+import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns/format';
+import { VN_DATE_TIME_FORMAT, VN_TIMEZONE } from 'src/common/constants';
 class CustomerInfo {
   @Expose()
   firstName: string;
@@ -110,7 +113,10 @@ export class CustomerBookingDetailDTO {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => obj.bookingDate.toISOString())
+  @Transform(({ obj }) => {
+    const localDate = toZonedTime(obj.bookingDate, VN_TIMEZONE);
+    return format(localDate, VN_DATE_TIME_FORMAT);
+  })
   bookingDate: string;
 
   @Expose()
