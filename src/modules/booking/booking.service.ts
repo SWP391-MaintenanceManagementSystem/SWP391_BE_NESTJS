@@ -14,7 +14,7 @@ import { JWT_Payload } from 'src/common/types';
 import { CustomerUpdateBookingDTO } from './dto/customer-update-booking.dto';
 import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
 import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
-import { parseDate } from 'src/utils';
+import { localTimeToDate, parseDate } from 'src/utils';
 import { CustomerBookingService } from './customer-booking.service';
 import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
@@ -43,14 +43,13 @@ export class BookingService {
       packageIds = [],
     } = bookingData;
 
-    // Convert string date to Date object for database operations
     const parsedBookingDate = parseDate(bookingDate);
     if (!parsedBookingDate) {
       throw new BadRequestException('Invalid booking date format');
     }
 
-    const bookingTime = dateFns.format(parsedBookingDate, 'HH:mm:ss');
-    const bookingTimeAsDate = new Date(`1970-01-01T${bookingTime}`);
+    const bookingTime = dateFns.format(bookingDate, 'HH:mm:ss');
+    const bookingTimeAsDate = localTimeToDate(bookingTime);
     const workSchedule = await this.prismaService.workSchedule.findFirst({
       where: {
         date: {

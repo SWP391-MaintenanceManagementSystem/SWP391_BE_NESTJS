@@ -63,6 +63,12 @@ const stringToDate = (dateStr: string): Date => {
   return d;
 };
 
+export const localTimeToDate = (timeStr: string): Date => {
+  const [h, m, s = 0] = timeStr.split(':').map(Number);
+
+  return new Date(Date.UTC(1970, 0, 1, h, m, s));
+};
+
 // Convert Date to ISO string (YYYY-MM-DDTHH:mm:ss.sssZ)
 const dateToISOString = (date: Date | null | undefined): string | null => {
   if (!date) return null;

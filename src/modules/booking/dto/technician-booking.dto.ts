@@ -71,7 +71,7 @@ export class TechnicianBookingDTO {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => obj.bookingDate.toISOString().split('Z')[0])
+  @Transform(({ obj }) => obj.bookingDate.toISOString())
   bookingDate: string;
 
   @Expose()

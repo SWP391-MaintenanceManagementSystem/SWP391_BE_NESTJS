@@ -37,7 +37,7 @@ export class BookingWithDetailsDTO {
   @Expose()
   totalCost: number;
   @Expose()
-  @Transform(({ obj }) => obj.bookingDate.toISOString().split('Z')[0])
+  @Transform(({ obj }) => obj.bookingDate.toISOString())
   bookingDate: string;
   @Expose()
   status: string;

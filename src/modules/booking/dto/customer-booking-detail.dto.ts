@@ -34,6 +34,9 @@ class VehicleInfo {
 
 class ServiceCenterInfo {
   @Expose()
+  id: string;
+
+  @Expose()
   name: string;
 
   @Expose()
@@ -107,7 +110,7 @@ export class CustomerBookingDetailDTO {
   id: string;
 
   @Expose()
-  @Transform(({ obj }) => obj.bookingDate.toISOString().split('Z')[0])
+  @Transform(({ obj }) => obj.bookingDate.toISOString())
   bookingDate: string;
 
   @Expose()

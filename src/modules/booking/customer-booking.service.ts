@@ -6,7 +6,8 @@ import { endOfDay } from 'date-fns/endOfDay';
 import { CustomerBookingDetailDTO } from './dto/customer-booking-detail.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
-import { parseDate } from 'src/utils';
+import { localTimeToDate, parseDate } from 'src/utils';
+import * as dateFns from 'date-fns';
 @Injectable()
 export class CustomerBookingService {
   constructor(
@@ -32,9 +33,7 @@ export class CustomerBookingService {
       vehicleId: booking.vehicleId,
       totalCost: booking.totalCost,
     };
-
     if (updateData.bookingDate) {
-      // Convert string date to Date object
       const parsedBookingDate = parseDate(updateData.bookingDate);
       if (!parsedBookingDate) {
         throw new BadRequestException('Invalid booking date format');
@@ -42,6 +41,8 @@ export class CustomerBookingService {
 
       // Only update if the date actually changed
       if (parsedBookingDate.getTime() !== booking.bookingDate.getTime()) {
+        const bookingTime = dateFns.format(updateData.bookingDate, 'HH:mm:ss');
+        const bookingTimeAsDate = localTimeToDate(bookingTime);
         const workSchedule = await this.prismaService.workSchedule.findFirst({
           where: {
             date: {
@@ -51,8 +52,8 @@ export class CustomerBookingService {
             shift: {
               centerId: booking.shift.centerId,
               status: 'ACTIVE',
-              startTime: { lte: parsedBookingDate },
-              endTime: { gt: parsedBookingDate },
+              startTime: { lte: bookingTimeAsDate },
+              endTime: { gt: bookingTimeAsDate },
             },
           },
           select: { shiftId: true },

@@ -52,4 +52,5 @@ export const BOOKING_SORTABLE_FIELDS: SortableFields<Prisma.BookingOrderByWithRe
   email: { customer: { account: { email: 'asc' } } },
   licensePlate: { vehicle: { licensePlate: 'asc' } },
   center: { serviceCenter: { name: 'asc' } },
+  vehicleModel: { vehicle: { vehicleModel: { name: 'asc' } } },
 };
