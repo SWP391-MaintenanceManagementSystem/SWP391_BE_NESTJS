@@ -13,6 +13,7 @@ import { WorkCenterDTO } from './dto/work-center.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma } from '@prisma/client';
+import { parseDate, utcToVNDate, vnToUtcDate } from 'src/utils';
 
 @Injectable()
 export class WorkCenterService {
@@ -79,6 +80,33 @@ export class WorkCenterService {
     const { employeeId, centerId, startDate, endDate } = createWorkCenterDto;
     const errors: Record<string, string> = {};
 
+    const parsedStartDate = parseDate(startDate);
+    const parsedEndDate = endDate ? parseDate(endDate) : null;
+
+    if (!parsedStartDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { startDate: 'Invalid start date format' },
+      });
+    }
+
+    if (endDate && !parsedEndDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { endDate: 'Invalid end date format' },
+      });
+    }
+
+    const start = vnToUtcDate(parsedStartDate);
+    const end = parsedEndDate ? vnToUtcDate(parsedEndDate) : null;
+
+    const localStartDate = utcToVNDate(start);
+    const localEndDate = end ? utcToVNDate(end) : null;
+
+    if (localEndDate && localStartDate >= localEndDate) {
+      errors.dateRange = 'End date must be after start date';
+    }
+
     // --- Employee tồn tại & role hợp lệ ---
     const employee = await this.prismaService.employee.findUnique({
       where: { accountId: employeeId },
@@ -99,17 +127,10 @@ export class WorkCenterService {
       errors.centerId = `Service center with ID ${centerId} not found`;
     }
 
-    // --- Validate date range ---
-    const startDateStr = new Date(createWorkCenterDto.startDate);
-    const endDateStr = createWorkCenterDto.endDate ? new Date(createWorkCenterDto.endDate) : null;
-    if (endDate && startDate >= endDate) {
-      errors.dateRange = 'End date must be after start date';
-    }
-
     // --- Check overlapping assignments ---
-    if (employee && startDateStr && !errors.employeeId) {
+    if (employee && localStartDate && !errors.employeeId) {
       try {
-        await this.checkEmployeeOverlap(employeeId, startDateStr, endDateStr);
+        await this.checkEmployeeOverlap(employeeId, localStartDate, localEndDate);
       } catch (error) {
         if (error instanceof ConflictException) {
           errors.overlap = error.message;
@@ -129,8 +150,8 @@ export class WorkCenterService {
       data: {
         employeeId,
         centerId,
-        startDate,
-        endDate,
+        startDate: start,
+        endDate: end,
       },
       include: {
         employee: {
@@ -188,16 +209,19 @@ export class WorkCenterService {
       centerId: filter.centerId ? { contains: filter.centerId, mode: 'insensitive' } : undefined,
     };
 
-    // Date filters for startDate
-    if (filter.startDate && filter.endDate) {
-      where.startDate = {
-        gte: new Date(filter.startDate),
-        lte: new Date(filter.endDate),
-      };
-    } else if (filter.startDate) {
-      where.startDate = { gte: new Date(filter.startDate) };
-    } else if (filter.endDate) {
-      where.startDate = { lte: new Date(filter.endDate) };
+    // --- Convert & filter theo ngày ---
+    const startDate = filter.startDate ? parseDate(filter.startDate) : null;
+    const endDate = filter.endDate ? parseDate(filter.endDate) : null;
+
+    const startUtc = startDate ? vnToUtcDate(startDate) : null;
+    const endUtc = endDate ? vnToUtcDate(endDate) : null;
+
+    if (startUtc && endUtc) {
+      where.startDate = { gte: startUtc, lte: endUtc };
+    } else if (startUtc) {
+      where.startDate = { gte: startUtc };
+    } else if (endUtc) {
+      where.startDate = { lte: endUtc };
     }
 
     if ((role === AccountRole.STAFF || role === AccountRole.TECHNICIAN) && currentUserId) {
@@ -355,12 +379,16 @@ export class WorkCenterService {
     // --- Determine target values ---
     const targetEmployeeId = updateWorkCenterDto.employeeId ?? existingWorkCenter.employeeId;
     const targetCenterId = updateWorkCenterDto.centerId ?? existingWorkCenter.centerId;
-    const targetStartDate = updateWorkCenterDto.startDate
-      ? new Date(updateWorkCenterDto.startDate)
+    const parsedStartDate = updateWorkCenterDto.startDate
+      ? parseDate(updateWorkCenterDto.startDate)
       : existingWorkCenter.startDate;
-    const targetEndDate = updateWorkCenterDto.endDate
-      ? new Date(updateWorkCenterDto.endDate)
+
+    const parsedEndDate = updateWorkCenterDto.endDate
+      ? parseDate(updateWorkCenterDto.endDate)
       : existingWorkCenter.endDate;
+
+    const start = parsedStartDate ? vnToUtcDate(parsedStartDate) : existingWorkCenter.startDate;
+    const end = parsedEndDate ? vnToUtcDate(parsedEndDate) : existingWorkCenter.endDate;
 
     // --- Validate employeeId ---
     if (!targetEmployeeId || targetEmployeeId.trim() === '') {
@@ -403,19 +431,20 @@ export class WorkCenterService {
     }
 
     // --- Validate date ---
+
     if (
       updateWorkCenterDto.startDate !== undefined &&
       updateWorkCenterDto.startDate.trim() === ''
     ) {
       errors.startDate = 'Start date cannot be empty';
     }
-    if (targetEndDate && targetStartDate && targetStartDate >= targetEndDate) {
+    if (end && start >= end) {
       errors.dateRange = 'End date must be after start date';
     }
 
     // --- Check overlapping assignments ---
     try {
-      await this.checkEmployeeOverlap(targetEmployeeId, targetStartDate, targetEndDate, id);
+      await this.checkEmployeeOverlap(targetEmployeeId, start, end, id);
     } catch (error) {
       if (error instanceof ConflictException) {
         errors.overlap = error.message;
@@ -435,8 +464,8 @@ export class WorkCenterService {
       data: {
         employeeId: targetEmployeeId,
         centerId: targetCenterId,
-        startDate: targetStartDate,
-        endDate: targetEndDate,
+        startDate: start,
+        endDate: end,
       },
       include: {
         employee: {
@@ -499,7 +528,7 @@ export class WorkCenterService {
     // Soft delete: set endDate to current date
     await this.prismaService.workCenter.update({
       where: { id },
-      data: { endDate: new Date() },
+      data: { endDate: vnToUtcDate(new Date()) },
     });
   }
 }

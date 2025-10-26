@@ -4,14 +4,14 @@ import { IsOptional } from 'class-validator';
 export class UpdateEmployeeWithCenterDTO {
   @IsOptional()
   @ApiPropertyOptional({
-    example: 'a1b2c3d4-5678-9abc-def0-123456789abc',
+    example: 'uuid-service-center',
     description: 'Service Center UUID',
   })
   centerId?: string;
 
   @IsOptional()
   @ApiPropertyOptional({
-    example: '2024-01-20T08:00:00.000Z',
+    example: '2024-01-20T00:00',
     description: 'Start date (optional)',
   })
   startDate?: string;

@@ -4,13 +4,13 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 export class UpdateWorkScheduleDTO {
   @IsOptional()
   @ApiPropertyOptional({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    example: 'uuid-shift',
   })
   shiftId?: string;
 
   @IsOptional()
   @ApiPropertyOptional({
-    example: 'c7a72f5e-98ab-40b2-bd53-6220cba91c7a',
+    example: 'uuid-employee',
   })
   employeeId?: string;
 

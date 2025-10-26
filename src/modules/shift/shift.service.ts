@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShiftDTO } from './dto/create-shift.dto';
 import { UpdateShiftDTO } from './dto/update-shift.dto';
@@ -12,7 +7,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { ShiftStatus, Prisma } from '@prisma/client';
-import { timeStringToDate, dateToTimeString } from 'src/utils';
+import { dateToTimeString, localTimeToDate } from 'src/utils';
 
 @Injectable()
 export class ShiftService {
@@ -20,8 +15,8 @@ export class ShiftService {
 
   private validateTimes(startTimeStr: string, endTimeStr: string): string | null {
     // --- Convert to Date ---
-    const start = timeStringToDate(startTimeStr);
-    const end = timeStringToDate(endTimeStr);
+    const start = localTimeToDate(startTimeStr);
+    const end = localTimeToDate(endTimeStr);
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       return 'Invalid time value';
@@ -63,8 +58,8 @@ export class ShiftService {
   }
 
   async createShift(shift: CreateShiftDTO): Promise<ShiftDTO> {
-    const startTime = timeStringToDate(shift.startTime);
-    const endTime = timeStringToDate(shift.endTime);
+    const startTime = localTimeToDate(shift.startTime);
+    const endTime = localTimeToDate(shift.endTime);
     const errors: Record<string, string> = {};
 
     // --- Validate start/end time logic (overnight check) ---
@@ -180,8 +175,8 @@ export class ShiftService {
       }),
       ...(filter.status && { status: filter.status }),
       ...(filter.name && { name: { contains: filter.name, mode: 'insensitive' } }),
-      ...(startTime && { startTime: { gte: timeStringToDate(startTime) } }),
-      ...(endTime && { endTime: { lte: timeStringToDate(endTime) } }),
+      ...(startTime && { startTime: { gte: localTimeToDate(startTime) } }),
+      ...(endTime && { endTime: { lte: localTimeToDate(endTime) } }),
       ...(filter.maximumSlot !== undefined && { maximumSlot: filter.maximumSlot }),
     };
 
@@ -310,7 +305,7 @@ export class ShiftService {
           errors.startTime = 'Start time must be in format HH:MM:SS';
         } else {
           try {
-            finalStartTime = timeStringToDate(update.startTime);
+            finalStartTime = localTimeToDate(update.startTime);
             data.startTime = finalStartTime;
           } catch (error) {
             errors.startTime = 'Invalid start time format';
@@ -327,7 +322,7 @@ export class ShiftService {
           errors.endTime = 'End time must be in format HH:MM:SS';
         } else {
           try {
-            finalEndTime = timeStringToDate(update.endTime);
+            finalEndTime = localTimeToDate(update.endTime);
             data.endTime = finalEndTime;
           } catch (error) {
             errors.endTime = 'Invalid end time format';

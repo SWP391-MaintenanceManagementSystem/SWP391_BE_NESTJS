@@ -14,7 +14,6 @@ import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma, ShiftStatus } from '@prisma/client';
 import { dateToString, stringToDate, dateToTimeString } from 'src/utils';
 import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
-import { min } from 'class-validator';
 
 @Injectable()
 export class WorkScheduleService {
