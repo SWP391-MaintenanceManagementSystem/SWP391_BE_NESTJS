@@ -51,6 +51,18 @@ export class TechnicianController {
     };
   }
 
+  @Patch('bookings/:bookingId/details/complete')
+  @ApiBody({ schema: { example: { detailIds: ['d1', 'd2', 'd3'] } } })
+  @Roles(AccountRole.TECHNICIAN)
+  async completeMultiple(
+    @Param('bookingId') bookingId: string,
+    @Body() body: { detailIds: string[] },
+    @CurrentUser() user: JWT_Payload
+  ) {
+    await this.technicianBookingService.markCompleteTasks(bookingId, user, body.detailIds);
+    return { message: 'Booking details marked as complete successfully' };
+  }
+
   @Get('/')
   @Roles(AccountRole.ADMIN)
   async getTechnicians(@Query() query: EmployeeQueryWithPaginationDTO) {

@@ -9,10 +9,15 @@ import { TechnicianBookingDTO } from './dto/technician-booking.dto';
 import { TechnicianBookingDetailDTO } from './dto/technician-booking-detail.dto';
 import { buildBookingOrderBy } from 'src/common/sort/sort.util';
 import { parseDate } from 'src/utils';
+import { JWT_Payload } from 'src/common/types';
+import { BookingDetailService } from '../booking-detail/booking-detail.service';
 
 @Injectable()
 export class TechnicianBookingService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly bookingDetailService: BookingDetailService
+  ) {}
 
   private buildTechnicianBookingWhere(
     technicianId: string,
@@ -163,7 +168,15 @@ export class TechnicianBookingService {
         bookingDetails: {
           include: {
             service: true,
-            package: true,
+            package: {
+              include: {
+                packageDetails: {
+                  include: {
+                    service: true,
+                  },
+                },
+              },
+            },
           },
         },
         bookingAssignments: {
@@ -179,5 +192,30 @@ export class TechnicianBookingService {
     }
 
     return plainToInstance(TechnicianBookingDetailDTO, booking, { excludeExtraneousValues: true });
+  }
+
+  async markCompleteTasks(
+    bookingId: string,
+    user: JWT_Payload,
+    detailIds: string[]
+  ): Promise<void> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        bookingAssignments: {
+          where: { employeeId: user.sub },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+
+    if (booking.bookingAssignments.length === 0) {
+      throw new BadRequestException('You are not assigned to this booking');
+    }
+
+    await this.bookingDetailService.markCompleteDetails(bookingId, detailIds);
   }
 }
