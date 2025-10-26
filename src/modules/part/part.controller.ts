@@ -15,14 +15,14 @@ export class PartController {
   constructor(private readonly partService: PartService) {}
 
   @Post('/')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   create(@Body() createPartDto: CreatePartDto) {
     return this.partService.createPart(createPartDto);
   }
 
   @Get('/')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   async getAllParts(@Query() query: PartQueryDto) {
     const { data, page, pageSize, total, totalPages } = await this.partService.getAllParts(query);
@@ -40,7 +40,7 @@ export class PartController {
   }
 
   @Get('statistics')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   async getStatistics() {
     const stats = await this.partService.getPartStatistics();
@@ -51,28 +51,28 @@ export class PartController {
   }
 
   @Get(':id')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   findOne(@Param('id') id: string) {
     return this.partService.getPartByID(id);
   }
 
   @Patch(':id')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   update(@Param('id') id: string, @Body() updatePartDto: UpdatePartDto) {
     return this.partService.updatePartInfo(id, updatePartDto);
   }
 
   @Patch(':id/refill')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   refill(@Param('id') id: string, @Body('refillAmount') refillAmount: number) {
     return this.partService.refillOutOfStockPart(id, refillAmount);
   }
 
   @Delete(':id')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   remove(@Param('id') id: string) {
     return this.partService.deletePart(id);
