@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { PartService } from './part.service';
 import { CreatePartDto } from './dto/create-part.dto';
-import { UpdatePartDto } from './dto/update-part.dto';
+import { RefillPartDto, UpdatePartDto } from './dto/update-part.dto';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
@@ -67,8 +67,8 @@ export class PartController {
   @Patch(':id/refill')
   @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
-  refill(@Param('id') id: string, @Body('refillAmount') refillAmount: number) {
-    return this.partService.refillOutOfStockPart(id, refillAmount);
+  refill(@Param('id') id: string, @Body() dto: RefillPartDto) {
+    return this.partService.refillOutOfStockPart(id, dto.refillAmount);
   }
 
   @Delete(':id')
@@ -77,4 +77,5 @@ export class PartController {
   remove(@Param('id') id: string) {
     return this.partService.deletePart(id);
   }
+
 }
