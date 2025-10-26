@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreatePartDto } from './create-part.dto';
-import { IsBoolean, IsEnum, IsOptional } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
 import { PartStatus } from '@prisma/client';
 
 export class UpdatePartDto extends PartialType(CreatePartDto) {
@@ -8,4 +8,11 @@ export class UpdatePartDto extends PartialType(CreatePartDto) {
   @IsOptional()
   @IsEnum(PartStatus)
   status?: PartStatus;
+}
+
+export class RefillPartDto {
+  @ApiProperty({example: 10 })
+  @IsInt()
+  @Min(1, { message: 'Refill amount must be greater than 0' })
+  refillAmount: number;
 }

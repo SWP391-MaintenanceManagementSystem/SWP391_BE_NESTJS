@@ -286,7 +286,7 @@ export class PartService {
 
     const newStock = part.stock + refillAmount;
 
-    const newStatus = newStock >= part.minStock ? 'AVAILABLE' : 'OUT_OF_STOCK';
+    const newStatus = newStock > part.minStock ? 'AVAILABLE' : 'OUT_OF_STOCK';
 
     const updatedPart = await this.prisma.part.update({
       where: { id },
