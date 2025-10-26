@@ -41,7 +41,6 @@ export class ShiftController {
   }
 
   @Get('all')
-  @Roles(AccountRole.ADMIN)
   async getAllShifts() {
     const { data } = await this.shiftService.getShifts();
     return {
