@@ -7,6 +7,7 @@ import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
 import { TechnicianBookingService } from './technician-booking.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { BookingDetailService } from '../booking-detail/booking-detail.service';
 
 @Module({
   imports: [BookingDetailModule, PrismaModule],
