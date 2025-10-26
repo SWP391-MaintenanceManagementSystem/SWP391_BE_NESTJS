@@ -98,7 +98,15 @@ export class AdminBookingService {
         bookingDetails: {
           include: {
             service: true,
-            package: true,
+            package: {
+              include: {
+                packageDetails: {
+                  include: {
+                    service: true,
+                  },
+                },
+              },
+            },
           },
         },
         bookingAssignments: {

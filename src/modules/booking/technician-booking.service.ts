@@ -168,7 +168,15 @@ export class TechnicianBookingService {
         bookingDetails: {
           include: {
             service: true,
-            package: true,
+            package: {
+              include: {
+                packageDetails: {
+                  include: {
+                    service: true,
+                  },
+                },
+              },
+            },
           },
         },
         bookingAssignments: {

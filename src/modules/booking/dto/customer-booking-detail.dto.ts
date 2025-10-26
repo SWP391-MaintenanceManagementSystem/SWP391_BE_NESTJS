@@ -100,7 +100,7 @@ class PackageInfo {
   @Expose()
   price: number;
   @Expose()
-  services: Omit<ServiceInfo, 'bookingDetailId'>[];
+  services: Omit<ServiceInfo, 'bookingDetailId' | 'status'>[];
   @Expose()
   status: BookingDetailStatus;
 }
@@ -188,7 +188,7 @@ export class CustomerBookingDetailDTO {
     const services: ServiceInfo[] = [];
     const packages: PackageInfo[] = [];
 
-    obj.bookingDetails.forEach((detail: any) => {
+    obj.bookingDetails?.forEach((detail: any) => {
       if (detail.service) {
         services.push({
           id: detail.service.id,
@@ -203,20 +203,21 @@ export class CustomerBookingDetailDTO {
           id: detail.package.id,
           bookingDetailId: detail.id,
           name: detail.package.name,
-          services: detail.package.packageDetails.map((pd: any) => ({
-            id: pd.service.id,
-            name: pd.service.name,
-            price: pd.service.price,
-            status: pd.status,
-          })),
           price: detail.package.price,
           status: detail.status,
+          services:
+            detail.package.packageDetails?.map((pd: any) => ({
+              id: pd.service.id,
+              name: pd.service.name,
+              price: pd.service.price,
+            })) || [],
         });
       }
     });
 
     return { services, packages };
   })
+  @Type(() => BookingDetails)
   bookingDetails: BookingDetails;
 
   @Expose()
