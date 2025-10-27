@@ -218,9 +218,6 @@ export class EmployeeService {
     const parsedStartDate = parseDate(startDate);
     const parsedEndDate = endDate ? parseDate(endDate) : null;
 
-    console.log('Parsed Start Date:', parsedStartDate);
-    console.log('Parsed End Date:', parsedEndDate);
-
     if (!parsedStartDate) {
       throw new BadRequestException({
         message: 'Validation failed',
@@ -237,9 +234,6 @@ export class EmployeeService {
 
     const start = vnToUtcDate(parsedStartDate);
     const end = parsedEndDate ? vnToUtcDate(parsedEndDate) : null;
-
-    console.log('UTC Start:', start);
-    console.log('UTC End:', end);
 
     const employee = await this.prisma.employee.findUnique({
       where: { accountId: employeeId },
@@ -274,7 +268,7 @@ export class EmployeeService {
 
       await this.prisma.workCenter.update({
         where: { id: currentAssignment.id },
-        data: { endDate: vnToUtcDate(new Date()) },
+        data: { endDate: new Date() },
       });
 
       return {
@@ -325,7 +319,7 @@ export class EmployeeService {
     if (currentAssignment && currentAssignment.centerId !== centerId) {
       await this.prisma.workCenter.update({
         where: { id: currentAssignment.id },
-        data: { endDate: vnToUtcDate(new Date()) },
+        data: { endDate: new Date() },
       });
     }
 

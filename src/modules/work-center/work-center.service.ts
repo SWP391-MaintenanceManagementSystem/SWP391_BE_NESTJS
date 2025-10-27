@@ -528,7 +528,7 @@ export class WorkCenterService {
     // Soft delete: set endDate to current date
     await this.prismaService.workCenter.update({
       where: { id },
-      data: { endDate: vnToUtcDate(new Date()) },
+      data: { endDate: new Date() },
     });
   }
 }
