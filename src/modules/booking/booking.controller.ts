@@ -11,6 +11,7 @@ import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 import { TechnicianBookingService } from './technician-booking.service';
+import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
 
 @Controller('api/bookings')
 @ApiTags('Bookings')
@@ -34,6 +35,23 @@ export class BookingController {
       total,
       totalPages,
       message: 'Get bookings successfully',
+    };
+  }
+
+  @Get('/history')
+  async getCustomerBookingHistory(
+    @CurrentUser() user: JWT_Payload,
+    @Query() query: BookingHistoryQueryDTO
+  ) {
+    const { data, page, pageSize, total, totalPages } =
+      await this.bookingService.getCustomerBookingHistory(user, query);
+    return {
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages,
+      message: 'Get booking history successfully',
     };
   }
 

@@ -20,6 +20,7 @@ import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
 import { StaffBookingDTO } from './dto/staff-booking.dto';
 import { TechnicianBookingService } from './technician-booking.service';
+import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
 @Injectable()
 export class BookingService {
   constructor(
@@ -324,5 +325,119 @@ export class BookingService {
       default:
         throw new BadRequestException('Invalid user role');
     }
+  }
+
+  async getCustomerBookingHistory(user: JWT_Payload, filterOptions: BookingHistoryQueryDTO) {
+    const {
+      search,
+      status,
+      bookingDate,
+      centerId,
+      shiftId,
+      page = 1,
+      pageSize = 10,
+      orderBy = 'desc',
+      sortBy = 'createdAt',
+      fromDate,
+      toDate,
+      isPremium,
+      customerId,
+      vehicleId,
+    } = filterOptions;
+
+    // Convert string dates to Date objects for database comparison
+    const dateFilter: Prisma.BookingWhereInput = {};
+    const parsedFromDate = fromDate ? parseDate(fromDate) : null;
+    const parsedToDate = toDate ? parseDate(toDate) : null;
+    const parsedBookingDate = bookingDate ? parseDate(bookingDate) : null;
+
+    if (parsedFromDate && parsedToDate) {
+      dateFilter.bookingDate = {
+        gte: dateFns.startOfDay(parsedFromDate),
+        lte: dateFns.endOfDay(parsedToDate),
+      };
+    } else if (parsedFromDate) {
+      dateFilter.bookingDate = { gte: dateFns.startOfDay(parsedFromDate) };
+    } else if (parsedToDate) {
+      dateFilter.bookingDate = { lte: dateFns.endOfDay(parsedToDate) };
+    }
+
+    let where: Prisma.BookingWhereInput = {
+      ...(status && { status }),
+      ...(isPremium !== undefined && { customer: { isPremium } }),
+      ...(centerId && { centerId }),
+      ...(shiftId && { shiftId }),
+      ...(customerId && { customerId }),
+      ...(vehicleId && { vehicleId }),
+      ...(parsedBookingDate && {
+        bookingDate: {
+          gte: dateFns.startOfDay(parsedBookingDate),
+          lte: dateFns.endOfDay(parsedBookingDate),
+        },
+      }),
+      ...dateFilter,
+      ...buildBookingSearch(search),
+    };
+
+    if (!status) {
+      where.status = { in: ['CANCELLED', 'CHECKED_OUT'] };
+    }
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        where = { ...where, customerId: user.sub };
+        break;
+      case AccountRole.STAFF:
+        const staff = await this.prismaService.employee.findFirst({
+          where: { accountId: user.sub },
+          select: {
+            workCenters: {
+              where: { endDate: null },
+              select: { centerId: true },
+              take: 1,
+            },
+          },
+        });
+
+        if (!staff) {
+          throw new BadRequestException('Staff not found');
+        }
+
+        where = {
+          ...where,
+          centerId: staff.workCenters[0]?.centerId,
+        };
+        break;
+      default:
+        break;
+    }
+    const [totalItems, bookings] = await this.prismaService.$transaction([
+      this.prismaService.booking.count({ where }),
+      this.prismaService.booking.findMany({
+        where,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy: buildBookingOrderBy(sortBy, orderBy),
+        include: {
+          customer: {
+            include: { account: true },
+          },
+          vehicle: {
+            include: { vehicleModel: { include: { brand: true } } },
+          },
+          serviceCenter: true,
+          shift: true,
+          bookingDetails: true,
+        },
+      }),
+    ]);
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    return {
+      data: bookings.map(booking => this.transformBookingByRole(booking, user.role)),
+      page,
+      pageSize,
+      total: totalItems,
+      totalPages,
+    };
   }
 }
