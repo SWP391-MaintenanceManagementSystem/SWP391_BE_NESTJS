@@ -14,17 +14,20 @@ export class WorkCenterDTO {
   @Expose()
   name: string;
 
-  @Expose()
-  @Transform(({ obj }) => {
-    const localDate = toZonedTime(obj.startDate, VN_TIMEZONE);
+  @Transform(({ value }) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return null;
+    const localDate = toZonedTime(date, VN_TIMEZONE);
     return format(localDate, VN_DATE_TIME_FORMAT);
   })
-  startDate: string;
+  startDate: string | null;
 
-  @Expose()
-  @Transform(({ obj }) => {
-    if (!obj.endDate) return null;
-    const localDate = toZonedTime(obj.endDate, VN_TIMEZONE);
+  @Transform(({ value }) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return null;
+    const localDate = toZonedTime(date, VN_TIMEZONE);
     return format(localDate, VN_DATE_TIME_FORMAT);
   })
   endDate?: string | null;
