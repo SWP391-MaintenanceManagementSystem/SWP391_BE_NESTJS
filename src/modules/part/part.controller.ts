@@ -77,5 +77,4 @@ export class PartController {
   remove(@Param('id') id: string) {
     return this.partService.deletePart(id);
   }
-
 }

@@ -11,7 +11,7 @@ export class UpdatePartDto extends PartialType(CreatePartDto) {
 }
 
 export class RefillPartDto {
-  @ApiProperty({example: 10 })
+  @ApiProperty({ example: 10 })
   @IsInt()
   @Min(1, { message: 'Refill amount must be greater than 0' })
   refillAmount: number;

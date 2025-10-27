@@ -7,7 +7,6 @@ import { CustomerBookingDetailDTO } from './dto/customer-booking-detail.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
 import { localTimeToDate, parseDate } from 'src/utils';
-import * as dateFns from 'date-fns';
 @Injectable()
 export class CustomerBookingService {
   constructor(

@@ -217,5 +217,9 @@ export class TechnicianBookingService {
     }
 
     await this.bookingDetailService.markCompleteDetails(bookingId, detailIds);
+    await this.prismaService.booking.update({
+      where: { id: bookingId },
+      data: { status: 'COMPLETED' },
+    });
   }
 }
