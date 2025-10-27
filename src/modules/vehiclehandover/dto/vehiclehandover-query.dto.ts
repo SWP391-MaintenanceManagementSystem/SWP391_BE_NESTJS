@@ -1,51 +1,59 @@
-import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsUUID, IsDateString } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
+import { IsOptional, IsString, IsNumber, IsUUID } from 'class-validator';
 import { Type } from 'class-transformer';
-import { IsNumber, IsString } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
 
 export class VehicleHandoverQueryDTO {
-  @ApiPropertyOptional({ required: false, description: 'Filter by vehicle handover ID' })
+  @ApiProperty({ required: false, description: 'Filter by vehicle handover ID' })
   @IsOptional()
-  @IsString()
-  id: string;
+  @IsUUID()
+  id?: string;
 
-  @ApiPropertyOptional({
-    required: false,
-    description: 'Filter by booking ID',
-  })
+  @ApiProperty({ required: false, description: 'Filter by booking ID' })
   @IsOptional()
+  @IsUUID()
   bookingId?: string;
 
-  @ApiPropertyOptional({ required: false, description: 'Filter by staff ID' })
+  @ApiProperty({ required: false, description: 'Filter by staff ID' })
   @IsOptional()
+  @IsUUID()
   staffId?: string;
 
-  @ApiPropertyOptional({ required: false, description: 'Filter by date from' })
+  @ApiProperty({
+    required: false,
+    description: 'Filter by start date (2025-10-20T00:00)',
+  })
   @IsOptional()
+  @IsString()
   dateFrom?: string;
 
-  @ApiPropertyOptional({ required: false, description: 'Filter by date to' })
+  @ApiProperty({
+    required: false,
+    description: 'Filter by end date (2025-10-27T23:59)',
+  })
   @IsOptional()
+  @IsString()
   dateTo?: string;
 
-  @ApiPropertyOptional({ required: false, description: 'Filter by Order (asc or desc)' })
   @IsOptional()
-  orderBy?: Order;
-
-  @ApiPropertyOptional({ required: false, description: 'Filter by Sort field' })
-  @IsOptional()
+  @IsString()
+  @ApiProperty({ required: false, description: 'Field to sort by' })
   sortBy?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by page number', example: 1 })
+  @IsOptional()
+  @IsString()
+  @ApiProperty({ required: false, description: 'Sort order' })
+  orderBy?: Order;
+
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
+  @ApiProperty({ required: false, description: 'Filter by page number', example: 1 })
   page?: number;
 
-  @ApiProperty({ required: false, description: 'Filter by page size', example: 10 })
   @IsOptional()
   @IsNumber()
   @Type(() => Number)
+  @ApiProperty({ required: false, description: 'Filter by page size', example: 10 })
   pageSize?: number;
 }

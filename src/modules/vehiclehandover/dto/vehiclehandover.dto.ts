@@ -17,13 +17,11 @@ export class VehicleHandoverDTO {
   @Expose()
   odometer: number;
 
-  // suggest: status;
-
   @Expose()
   note?: string;
 
   @Expose()
-  description?: string; //suggest: []
+  description?: string[];
 
   @Expose()
   @Transform(({ obj }) => {
@@ -104,7 +102,7 @@ export class VehicleHandoverDTO {
     shiftId: string;
     totalCost: number;
     status: string;
-    note: string;
+    note: string | null;
     bookingDate: string;
     createdAt: Date;
     updatedAt: Date;

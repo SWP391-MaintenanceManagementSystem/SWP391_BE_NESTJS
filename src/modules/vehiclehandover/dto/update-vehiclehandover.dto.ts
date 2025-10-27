@@ -1,46 +1,27 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsUUID,
-  IsInt,
-  IsString,
-  IsOptional,
-  IsDateString,
-  IsNotEmpty,
-  Min,
-} from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional } from 'class-validator';
 
 export class UpdateVehicleHandoverDTO {
-  @ApiProperty({ example: 'uuid-booking' })
-  @IsUUID()
-  @IsNotEmpty({ message: 'bookingId is required' })
-  bookingId: string;
+  @ApiPropertyOptional({ example: 'uuid-booking' })
+  @IsOptional()
+  bookingId?: string;
 
-  @ApiProperty({ example: 'uuid-staff' })
-  @IsUUID()
-  @IsNotEmpty({ message: 'staffId is required' })
-  staffId: string;
-
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 15000,
     description: 'Vehicle odometer reading (km)',
   })
-  @IsInt()
-  @Min(0)
-  @IsNotEmpty({ message: 'odometer is required' })
-  odometer: number;
+  @IsOptional()
+  odometer?: number;
 
   @ApiPropertyOptional({ example: 'note' })
   @IsOptional()
-  @IsString()
   note?: string;
 
   @ApiPropertyOptional({ example: '[description-1, description-2]' })
   @IsOptional()
-  @IsString({ each: true })
   description?: string[];
 
-  @ApiProperty({ example: '2025-10-26T14:30' })
-  @IsDateString()
-  @IsNotEmpty({ message: 'handover date is required' })
-  date: string;
+  @ApiPropertyOptional({ example: '2025-10-26T14:30' })
+  @IsOptional()
+  date?: string;
 }
