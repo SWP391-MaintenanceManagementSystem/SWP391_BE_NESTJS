@@ -66,7 +66,7 @@ export class VehicleController {
   //   };
   // }
 
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   @Get()
   async getAllVehicles(@Query() query: VehicleQueryDTO) {
     const { data, page, pageSize, total, totalPages } =
@@ -81,7 +81,7 @@ export class VehicleController {
     };
   }
 
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   @Get('/accounts/:accountId')
   async getVehiclesByAccount(
     @Query() query: VehicleQueryDTO,
