@@ -209,8 +209,6 @@ export class VehicleHandoverService {
       this.prisma.vehicleHandover.count({ where }),
     ]);
 
-    console.log('Date:');
-
     return {
       data: handovers.map(h =>
         plainToInstance(VehicleHandoverDTO, h, { excludeExtraneousValues: true })
