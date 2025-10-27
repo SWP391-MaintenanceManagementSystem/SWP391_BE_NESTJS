@@ -5,7 +5,15 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { BookingDTO } from './dto/booking.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingQueryDTO } from './dto/booking-query.dto';
-import { AccountRole, BookingStatus, Package, Prisma, Service } from '@prisma/client';
+import {
+  AccountRole,
+  Booking,
+  BookingStatus,
+  Package,
+  Prisma,
+  Service,
+  Shift,
+} from '@prisma/client';
 import * as dateFns from 'date-fns';
 import { buildBookingSearch } from 'src/common/search/search.util';
 import { buildBookingOrderBy } from 'src/common/sort/sort.util';
@@ -31,6 +39,255 @@ export class BookingService {
     private readonly staffBookingService: StaffBookingService,
     private readonly technicianBookingService: TechnicianBookingService
   ) {}
+  // async createBooking(
+  //   bookingData: CreateBookingDTO,
+  //   customerId: string
+  // ): Promise<{ booking: BookingDTO; warning?: string }> {
+  //   const {
+  //     bookingDate,
+  //     centerId,
+  //     note,
+  //     vehicleId,
+  //     serviceIds = [],
+  //     packageIds = [],
+  //   } = bookingData;
+
+  //   // Parse booking date
+  //   const parsedBookingDate = parseDate(bookingDate);
+  //   if (!parsedBookingDate) {
+  //     throw new BadRequestException('Invalid booking date format');
+  //   }
+
+  //   // Extract booking time and validate shift
+  //   const timePart = bookingDate.split('T')[1];
+  //   const bookingTime = timePart.substring(0, 8);
+  //   const bookingTimeAsDate = localTimeToDate(bookingTime);
+
+  //   const workSchedule = await this.prismaService.workSchedule.findFirst({
+  //     where: {
+  //       date: {
+  //         gte: dateFns.startOfDay(parsedBookingDate),
+  //         lt: dateFns.endOfDay(parsedBookingDate),
+  //       },
+  //       shift: {
+  //         centerId,
+  //         status: 'ACTIVE',
+  //         startTime: { lte: bookingTimeAsDate },
+  //         endTime: { gt: bookingTimeAsDate },
+  //       },
+  //     },
+  //     include: { shift: true },
+  //   });
+
+  //   if (!workSchedule) {
+  //     throw new BadRequestException('No matching shift for this booking date');
+  //   }
+
+  //   // Check existing booking
+  //   const existingBooking = await this.prismaService.booking.findFirst({
+  //     where: {
+  //       customerId,
+  //       vehicleId,
+  //       shiftId: workSchedule.shiftId,
+  //       status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
+  //     },
+  //   });
+
+  //   if (existingBooking) {
+  //     throw new BadRequestException('You already have a booking for this vehicle at this time');
+  //   }
+
+  //   // Validate selected items
+  //   if (serviceIds.length === 0 && packageIds.length === 0) {
+  //     throw new BadRequestException('At least one service or package must be selected');
+  //   }
+
+  //   // Fetch selected services and packages
+  //   const services: Service[] = serviceIds.length
+  //     ? await this.prismaService.service.findMany({ where: { id: { in: serviceIds } } })
+  //     : [];
+
+  //   const packages: Package[] = packageIds.length
+  //     ? await this.prismaService.package.findMany({ where: { id: { in: packageIds } } })
+  //     : [];
+
+  //   // Check missing IDs
+  //   if (services.length !== serviceIds.length) {
+  //     const missing = serviceIds.filter(id => !services.find(s => s.id === id));
+  //     throw new BadRequestException(`Services not found: ${missing.join(', ')}`);
+  //   }
+
+  //   if (packages.length !== packageIds.length) {
+  //     const missing = packageIds.filter(id => !packages.find(p => p.id === id));
+  //     throw new BadRequestException(`Packages not found: ${missing.join(', ')}`);
+  //   }
+
+  //   const packageServiceMappings = await this.prismaService.packageDetail.findMany({
+  //     where: { packageId: { in: packages.map(p => p.id) } },
+  //   });
+
+  //   const serviceIdsInPackages = new Set(packageServiceMappings.map(ps => ps.serviceId));
+  //   const filteredServices = services.filter(s => !serviceIdsInPackages.has(s.id));
+
+  //   let warning: string | undefined = undefined;
+  //   if (workSchedule.shift.maximumSlot) {
+  //     const currentBookingCount = await this.prismaService.booking.count({
+  //       where: {
+  //         shiftId: workSchedule.shiftId,
+  //         status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
+  //       },
+  //     });
+
+  //     if (currentBookingCount >= workSchedule.shift.maximumSlot) {
+  //       warning = 'This shift is currently busy; you may experience some delays';
+  //     }
+  //   }
+
+  //   // Create booking
+  //   const createdBooking = await this.prismaService.booking.create({
+  //     data: {
+  //       bookingDate: parsedBookingDate,
+  //       shiftId: workSchedule.shiftId,
+  //       customerId,
+  //       totalCost: 0,
+  //       note,
+  //       vehicleId,
+  //       centerId,
+  //     },
+  //   });
+
+  //   // ✅ Prepare booking detail items
+  //   const bookingDetailsData = [
+  //     ...packages.map(p => ({
+  //       bookingId: createdBooking.id,
+  //       packageId: p.id,
+  //       unitPrice: p.price,
+  //       quantity: 1,
+  //     })),
+  //     ...filteredServices.map(s => ({
+  //       bookingId: createdBooking.id,
+  //       serviceId: s.id,
+  //       unitPrice: s.price,
+  //       quantity: 1,
+  //     })),
+  //   ];
+
+  //   if (bookingDetailsData.length > 0) {
+  //     await this.bookingDetailService.createManyBookingDetails(bookingDetailsData);
+  //   }
+
+  //   // Calculate total cost
+  //   const totalCost = await this.bookingDetailService.calculateTotalCost(createdBooking.id);
+
+  //   const updatedBooking = await this.prismaService.booking.update({
+  //     where: { id: createdBooking.id },
+  //     data: { totalCost },
+  //   });
+
+  //   return {
+  //     booking: plainToInstance(BookingDTO, updatedBooking),
+  //     warning,
+  //   };
+  // }
+  private async validateShiftAndGetSchedule(rawBookingDate: string, centerId: string) {
+    const parsedDate = parseDate(rawBookingDate);
+    if (!parsedDate) throw new BadRequestException('Invalid booking date format');
+
+    const timePart = rawBookingDate.split('T')[1].substring(0, 8);
+    const bookingTimeAsDate = localTimeToDate(timePart);
+
+    const workSchedule = await this.prismaService.workSchedule.findFirst({
+      where: {
+        date: { gte: dateFns.startOfDay(parsedDate), lt: dateFns.endOfDay(parsedDate) },
+        shift: {
+          centerId,
+          status: 'ACTIVE',
+          startTime: { lte: bookingTimeAsDate },
+          endTime: { gt: bookingTimeAsDate },
+        },
+      },
+      include: { shift: true },
+    });
+
+    if (!workSchedule)
+      throw new BadRequestException('No matching shift for this booking date/time');
+
+    return workSchedule;
+  }
+
+  private async checkDuplicateBooking(customerId: string, vehicleId: string, shiftId: string) {
+    const existing = await this.prismaService.booking.findFirst({
+      where: {
+        customerId,
+        vehicleId,
+        shiftId,
+        status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
+      },
+    });
+    if (existing)
+      throw new BadRequestException('You already have a booking for this vehicle at this time');
+  }
+
+  private async fetchAndValidateServices(serviceIds: string[]): Promise<Service[]> {
+    if (!serviceIds.length) return [];
+    const services = await this.prismaService.service.findMany({
+      where: { id: { in: serviceIds } },
+    });
+    if (services.length !== serviceIds.length) {
+      const missing = serviceIds.filter(id => !services.some(s => s.id === id));
+      throw new BadRequestException(`Services not found: ${missing.join(', ')}`);
+    }
+    return services;
+  }
+
+  private async fetchAndValidatePackages(packageIds: string[]): Promise<Package[]> {
+    if (!packageIds.length) return [];
+    const packages = await this.prismaService.package.findMany({
+      where: { id: { in: packageIds } },
+    });
+    if (packages.length !== packageIds.length) {
+      const missing = packageIds.filter(id => !packages.some(p => p.id === id));
+      throw new BadRequestException(`Packages not found: ${missing.join(', ')}`);
+    }
+    return packages;
+  }
+
+  private async filterServicesInPackages(
+    services: Service[],
+    packages: Package[]
+  ): Promise<Service[]> {
+    if (!packages.length || !services.length) return services;
+    const packageServiceMappings = await this.prismaService.packageDetail.findMany({
+      where: { packageId: { in: packages.map(p => p.id) } },
+    });
+    const serviceIdsInPackages = new Set(packageServiceMappings.map(ps => ps.serviceId));
+    return services.filter(s => !serviceIdsInPackages.has(s.id));
+  }
+
+  private async checkShiftCapacityAndSetWarning(shift: Shift): Promise<string | void> {
+    if (!shift.maximumSlot) return;
+    const currentCount = await this.prismaService.booking.count({
+      where: { shiftId: shift.id, status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] } },
+    });
+    if (currentCount >= shift.maximumSlot)
+      return 'This shift is currently busy; you may experience some delays';
+  }
+
+  private buildBookingDetails(bookingId: string, services: Service[], packages: Package[]) {
+    return [
+      ...packages.map(p => ({ bookingId, packageId: p.id, unitPrice: p.price, quantity: 1 })),
+      ...services.map(s => ({ bookingId, serviceId: s.id, unitPrice: s.price, quantity: 1 })),
+    ];
+  }
+
+  private async updateTotalCost(bookingId: string): Promise<Booking> {
+    const totalCost = await this.bookingDetailService.calculateTotalCost(bookingId);
+    return await this.prismaService.booking.update({
+      where: { id: bookingId },
+      data: { totalCost },
+    });
+  }
+
   async createBooking(
     bookingData: CreateBookingDTO,
     customerId: string
@@ -44,77 +301,20 @@ export class BookingService {
       packageIds = [],
     } = bookingData;
 
-    const parsedBookingDate = parseDate(bookingDate);
+    const workSchedule = await this.validateShiftAndGetSchedule(bookingDate, centerId);
 
+    await this.checkDuplicateBooking(customerId, vehicleId, workSchedule.shiftId);
+
+    const services = await this.fetchAndValidateServices(serviceIds);
+    const packages = await this.fetchAndValidatePackages(packageIds);
+
+    const filteredServices = await this.filterServicesInPackages(services, packages);
+
+    const warning = await this.checkShiftCapacityAndSetWarning(workSchedule.shift);
+    const parsedBookingDate = parseDate(bookingDate);
     if (!parsedBookingDate) {
       throw new BadRequestException('Invalid booking date format');
     }
-
-    const timePart = bookingDate.split('T')[1];
-    const bookingTime = timePart.substring(0, 8);
-
-    const bookingTimeAsDate = localTimeToDate(bookingTime);
-    const workSchedule = await this.prismaService.workSchedule.findFirst({
-      where: {
-        date: {
-          gte: dateFns.startOfDay(parsedBookingDate),
-          lt: dateFns.endOfDay(parsedBookingDate),
-        },
-        shift: {
-          centerId,
-          status: 'ACTIVE',
-          startTime: { lte: bookingTimeAsDate },
-          endTime: { gt: bookingTimeAsDate },
-        },
-      },
-      include: { shift: true },
-    });
-
-    if (!workSchedule) throw new BadRequestException('No matching shift for this booking date');
-
-    const existingBooking = await this.prismaService.booking.findFirst({
-      where: {
-        customerId,
-        vehicleId,
-        shiftId: workSchedule.shiftId,
-        status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
-      },
-    });
-    if (existingBooking)
-      throw new BadRequestException('You already have a booking for this vehicle at this time');
-
-    if (serviceIds.length === 0 && packageIds.length === 0)
-      throw new BadRequestException('At least one service or package must be selected');
-
-    const services: Service[] = serviceIds.length
-      ? await this.prismaService.service.findMany({ where: { id: { in: serviceIds } } })
-      : [];
-    const packages: Package[] = packageIds.length
-      ? await this.prismaService.package.findMany({ where: { id: { in: packageIds } } })
-      : [];
-
-    if (services.length !== serviceIds.length) {
-      const missing = serviceIds.filter(id => !services.find(s => s.id === id));
-      throw new BadRequestException(`Services not found: ${missing.join(', ')}`);
-    }
-    if (packages.length !== packageIds.length) {
-      const missing = packageIds.filter(id => !packages.find(p => p.id === id));
-      throw new BadRequestException(`Packages not found: ${missing.join(', ')}`);
-    }
-
-    let warning: string | undefined = undefined;
-    if (workSchedule.shift.maximumSlot) {
-      const currentBookingCount = await this.prismaService.booking.count({
-        where: {
-          shiftId: workSchedule.shiftId,
-          status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
-        },
-      });
-      if (currentBookingCount >= workSchedule.shift.maximumSlot) {
-        warning = 'This shift is currently busy; you may experience some delays';
-      }
-    }
-
     const createdBooking = await this.prismaService.booking.create({
       data: {
         bookingDate: parsedBookingDate,
@@ -127,33 +327,20 @@ export class BookingService {
       },
     });
 
-    const bookingDetailsData = [
-      ...services.map(s => ({
-        bookingId: createdBooking.id,
-        serviceId: s.id,
-        unitPrice: s.price,
-        quantity: 1,
-      })),
-      ...packages.map(p => ({
-        bookingId: createdBooking.id,
-        packageId: p.id,
-        unitPrice: p.price,
-        quantity: 1,
-      })),
-    ];
+    const bookingDetailsData = this.buildBookingDetails(
+      createdBooking.id,
+      filteredServices,
+      packages
+    );
     if (bookingDetailsData.length > 0) {
       await this.bookingDetailService.createManyBookingDetails(bookingDetailsData);
     }
-    const totalCost = await this.bookingDetailService.calculateTotalCost(createdBooking.id);
 
-    const updatedBooking = await this.prismaService.booking.update({
-      where: { id: createdBooking.id },
-      data: { totalCost },
-    });
+    const updatedBooking = await this.updateTotalCost(createdBooking.id);
 
     return {
       booking: plainToInstance(BookingDTO, updatedBooking),
-      warning,
+      warning: warning ?? undefined,
     };
   }
 
