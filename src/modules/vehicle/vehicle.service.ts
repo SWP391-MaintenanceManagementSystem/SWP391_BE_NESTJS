@@ -49,7 +49,8 @@ export class VehicleService {
 
   async createVehicle(newVehicle: CreateVehicleDTO, customerId: string): Promise<VehicleDTO> {
     const errors: Record<string, string> = {};
-    const vinExists = await this.prismaService.vehicle.findUnique({
+
+    const vinExists = await this.prismaService.vehicle.findFirst({
       where: {
         vin: newVehicle.vin,
         status: 'ACTIVE',
@@ -60,7 +61,7 @@ export class VehicleService {
       errors['vin'] = 'VIN already exists';
     }
 
-    const plateExists = await this.prismaService.vehicle.findUnique({
+    const plateExists = await this.prismaService.vehicle.findFirst({
       where: { licensePlate: newVehicle.licensePlate },
     });
     if (plateExists) {
@@ -73,31 +74,45 @@ export class VehicleService {
     if (!modelExists) {
       errors['modelId'] = 'Vehicle model does not exist';
     }
+
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({ errors });
     }
 
-    const vehicle = await this.prismaService.vehicle.create({
-      data: {
-        ...newVehicle,
-        customerId,
-      },
-      include: { vehicleModel: { include: { brand: true } } },
-    });
-    return {
-      id: vehicle.id,
-      vin: vehicle.vin,
-      model: vehicle.vehicleModel.name,
-      brand: vehicle.vehicleModel.brand.name,
-      licensePlate: vehicle.licensePlate,
-      customerId: vehicle.customerId,
-      status: vehicle.status,
-      lastService: vehicle.lastService,
-      productionYear: vehicle.vehicleModel.productionYear,
-      deletedAt: vehicle.deletedAt,
-      createdAt: vehicle.createdAt,
-      updatedAt: vehicle.updatedAt,
-    };
+    try {
+      const vehicle = await this.prismaService.vehicle.create({
+        data: {
+          ...newVehicle,
+          customerId,
+        },
+        include: { vehicleModel: { include: { brand: true } } },
+      });
+
+      return {
+        id: vehicle.id,
+        vin: vehicle.vin,
+        model: vehicle.vehicleModel.name,
+        brand: vehicle.vehicleModel.brand.name,
+        licensePlate: vehicle.licensePlate,
+        customerId: vehicle.customerId,
+        status: vehicle.status,
+        lastService: vehicle.lastService,
+        productionYear: vehicle.vehicleModel.productionYear,
+        deletedAt: vehicle.deletedAt,
+        createdAt: vehicle.createdAt,
+        updatedAt: vehicle.updatedAt,
+      };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = (error.meta?.target as string[]) ?? [];
+        throw new BadRequestException({
+          message: 'Unique constraint failed',
+          errors: Object.fromEntries(target.map(f => [f, `${f} already exists`])),
+        });
+      }
+
+      throw error;
+    }
   }
 
   async updateVehicle(vehicleId: string, updatedVehicle: UpdateVehicleDTO): Promise<VehicleDTO> {
