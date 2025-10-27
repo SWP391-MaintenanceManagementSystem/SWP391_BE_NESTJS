@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsNumber, IsUUID } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsUUID, IsDateString, Matches } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Order } from 'src/common/sort/sort.config';
 
@@ -21,18 +21,24 @@ export class VehicleHandoverQueryDTO {
 
   @ApiProperty({
     required: false,
-    description: 'Filter by start date (2025-10-20T00:00)',
+    description: 'Filter by start date (e.g. 2025-10-20T00:00)',
   })
   @IsOptional()
-  @IsString()
+  @IsDateString({}, { message: 'dateFrom must be a valid ISO 8601 date string' })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, {
+    message: 'dateFrom must be in format YYYY-MM-DDTHH:mm',
+  })
   dateFrom?: string;
 
   @ApiProperty({
     required: false,
-    description: 'Filter by end date (2025-10-27T23:59)',
+    description: 'Filter by end date (e.g. 2025-10-27T23:59)',
   })
   @IsOptional()
-  @IsString()
+  @IsDateString({}, { message: 'dateTo must be a valid ISO 8601 date string' })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, {
+    message: 'dateTo must be in format YYYY-MM-DDTHH:mm',
+  })
   dateTo?: string;
 
   @IsOptional()

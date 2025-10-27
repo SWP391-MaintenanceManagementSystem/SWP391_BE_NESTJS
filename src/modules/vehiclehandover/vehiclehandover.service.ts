@@ -25,19 +25,8 @@ export class VehicleHandoverService {
 
     // --- Validate and convert date ---
     const parsedDate = parseDate(date);
-    if (!parsedDate) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: [
-          {
-            field: 'date',
-            message: "Invalid handover date format. Expected format: yyyy-MM-dd'T'HH:mm",
-          },
-        ],
-      });
-    }
 
-    const utcDate = vnToUtcDate(parsedDate);
+    const utcDate = vnToUtcDate(parsedDate!);
 
     // --- Validate booking existence ---
     const booking = await this.prisma.booking.findUnique({
@@ -124,12 +113,17 @@ export class VehicleHandoverService {
         data: { status: BookingStatus.CHECKED_IN },
       });
 
-      return newHandover;
+      return tx.vehicleHandover.findUnique({
+        where: { id: newHandover.id },
+        include: {
+          staff: {
+            include: { account: true },
+          },
+          booking: true,
+        },
+      });
     });
-
-    return plainToInstance(VehicleHandoverDTO, handover, {
-      excludeExtraneousValues: true,
-    });
+    return plainToInstance(VehicleHandoverDTO, handover, { excludeExtraneousValues: true });
   }
 
   async getVehicleHandovers(query: VehicleHandoverQueryDTO): Promise<{
@@ -280,31 +274,53 @@ export class VehicleHandoverService {
     if (!existing) {
       throw new NotFoundException({
         message: 'Validation failed',
-        errors: [
-          {
-            field: 'id',
-            message: `Vehicle handover with ID ${id} not found`,
-          },
-        ],
+        errors: [{ field: 'id', message: `Vehicle handover with ID ${id} not found` }],
       });
     }
 
     const { description, date, odometer, bookingId, note } = updateDto;
 
-    // --- Validate odometer if provided ---
-    if (odometer !== undefined && odometer < 0) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: [
-          {
-            field: 'odometer',
-            message: 'Odometer reading must be a positive number',
-          },
-        ],
-      });
+    if (odometer !== undefined) {
+      if (isNaN(odometer) || odometer < 0) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [{ field: 'odometer', message: 'Odometer must be a positive number' }],
+        });
+      }
     }
 
-    // --- Validate booking if changing ---
+    let descriptionValue: string[] | null | undefined = undefined;
+    if (description !== undefined) {
+      if (!Array.isArray(description)) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [{ field: 'description', message: 'Description must be an array of strings' }],
+        });
+      }
+
+      if (description.length > 0 && description.some(d => typeof d !== 'string' || !d.trim())) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [
+            { field: 'description', message: 'Each description must be a non-empty string' },
+          ],
+        });
+      }
+      descriptionValue = description.length === 0 ? [] : description;
+    }
+
+    let noteValue: string | null | undefined = undefined;
+    if (note !== undefined) {
+      if (typeof note !== 'string') {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [{ field: 'note', message: 'Note must be a string' }],
+        });
+      }
+
+      noteValue = note.trim() === '' ? null : note.trim();
+    }
+
     if (bookingId && bookingId !== existing.bookingId) {
       const newBooking = await this.prisma.booking.findUnique({
         where: { id: bookingId },
@@ -314,54 +330,49 @@ export class VehicleHandoverService {
       if (!newBooking) {
         throw new NotFoundException({
           message: 'Validation failed',
-          errors: [
-            {
-              field: 'bookingId',
-              message: `Booking with ID ${bookingId} not found`,
-            },
-          ],
+          errors: [{ field: 'bookingId', message: `Booking with ID ${bookingId} not found` }],
         });
       }
 
       if (newBooking.handover && newBooking.handover.id !== id) {
         throw new ConflictException({
           message: 'Validation failed',
-          errors: [
-            {
-              field: 'bookingId',
-              message: `Booking ${bookingId} already has a handover record`,
-            },
-          ],
+          errors: [{ field: 'bookingId', message: `Booking ${bookingId} already has a handover` }],
         });
       }
     }
 
-    // --- Handle date conversion if provided ---
     let utcDate: Date | undefined = undefined;
-    if (date) {
-      const parsedDate = parseDate(date);
-      if (!parsedDate) {
+    if (date !== undefined) {
+      const datePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+      if (!datePattern.test(date)) {
         throw new BadRequestException({
           message: 'Validation failed',
           errors: [
             {
               field: 'date',
-              message: "Invalid handover date format. Expected format: yyyy-MM-dd'T'HH:mm",
+              message: "Invalid format. Expected 'YYYY-MM-DDTHH:mm'",
             },
           ],
         });
       }
+
+      const parsedDate = parseDate(date);
+      if (!parsedDate || isNaN(parsedDate.getTime())) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [{ field: 'date', message: 'Invalid date value' }],
+        });
+      }
+
       utcDate = vnToUtcDate(parsedDate);
     }
 
-    // --- Build update data object ---
     const updateData: Prisma.VehicleHandoverUpdateInput = {
-      ...(note !== undefined && { note }),
+      ...(noteValue !== undefined && { note: noteValue }),
       ...(odometer !== undefined && { odometer }),
       ...(utcDate && { date: utcDate }),
-      ...(description && {
-        description: Array.isArray(description) ? description : [description],
-      }),
+      ...(descriptionValue !== undefined && { description: descriptionValue }),
       ...(bookingId && { booking: { connect: { id: bookingId } } }),
     };
 

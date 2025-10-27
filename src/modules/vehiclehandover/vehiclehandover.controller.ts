@@ -46,7 +46,7 @@ export class VehicleHandoverController {
   @Get()
   @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   @ApiOperation({ summary: 'Get all vehicle handovers - Admin & Staff' })
-  async getVehicleHandovers(@Query() query: VehicleHandoverQueryDTO): Promise<{
+  async getAll(@Query() query: VehicleHandoverQueryDTO): Promise<{
     data: VehicleHandoverDTO[];
     total: number;
     page: number;
@@ -58,20 +58,20 @@ export class VehicleHandoverController {
     return { ...result, message: 'Vehicle handovers retrieved successfully' };
   }
 
-  // @Get('booking/:bookingId') // ✅ Đổi thứ tự route để tránh conflict với :id
-  // @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN, AccountRole.CUSTOMER)
-  // @ApiOperation({ summary: 'Get vehicle handover by booking ID - All roles' })
-  // async getByBookingId(
-  //   @Param('bookingId', ParseUUIDPipe) bookingId: string
-  // ): Promise<{ data: VehicleHandoverDTO | null; message: string }> {
-  //   const data = await this.vehicleHandoverService.findByBookingId(bookingId);
-  //   return {
-  //     data,
-  //     message: data
-  //       ? 'Vehicle handover retrieved successfully'
-  //       : 'No handover found for this booking',
-  //   };
-  // }
+  @Get('booking/:bookingId')
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.CUSTOMER)
+  @ApiOperation({ summary: 'Get vehicle handover by booking ID - ADMIN, STAFF, CUSTOMER' })
+  async getByBookingId(
+    @Param('bookingId', ParseUUIDPipe) bookingId: string
+  ): Promise<{ data: VehicleHandoverDTO | null; message: string }> {
+    const data = await this.vehicleHandoverService.findByBookingId(bookingId);
+    return {
+      data,
+      message: data
+        ? 'Vehicle handover retrieved successfully'
+        : 'No handover found for this booking',
+    };
+  }
 
   @Get(':id')
   @Roles(AccountRole.ADMIN, AccountRole.STAFF)
