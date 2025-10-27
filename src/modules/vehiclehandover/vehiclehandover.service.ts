@@ -12,6 +12,7 @@ import { VehicleHandoverQueryDTO } from './dto/vehiclehandover-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { parseDate, vnToUtcDate } from 'src/utils';
+import { format } from 'date-fns';
 
 @Injectable()
 export class VehicleHandoverService {
@@ -60,6 +61,20 @@ export class VehicleHandoverService {
     }
 
     // --- Validate booking status ---
+    // --- Validate handover date must be after booking date ---
+    const parsedBookingDate = new Date(booking.bookingDate);
+    if (parsedDate! <= parsedBookingDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: [
+          {
+            field: 'date',
+            message: `Handover date must be after booking date (${format(parsedBookingDate, 'yyyy-MM-dd HH:mm')})`,
+          },
+        ],
+      });
+    }
+
     if (booking.status !== BookingStatus.ASSIGNED) {
       throw new BadRequestException({
         message: 'Validation failed',
@@ -270,7 +285,10 @@ export class VehicleHandoverService {
     updateDto: UpdateVehicleHandoverDTO
   ): Promise<VehicleHandoverDTO> {
     // --- Validate handover exists ---
-    const existing = await this.prisma.vehicleHandover.findUnique({ where: { id } });
+    const existing = await this.prisma.vehicleHandover.findUnique({
+      where: { id },
+      include: { booking: true },
+    });
     if (!existing) {
       throw new NotFoundException({
         message: 'Validation failed',
@@ -363,6 +381,26 @@ export class VehicleHandoverService {
           message: 'Validation failed',
           errors: [{ field: 'date', message: 'Invalid date value' }],
         });
+      }
+
+      // --- Validate handover date must be after booking date ---
+      const currentBooking = bookingId
+        ? await this.prisma.booking.findUnique({ where: { id: bookingId } })
+        : existing.booking;
+
+      if (currentBooking) {
+        const parsedBookingDate = new Date(currentBooking.bookingDate);
+        if (parsedDate <= parsedBookingDate) {
+          throw new BadRequestException({
+            message: 'Validation failed',
+            errors: [
+              {
+                field: 'date',
+                message: `Handover date must be after booking date (${format(parsedBookingDate, 'yyyy-MM-dd HH:mm')})`,
+              },
+            ],
+          });
+        }
       }
 
       utcDate = vnToUtcDate(parsedDate);
