@@ -20,7 +20,7 @@ export class CustomerController {
   ) {}
 
   @Get('/statistics')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   async getCustomerStatistics() {
     const { data, premium, total } = await this.customerService.getCustomerStatistics();
 
@@ -33,7 +33,7 @@ export class CustomerController {
   }
 
   @Get('/')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   async getCustomers(@Query() query: CustomerQueryDTO) {
     const { data, page, pageSize, total, totalPages } =
       await this.customerService.getCustomers(query);
