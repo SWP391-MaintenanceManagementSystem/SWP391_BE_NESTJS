@@ -10,14 +10,14 @@ import {
 
 export class CreateWorkScheduleDTO {
   @ApiProperty({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    example: 'uuid-shift',
   })
   @IsUUID(4, { message: 'Shift ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Shift ID is required and cannot be empty' })
   shiftId: string;
 
   @ApiProperty({
-    example: 'a1b2c3d4-5678-9abc-def0-123456789abc',
+    example: 'uuid-service-center',
   })
   @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Service Center ID is required and cannot be empty' })
@@ -25,7 +25,7 @@ export class CreateWorkScheduleDTO {
 
   @ApiProperty({
     type: [String],
-    example: ['c7a72f5e-98ab-40b2-bd53-6220cba91c7a', 'a1a72f5e-12ab-40b2-bd53-6220cba91c7b'],
+    example: ['uuid-employee-1', 'uuid-employee-2'],
   })
   @IsUUID(4, { each: true, message: 'Each employee ID must be a valid UUID' })
   @ArrayMinSize(1, { message: 'At least one employee ID is required' })
@@ -34,7 +34,7 @@ export class CreateWorkScheduleDTO {
 
   // --- CYCLIC ---
   @ApiPropertyOptional({ example: '2025-10-11' })
-  @IsDateString({}, { message: 'Start date must be a valid date string (YYYY-MM-DD)' })
+  @IsDateString({}, { message: 'Start date must be a valid date string' })
   @IsNotEmpty({ message: 'Start date is required and cannot be empty' })
   startDate: string;
 

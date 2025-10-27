@@ -57,13 +57,13 @@ export class ServiceCenterService {
         workCenters: {
           select: {
             id: true,
-            employeeId: true,
             startDate: true,
             endDate: true,
             employee: {
               select: {
                 account: {
                   select: {
+                    id: true,
                     email: true,
                     phone: true,
                     role: true,

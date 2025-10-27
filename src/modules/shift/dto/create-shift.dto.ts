@@ -33,8 +33,7 @@ export class CreateShiftDTO {
   @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Service Center ID is required' })
   @ApiProperty({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    description: 'Service center UUID',
+    example: 'uuid-service-center',
   })
   centerId: string;
 }

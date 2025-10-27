@@ -1,6 +1,4 @@
-// src/modules/work-schedule/dto/work-schedule-query.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { AccountRole } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsOptional, IsString, IsNumber, IsUUID, IsDateString, IsEnum } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
@@ -45,12 +43,12 @@ export class WorkScheduleQueryDTO {
   @IsString()
   search?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by date from' })
+  @ApiProperty({ required: false, description: 'Filter by date from (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
   dateFrom?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by date to' })
+  @ApiProperty({ required: false, description: 'Filter by date to (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
   dateTo?: string;
