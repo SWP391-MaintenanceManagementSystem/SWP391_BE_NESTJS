@@ -7,12 +7,15 @@ import { CustomerBookingDetailDTO } from './dto/customer-booking-detail.dto';
 import { plainToInstance } from 'class-transformer';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
 import { localTimeToDate, parseDate } from 'src/utils';
+import { CAN_ADJUST } from './booking.service';
+
 @Injectable()
 export class CustomerBookingService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly bookingDetailService: BookingDetailService
   ) {}
+
   async updateBooking(bookingId: string, customerId: string, updateData: CustomerUpdateBookingDTO) {
     const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
@@ -22,8 +25,8 @@ export class CustomerBookingService {
     if (!booking) throw new BadRequestException('Booking not found');
     if (booking.customerId !== customerId)
       throw new BadRequestException('You can only update your own bookings');
-    if (booking.status !== 'PENDING')
-      throw new BadRequestException('Only pending bookings can be updated');
+    if (!CAN_ADJUST.includes(booking.status))
+      throw new BadRequestException('Only PENDING or ASSIGNED bookings can be updated');
 
     const updatePayload = {
       note: updateData.note ?? booking.note,

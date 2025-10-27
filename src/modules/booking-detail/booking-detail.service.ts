@@ -2,7 +2,6 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBookingDetailDTO } from './dto/create-booking-detail.dto';
 import { UpdateBookingDetailDTO } from './dto/update-booking-detail.dto';
-import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class BookingDetailService {
@@ -28,71 +27,126 @@ export class BookingDetailService {
     });
   }
 
+  private async filterServicesInPackages(
+    services: { id: string }[],
+    packages: { id: string }[]
+  ): Promise<{ id: string }[]> {
+    if (!packages.length || !services.length) return services;
+
+    const packageServiceMappings = await this.prismaService.packageDetail.findMany({
+      where: { packageId: { in: packages.map(p => p.id) } },
+    });
+
+    const serviceIdsInPackages = new Set(packageServiceMappings.map(ps => ps.serviceId));
+    return services.filter(s => !serviceIdsInPackages.has(s.id));
+  }
+
   async updateBookingDetails(bookingId: string, updateData: UpdateBookingDetailDTO) {
-    const currentDetails = await this.prismaService.bookingDetail.findMany({
-      where: { bookingId },
-    });
+    return this.prismaService.$transaction(async tx => {
+      //  Lấy dữ liệu hiện tại
+      const currentDetails = await tx.bookingDetail.findMany({
+        where: { bookingId },
+      });
 
-    const currentServiceIds = currentDetails.filter(d => d.serviceId).map(d => d.serviceId!);
+      const currentServiceIds = currentDetails.filter(d => d.serviceId).map(d => d.serviceId!);
+      const currentPackageIds = currentDetails.filter(d => d.packageId).map(d => d.packageId!);
 
-    const currentPackageIds = currentDetails.filter(d => d.packageId).map(d => d.packageId!);
+      const newServiceIds = updateData.services || [];
+      const newPackageIds = updateData.packages || [];
 
-    const newServiceIds = updateData.services || [];
-    const newPackageIds = updateData.packages || [];
+      //  Lấy thông tin package mới + các service thuộc package
+      const storedPackages = newPackageIds.length
+        ? await tx.package.findMany({
+            where: { id: { in: newPackageIds } },
+            select: { id: true, price: true },
+          })
+        : [];
 
-    const storedServices = newServiceIds.length
-      ? await this.prismaService.service.findMany({
-          where: { id: { in: newServiceIds } },
-          select: { id: true, price: true },
-        })
-      : [];
+      const packageServiceMappings = storedPackages.length
+        ? await tx.packageDetail.findMany({
+            where: { packageId: { in: storedPackages.map(p => p.id) } },
+            select: { serviceId: true },
+          })
+        : [];
 
-    const storedPackages = newPackageIds.length
-      ? await this.prismaService.package.findMany({
-          where: { id: { in: newPackageIds } },
-          select: { id: true, price: true },
-        })
-      : [];
+      const serviceIdsInNewPackages = new Set(packageServiceMappings.map(ps => ps.serviceId));
 
-    await this.prismaService.bookingDetail.deleteMany({
-      where: {
-        bookingId,
-        serviceId: { in: currentServiceIds.filter(id => !newServiceIds.includes(id)) },
-      },
-    });
+      //  Xác định danh sách service hợp lệ (lọc ra service nào KHÔNG nằm trong package)
+      const allSelectedServices = newServiceIds.length
+        ? await tx.service.findMany({
+            where: { id: { in: newServiceIds } },
+            select: { id: true },
+          })
+        : [];
 
-    await this.prismaService.bookingDetail.deleteMany({
-      where: {
-        bookingId,
-        packageId: { in: currentPackageIds.filter(id => !newPackageIds.includes(id)) },
-      },
-    });
+      const filteredServiceIds = await this.filterServicesInPackages(
+        allSelectedServices,
+        storedPackages
+      );
 
-    for (const service of storedServices) {
-      if (!currentServiceIds.includes(service.id)) {
-        await this.prismaService.bookingDetail.create({
-          data: {
+      const storedServices = filteredServiceIds.length
+        ? await tx.service.findMany({
+            where: { id: { in: filteredServiceIds.map(s => s.id) } },
+            select: { id: true, price: true },
+          })
+        : [];
+
+      // Xoá trước các service lẻ bị trùng với service trong package mới
+      if (serviceIdsInNewPackages.size > 0) {
+        await tx.bookingDetail.deleteMany({
+          where: {
             bookingId,
-            serviceId: service.id,
-            unitPrice: service.price,
-            quantity: 1,
+            serviceId: { in: Array.from(serviceIdsInNewPackages) },
           },
         });
       }
-    }
 
-    for (const pkg of storedPackages) {
-      if (!currentPackageIds.includes(pkg.id)) {
-        await this.prismaService.bookingDetail.create({
-          data: {
-            bookingId,
-            packageId: pkg.id,
-            unitPrice: pkg.price,
-            quantity: 1,
-          },
+      // Xoá các service hoặc package bị bỏ chọn
+      const removedServiceIds = currentServiceIds.filter(id => !newServiceIds.includes(id));
+      const removedPackageIds = currentPackageIds.filter(id => !newPackageIds.includes(id));
+
+      if (removedServiceIds.length > 0) {
+        await tx.bookingDetail.deleteMany({
+          where: { bookingId, serviceId: { in: removedServiceIds } },
         });
       }
-    }
+
+      if (removedPackageIds.length > 0) {
+        await tx.bookingDetail.deleteMany({
+          where: { bookingId, packageId: { in: removedPackageIds } },
+        });
+      }
+
+      // Chuẩn bị dữ liệu thêm mới
+      const newServicesToAdd = storedServices.filter(s => !currentServiceIds.includes(s.id));
+      const newPackagesToAdd = storedPackages.filter(p => !currentPackageIds.includes(p.id));
+
+      const createData = [
+        ...newServicesToAdd.map(s => ({
+          bookingId,
+          serviceId: s.id,
+          unitPrice: s.price,
+          quantity: 1,
+        })),
+        ...newPackagesToAdd.map(p => ({
+          bookingId,
+          packageId: p.id,
+          unitPrice: p.price,
+          quantity: 1,
+        })),
+      ];
+
+      // Thêm mới (nếu có)
+      if (createData.length > 0) {
+        await tx.bookingDetail.createMany({ data: createData });
+      }
+
+      return {
+        success: true,
+        added: createData.length,
+        removed: removedServiceIds.length + removedPackageIds.length,
+      };
+    });
   }
 
   async calculateTotalCost(bookingId: string): Promise<number> {
