@@ -176,7 +176,6 @@ export class AuthController {
 
   @Get('/me')
   @ApiBearerAuth('jwt-auth')
-  @Serialize(SignInResponseDTO)
   async getMe(@CurrentUser() user: JWT_Payload) {
     const account = await this.accountService.getAccountById(user.sub);
     return {
