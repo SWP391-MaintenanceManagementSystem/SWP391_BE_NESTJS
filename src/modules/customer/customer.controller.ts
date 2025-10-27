@@ -49,7 +49,7 @@ export class CustomerController {
   }
 
   @Get('/:id')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   async getCustomerById(@Query('id') id: string) {
     const account = await this.customerService.getCustomerById(id);
 
