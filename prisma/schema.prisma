@@ -526,7 +526,7 @@ model VehicleHandover {
   bookingId   String   @unique
   odometer    Int
   note        String?
-  description String?
+  description String[]
   staffId     String   @map("staff_id")
   date        DateTime @db.Timestamptz
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
