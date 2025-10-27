@@ -38,6 +38,7 @@ import { WorkCenterModule } from './modules/work-center/work-center.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
 import { BookingAssignmentModule } from './modules/booking-assignment/booking-assignment.module';
+import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { BookingAssignmentModule } from './modules/booking-assignment/booking-as
     BookingDetailModule,
     BookingAssignmentModule,
     TechnicianModule,
+    VehicleHandoverModule,
   ],
   controllers: [AppController],
   providers: [
