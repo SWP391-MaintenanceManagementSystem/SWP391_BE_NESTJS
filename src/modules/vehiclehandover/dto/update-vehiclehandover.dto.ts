@@ -17,7 +17,7 @@ export class UpdateVehicleHandoverDTO {
   @IsOptional()
   note?: string;
 
-  @ApiPropertyOptional({ example: '[description-1, description-2]' })
+  @ApiPropertyOptional({ example: ['description-1', 'description-2'], type: [String] })
   @IsOptional()
   description?: string[];
 

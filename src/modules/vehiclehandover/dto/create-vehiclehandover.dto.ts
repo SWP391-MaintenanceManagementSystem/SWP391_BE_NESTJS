@@ -8,6 +8,7 @@ import {
   IsNotEmpty,
   Min,
   ArrayUnique,
+  Matches,
 } from 'class-validator';
 
 export class CreateVehicleHandoverDTO {
@@ -15,11 +16,6 @@ export class CreateVehicleHandoverDTO {
   @IsUUID()
   @IsNotEmpty({ message: 'bookingId is required' })
   bookingId: string;
-
-  // @ApiProperty({ example: 'uuid-staff' })
-  // @IsUUID()
-  // @IsNotEmpty({ message: 'staffId is required' })
-  // staffId: string;
 
   @ApiProperty({
     example: 15000,
@@ -45,7 +41,10 @@ export class CreateVehicleHandoverDTO {
   description?: string[];
 
   @ApiProperty({ example: '2025-10-26T14:30' })
+  @Matches(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, {
+    message: "Invalid date format. Use 'yyyy-MM-ddTHH:mm'",
+  })
   @IsDateString()
-  @IsNotEmpty({ message: 'handover date is required' })
+  @IsNotEmpty({ message: 'date is required' })
   date: string;
 }
