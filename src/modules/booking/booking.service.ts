@@ -29,6 +29,7 @@ import { StaffBookingService } from './staff-booking.service';
 import { StaffBookingDTO } from './dto/staff-booking.dto';
 import { TechnicianBookingService } from './technician-booking.service';
 import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
+import { BookingHistoryDTO } from './dto/booking-history.dto';
 @Injectable()
 export class BookingService {
   constructor(
@@ -480,7 +481,8 @@ export class BookingService {
     if (booking.status === BookingStatus.CANCELLED)
       throw new BadRequestException('Booking is already cancelled');
 
-    if (booking.status !== BookingStatus.PENDING)
+    const CAN_CANCEL: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.ASSIGNED];
+    if (!CAN_CANCEL.includes(booking.status))
       throw new BadRequestException('Only pending bookings can be cancelled');
 
     if (user.role === AccountRole.CUSTOMER && booking.customerId !== user.sub)
@@ -620,7 +622,7 @@ export class BookingService {
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return {
-      data: bookings.map(booking => this.transformBookingByRole(booking, user.role)),
+      data: bookings.map(booking => plainToInstance(BookingHistoryDTO, booking)),
       page,
       pageSize,
       total: totalItems,

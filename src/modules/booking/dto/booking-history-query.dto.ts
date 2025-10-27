@@ -2,7 +2,6 @@ import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { BookingQueryDTO } from './booking-query.dto';
 import { BookingStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
-import e from 'express';
 
 export class BookingHistoryQueryDTO extends BookingQueryDTO {
   @ApiProperty({
