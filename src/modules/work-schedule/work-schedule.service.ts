@@ -911,64 +911,35 @@ export class WorkScheduleService {
     );
   }
 
-  async deleteWorkSchedule(
-    employeeId: string,
-    date: string,
-    userRole: AccountRole
-  ): Promise<{ deletedCount: number }> {
+  async deleteWorkSchedule(id: string, userRole: AccountRole): Promise<void> {
     if (userRole !== AccountRole.ADMIN) {
       throw new ForbiddenException('Only ADMIN can delete work schedules');
     }
-
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const errors: Record<string, string> = {};
-
-    // --- Validate employeeId ---
-    if (!employeeId || employeeId.trim() === '') {
-      errors.employeeId = 'Employee ID is required and cannot be empty';
-    } else if (!uuidRegex.test(employeeId)) {
-      errors.employeeId = 'Employee ID must be a valid UUID';
-    } else {
-      const employee = await this.prismaService.employee.findUnique({
-        where: { accountId: employeeId },
-      });
-      if (!employee) {
-        errors.employeeId = `Employee with ID ${employeeId} not found`;
-      }
-    }
-
-    // --- Validate date ---
-    let parsedDate: Date | null = null;
-    if (!date || date.trim() === '') {
-      errors.date = 'Date is required and cannot be empty';
-    } else {
-      try {
-        parsedDate = stringToDate(date);
-      } catch {
-        errors.date = `Invalid date format: "${date}". Expected format: YYYY-MM-DD`;
-      }
-    }
-
-    if (Object.keys(errors).length > 0) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: errors,
-      });
-    }
-
-    const result = await this.prismaService.workSchedule.deleteMany({
-      where: {
-        employeeId,
-        date: parsedDate!,
+    // --- Check if work schedule exists ---
+    const workSchedule = await this.prismaService.workSchedule.findUnique({
+      where: { id },
+      include: {
+        shift: true,
+        employee: {
+          include: {
+            account: true,
+          },
+        },
       },
     });
 
-    if (result.count === 0) {
-      throw new NotFoundException(
-        `No work schedules found for employee ID ${employeeId} on date ${date}`
-      );
+    if (!workSchedule) {
+      throw new NotFoundException({
+        message: 'Validation failed',
+        errors: {
+          id: `Work schedule with ID ${id} not found`,
+        },
+      });
     }
 
-    return { deletedCount: result.count };
+    // --- Delete work schedule ---
+    await this.prismaService.workSchedule.delete({
+      where: { id },
+    });
   }
 }
