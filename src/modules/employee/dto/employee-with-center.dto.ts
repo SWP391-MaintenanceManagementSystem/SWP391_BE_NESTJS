@@ -14,6 +14,7 @@ export class WorkCenterDTO {
   @Expose()
   name: string;
 
+  @Expose()
   @Transform(({ value }) => {
     if (!value) return null;
     const date = new Date(value);
@@ -23,6 +24,7 @@ export class WorkCenterDTO {
   })
   startDate: string | null;
 
+  @Expose()
   @Transform(({ value }) => {
     if (!value) return null;
     const date = new Date(value);
