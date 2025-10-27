@@ -82,12 +82,8 @@ export class WorkScheduleController {
 
   @Delete(':employeeId/:date')
   @Roles(AccountRole.ADMIN)
-  async deleteWorkSchedule(
-    @Param('employeeId', ParseUUIDPipe) employeeId: string,
-    @Param('date') date: string,
-    @CurrentUser() user: any
-  ) {
-    const data = await this.workScheduleService.deleteWorkSchedule(employeeId, date, user.role);
+  async deleteWorkSchedule(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
+    const data = await this.workScheduleService.deleteWorkSchedule(id, user.role);
     return {
       message: 'Work schedule deleted successfully',
       data,

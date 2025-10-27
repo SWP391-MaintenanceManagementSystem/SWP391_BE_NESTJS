@@ -93,6 +93,7 @@ export class VehicleService {
       customerId: vehicle.customerId,
       status: vehicle.status,
       lastService: vehicle.lastService,
+      productionYear: vehicle.vehicleModel.productionYear,
       deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
@@ -152,6 +153,7 @@ export class VehicleService {
       customerId: vehicle.customerId,
       status: vehicle.status,
       lastService: vehicle.lastService,
+      productionYear: vehicle.vehicleModel.productionYear,
       deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
@@ -178,6 +180,7 @@ export class VehicleService {
       customerId: vehicle.customerId,
       status: vehicle.status,
       lastService: vehicle.lastService,
+      productionYear: vehicle.vehicleModel.productionYear,
       deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
@@ -234,6 +237,7 @@ export class VehicleService {
       status: vehicle.status,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
+      productionYear: vehicle.vehicleModel.productionYear,
     };
   }
 
@@ -251,6 +255,7 @@ export class VehicleService {
       customerId: vehicle.customerId,
       status: vehicle.status,
       lastService: vehicle.lastService,
+      productionYear: vehicle.vehicleModel.productionYear,
       deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,
@@ -298,6 +303,7 @@ export class VehicleService {
       customerId: vehicle.customerId,
       status: vehicle.status,
       lastService: vehicle.lastService,
+      productionYear: vehicle.vehicleModel.productionYear,
       deletedAt: vehicle.deletedAt,
       createdAt: vehicle.createdAt,
       updatedAt: vehicle.updatedAt,

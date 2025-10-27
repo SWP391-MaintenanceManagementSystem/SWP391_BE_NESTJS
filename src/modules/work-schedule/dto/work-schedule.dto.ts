@@ -11,17 +11,12 @@ export class WorkScheduleDTO {
   shiftId: string;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString().split('T')[0] : null), {
-    toPlainOnly: true,
-  })
-  date: Date;
+  date: string;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
   createdAt: Date;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
   updatedAt: Date;
 
   @Expose()
@@ -38,13 +33,13 @@ export class WorkScheduleDTO {
       role: account.role,
       status: account.status,
       avatar: account.avatar,
-      createdAt: account.createdAt?.toISOString(),
-      updatedAt: account.updatedAt?.toISOString(),
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
       profile: {
         firstName: employee.firstName,
         lastName: employee.lastName,
-        createdAt: employee.createdAt?.toISOString(),
-        updatedAt: employee.updatedAt?.toISOString(),
+        createdAt: employee.createdAt,
+        updatedAt: employee.updatedAt,
       },
     };
   })
@@ -79,16 +74,16 @@ export class WorkScheduleDTO {
       endTime: shift.endTime,
       maximumSlot: shift.maximumSlot,
       status: shift.status,
-      createdAt: shift.createdAt?.toISOString(),
-      updatedAt: shift.updatedAt?.toISOString(),
+      createdAt: shift.createdAt,
+      updatedAt: shift.updatedAt,
       serviceCenter: serviceCenter
         ? {
             id: serviceCenter.id,
             name: serviceCenter.name,
             address: serviceCenter.address,
             status: serviceCenter.status,
-            createdAt: serviceCenter.createdAt?.toISOString(),
-            updatedAt: serviceCenter.updatedAt?.toISOString(),
+            createdAt: serviceCenter.createdAt,
+            updatedAt: serviceCenter.updatedAt,
           }
         : undefined,
     };

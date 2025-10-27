@@ -11,7 +11,7 @@ import { UpdateStaffDTO } from './staff/dto/update-staff.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
 import { AccountStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { hashPassword } from 'src/utils';
+import { hashPassword, parseDate, vnToUtcDate } from 'src/utils';
 import { CreateTechnicianDTO } from './technician/dto/create-technician.dto';
 import { CreateStaffDTO } from './staff/dto/create-staff.dto';
 
@@ -215,6 +215,26 @@ export class EmployeeService {
   ) {
     const { centerId, startDate, endDate } = workCenterData;
 
+    const parsedStartDate = parseDate(startDate);
+    const parsedEndDate = endDate ? parseDate(endDate) : null;
+
+    if (!parsedStartDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { startDate: 'Invalid start date' },
+      });
+    }
+
+    if (endDate && !parsedEndDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { endDate: 'Invalid end date' },
+      });
+    }
+
+    const start = vnToUtcDate(parsedStartDate);
+    const end = parsedEndDate ? vnToUtcDate(parsedEndDate) : null;
+
     const employee = await this.prisma.employee.findUnique({
       where: { accountId: employeeId },
       include: {
@@ -275,13 +295,8 @@ export class EmployeeService {
         const updatedAssignment = await this.prisma.workCenter.update({
           where: { id: currentAssignment.id },
           data: {
-            startDate: startDate ? new Date(startDate) : currentAssignment.startDate,
-            endDate:
-              endDate === null || endDate === ''
-                ? null
-                : endDate
-                  ? new Date(endDate)
-                  : currentAssignment.endDate,
+            startDate: start,
+            endDate: end,
           },
           include: {
             serviceCenter: {
@@ -312,8 +327,8 @@ export class EmployeeService {
       data: {
         employeeId,
         centerId,
-        startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: start,
+        endDate: end,
       },
       include: {
         serviceCenter: {
@@ -658,7 +673,6 @@ export class EmployeeService {
       }
     }
 
-    // ✅ Throw validation errors if any
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
