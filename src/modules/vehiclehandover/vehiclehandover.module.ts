@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { VehicleHandoverController } from './vehiclehandover.controller';
 import { VehicleHandoverService } from './vehiclehandover.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { CloudinaryService } from '../upload/cloudinary.service';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, UploadModule],
   controllers: [VehicleHandoverController],
-  providers: [VehicleHandoverService, CloudinaryService],
+  providers: [VehicleHandoverService],
   exports: [VehicleHandoverService],
 })
 export class VehicleHandoverModule {}
