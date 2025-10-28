@@ -47,4 +47,7 @@ export class CreateVehicleHandoverDTO {
   @IsDateString()
   @IsNotEmpty({ message: 'date is required' })
   date: string;
+
+  @IsOptional()
+  upload?: string | null;
 }

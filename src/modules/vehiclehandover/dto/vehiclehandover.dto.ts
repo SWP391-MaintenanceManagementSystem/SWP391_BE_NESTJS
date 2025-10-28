@@ -1,7 +1,6 @@
 import { Expose, Transform } from 'class-transformer';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
-import { create } from 'domain';
 import { VN_DATE_TIME_FORMAT, VN_TIMEZONE } from 'src/common/constants';
 
 export class VehicleHandoverDTO {

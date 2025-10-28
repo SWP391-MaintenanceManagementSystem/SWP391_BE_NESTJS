@@ -63,7 +63,7 @@ export class VehicleHandoverService {
     // --- Validate booking status ---
     // --- Validate handover date must be after booking date ---
     const parsedBookingDate = new Date(booking.bookingDate);
-    if (parsedDate! <= parsedBookingDate) {
+    if (parsedDate! < parsedBookingDate) {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: [
