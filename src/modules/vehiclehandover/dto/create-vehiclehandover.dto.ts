@@ -10,6 +10,7 @@ import {
   ArrayUnique,
   Matches,
 } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 
 export class CreateVehicleHandoverDTO {
   @ApiProperty({ example: 'uuid-booking' })
@@ -21,6 +22,7 @@ export class CreateVehicleHandoverDTO {
     example: 15000,
     description: 'Vehicle odometer reading (km)',
   })
+  @Type(() => Number)
   @IsInt()
   @Min(0)
   @IsNotEmpty({ message: 'odometer is required' })
@@ -36,6 +38,17 @@ export class CreateVehicleHandoverDTO {
     type: [String],
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    // Handle multipart/form-data: convert string to array
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return [value];
+      }
+    }
+    return value;
+  })
   @IsString({ each: true, message: 'Each description must be a string' })
   @ArrayUnique({ message: 'Descriptions must be unique' })
   description?: string[];
@@ -48,13 +61,5 @@ export class CreateVehicleHandoverDTO {
   @IsNotEmpty({ message: 'date is required' })
   date: string;
 
-  @ApiPropertyOptional({
-    example: [
-      'https://res.cloudinary.com/.../image1.jpg',
-      'https://res.cloudinary.com/.../image2.jpg',
-    ],
-  })
-  @IsOptional()
-  @IsString({ each: true })
-  imageUrls?: string[] | null;
+  // Removed imageUrls field - only accept file uploads via FormData
 }

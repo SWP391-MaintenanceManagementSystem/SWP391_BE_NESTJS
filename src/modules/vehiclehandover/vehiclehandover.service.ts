@@ -27,18 +27,16 @@ export class VehicleHandoverService {
     staffAccountId: string,
     images?: Express.Multer.File[]
   ): Promise<VehicleHandoverDTO> {
-    const { bookingId, odometer, note, description, date, imageUrls } = createDto;
+    const { bookingId, odometer, note, description, date } = createDto;
 
     // --- Upload images to Cloudinary if provided ---
-    let uploadedImageUrls: string[] = [];
-
-    // Case 1: Upload files
+    let imageUrls: string[] = [];
     if (images && images.length > 0) {
       try {
         const uploadResults = await Promise.all(
           images.map(file => this.cloudinary.uploadImage(file))
         );
-        uploadedImageUrls = uploadResults.map(result => result.secure_url);
+        imageUrls = uploadResults.map(result => result.secure_url);
       } catch (error) {
         throw new BadRequestException({
           message: 'Validation failed',
@@ -52,14 +50,8 @@ export class VehicleHandoverService {
       }
     }
 
-    // Case 2: Use provided URLs
-    if (imageUrls && imageUrls.length > 0) {
-      uploadedImageUrls = [...uploadedImageUrls, ...imageUrls];
-    }
-
     // --- Validate and convert date ---
     const parsedDate = parseDate(date);
-
     const utcDate = vnToUtcDate(parsedDate!);
 
     // --- Validate booking existence ---
@@ -93,10 +85,9 @@ export class VehicleHandoverService {
       });
     }
 
-    // --- Validate booking status ---
     // --- Validate handover date must be after booking date ---
-    const parsedBookingDate = new Date(booking.bookingDate);
-    if (parsedDate! < parsedBookingDate) {
+    const parsedBookingDate = parseDate(booking.bookingDate)!;
+    if (parsedDate! <= parsedBookingDate) {
       throw new BadRequestException({
         message: 'Validation failed',
         errors: [
@@ -108,6 +99,7 @@ export class VehicleHandoverService {
       });
     }
 
+    // --- Validate booking status ---
     if (booking.status !== BookingStatus.ASSIGNED) {
       throw new BadRequestException({
         message: 'Validation failed',
@@ -147,7 +139,7 @@ export class VehicleHandoverService {
               ? [description]
               : undefined,
           date: utcDate,
-          imageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : [],
+          imageUrls: imageUrls,
         },
         include: {
           staff: {
@@ -324,6 +316,7 @@ export class VehicleHandoverService {
       where: { id },
       include: { booking: true },
     });
+
     if (!existing) {
       throw new NotFoundException({
         message: 'Validation failed',
@@ -331,11 +324,9 @@ export class VehicleHandoverService {
       });
     }
 
-    const { description, date, odometer, bookingId, note, imageUrls } = updateDto;
+    const { description, date, odometer, bookingId, note } = updateDto;
 
-    // --- Handle image uploads ---
     let updatedImageUrls: string[] | undefined = undefined;
-
     if (images && images.length > 0) {
       try {
         const uploadResults = await Promise.all(
@@ -343,7 +334,7 @@ export class VehicleHandoverService {
         );
         const newUrls = uploadResults.map(result => result.secure_url);
 
-        // Merge with existing URLs or provided URLs
+        // Merge with existing URLs
         updatedImageUrls = [...(existing.imageUrls || []), ...newUrls];
       } catch (error) {
         throw new BadRequestException({
@@ -353,15 +344,7 @@ export class VehicleHandoverService {
       }
     }
 
-    // If imageUrls provided in DTO, use them
-    if (imageUrls !== undefined) {
-      if (imageUrls === null) {
-        updatedImageUrls = [];
-      } else if (Array.isArray(imageUrls)) {
-        updatedImageUrls = imageUrls;
-      }
-    }
-
+    // --- Validate odometer ---
     if (odometer !== undefined) {
       if (isNaN(odometer) || odometer < 0) {
         throw new BadRequestException({
@@ -424,6 +407,7 @@ export class VehicleHandoverService {
       }
     }
 
+    // --- Validate date ---
     let utcDate: Date | undefined = undefined;
     if (date !== undefined) {
       const datePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
@@ -453,8 +437,8 @@ export class VehicleHandoverService {
         : existing.booking;
 
       if (currentBooking) {
-        const parsedBookingDate = new Date(currentBooking.bookingDate);
-        if (parsedDate <= parsedBookingDate) {
+        const parsedBookingDate = parseDate(currentBooking.bookingDate)!;
+        if (parsedDate < parsedBookingDate) {
           throw new BadRequestException({
             message: 'Validation failed',
             errors: [

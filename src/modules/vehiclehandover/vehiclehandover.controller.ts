@@ -18,7 +18,7 @@ import { CreateVehicleHandoverDTO } from './dto/create-vehiclehandover.dto';
 import { UpdateVehicleHandoverDTO } from './dto/update-vehiclehandover.dto';
 import { VehicleHandoverQueryDTO } from './dto/vehiclehandover-query.dto';
 import { VehicleHandoverDTO } from './dto/vehiclehandover.dto';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { JWT_Payload } from 'src/common/types';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
@@ -35,8 +35,20 @@ export class VehicleHandoverController {
 
   @Post()
   @Roles(AccountRole.STAFF)
-  @UseInterceptors(FilesInterceptor('images', 10)) // Max 10 images
+  @UseInterceptors(FilesInterceptor('images', 10))
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        images: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Upload up to 10 images',
+        },
+      },
+    },
+  })
   async create(
     @Body() createDto: CreateVehicleHandoverDTO,
     @CurrentUser() user: JWT_Payload,
@@ -93,6 +105,18 @@ export class VehicleHandoverController {
   @Roles(AccountRole.STAFF)
   @UseInterceptors(FilesInterceptor('images', 10))
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        images: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: 'Upload up to 10 images',
+        },
+      },
+    },
+  })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDto: UpdateVehicleHandoverDTO,
