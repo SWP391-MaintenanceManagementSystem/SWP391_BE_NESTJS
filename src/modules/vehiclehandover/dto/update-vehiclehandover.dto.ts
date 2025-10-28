@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class UpdateVehicleHandoverDTO {
   @ApiPropertyOptional({ example: 'uuid-booking' })
@@ -24,4 +24,14 @@ export class UpdateVehicleHandoverDTO {
   @ApiPropertyOptional({ example: '2025-10-26T14:30' })
   @IsOptional()
   date?: string;
+
+  @ApiPropertyOptional({
+    example: [
+      'https://res.cloudinary.com/.../image1.jpg',
+      'https://res.cloudinary.com/.../image2.jpg',
+    ],
+  })
+  @IsOptional()
+  @IsString({ each: true })
+  imageUrls?: string[] | null;
 }

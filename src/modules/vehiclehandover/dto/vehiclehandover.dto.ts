@@ -30,6 +30,9 @@ export class VehicleHandoverDTO {
   date: string;
 
   @Expose()
+  imageUrls?: string[] | null;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()

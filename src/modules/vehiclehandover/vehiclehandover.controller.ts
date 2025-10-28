@@ -9,13 +9,16 @@ import {
   Query,
   ParseUUIDPipe,
   UseGuards,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { VehicleHandoverService } from './vehiclehandover.service';
 import { CreateVehicleHandoverDTO } from './dto/create-vehiclehandover.dto';
 import { UpdateVehicleHandoverDTO } from './dto/update-vehiclehandover.dto';
 import { VehicleHandoverQueryDTO } from './dto/vehiclehandover-query.dto';
 import { VehicleHandoverDTO } from './dto/vehiclehandover.dto';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JWT_Payload } from 'src/common/types';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
@@ -32,13 +35,16 @@ export class VehicleHandoverController {
 
   @Post()
   @Roles(AccountRole.STAFF)
+  @UseInterceptors(FilesInterceptor('images', 10)) // Max 10 images
+  @ApiConsumes('multipart/form-data')
   async create(
     @Body() createDto: CreateVehicleHandoverDTO,
-    @CurrentUser() user: JWT_Payload
+    @CurrentUser() user: JWT_Payload,
+    @UploadedFiles() images?: Express.Multer.File[]
   ): Promise<{ data: VehicleHandoverDTO; message: string }> {
     const staffAccountId = user.sub;
     return {
-      data: await this.vehicleHandoverService.create(createDto, staffAccountId),
+      data: await this.vehicleHandoverService.create(createDto, staffAccountId, images),
       message: 'Vehicle handover created successfully. Booking status updated to CHECKED_IN.',
     };
   }
@@ -85,11 +91,14 @@ export class VehicleHandoverController {
 
   @Patch(':id')
   @Roles(AccountRole.STAFF)
+  @UseInterceptors(FilesInterceptor('images', 10))
+  @ApiConsumes('multipart/form-data')
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateDto: UpdateVehicleHandoverDTO
+    @Body() updateDto: UpdateVehicleHandoverDTO,
+    @UploadedFiles() images?: Express.Multer.File[]
   ): Promise<{ data: VehicleHandoverDTO; message: string }> {
-    const data = await this.vehicleHandoverService.updateVehicleHandover(id, updateDto);
+    const data = await this.vehicleHandoverService.updateVehicleHandover(id, updateDto, images);
     return { data, message: 'Vehicle handover updated successfully' };
   }
 

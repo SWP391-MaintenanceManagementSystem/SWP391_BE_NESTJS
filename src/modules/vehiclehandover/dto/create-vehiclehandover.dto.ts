@@ -48,6 +48,13 @@ export class CreateVehicleHandoverDTO {
   @IsNotEmpty({ message: 'date is required' })
   date: string;
 
+  @ApiPropertyOptional({
+    example: [
+      'https://res.cloudinary.com/.../image1.jpg',
+      'https://res.cloudinary.com/.../image2.jpg',
+    ],
+  })
   @IsOptional()
-  upload?: string | null;
+  @IsString({ each: true })
+  imageUrls?: string[] | null;
 }

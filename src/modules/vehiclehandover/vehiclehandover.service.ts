@@ -13,16 +13,49 @@ import { plainToInstance } from 'class-transformer';
 import { BookingStatus, Prisma } from '@prisma/client';
 import { parseDate, vnToUtcDate } from 'src/utils';
 import { format } from 'date-fns';
+import { CloudinaryService } from '../upload/cloudinary.service';
 
 @Injectable()
 export class VehicleHandoverService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cloudinary: CloudinaryService
+  ) {}
 
   async create(
     createDto: CreateVehicleHandoverDTO,
-    staffAccountId: string
+    staffAccountId: string,
+    images?: Express.Multer.File[]
   ): Promise<VehicleHandoverDTO> {
-    const { bookingId, odometer, note, description, date } = createDto;
+    const { bookingId, odometer, note, description, date, imageUrls } = createDto;
+
+    // --- Upload images to Cloudinary if provided ---
+    let uploadedImageUrls: string[] = [];
+
+    // Case 1: Upload files
+    if (images && images.length > 0) {
+      try {
+        const uploadResults = await Promise.all(
+          images.map(file => this.cloudinary.uploadImage(file))
+        );
+        uploadedImageUrls = uploadResults.map(result => result.secure_url);
+      } catch (error) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [
+            {
+              field: 'images',
+              message: 'Failed to upload images to Cloudinary',
+            },
+          ],
+        });
+      }
+    }
+
+    // Case 2: Use provided URLs
+    if (imageUrls && imageUrls.length > 0) {
+      uploadedImageUrls = [...uploadedImageUrls, ...imageUrls];
+    }
 
     // --- Validate and convert date ---
     const parsedDate = parseDate(date);
@@ -114,6 +147,7 @@ export class VehicleHandoverService {
               ? [description]
               : undefined,
           date: utcDate,
+          imageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : [],
         },
         include: {
           staff: {
@@ -282,7 +316,8 @@ export class VehicleHandoverService {
 
   async updateVehicleHandover(
     id: string,
-    updateDto: UpdateVehicleHandoverDTO
+    updateDto: UpdateVehicleHandoverDTO,
+    images?: Express.Multer.File[]
   ): Promise<VehicleHandoverDTO> {
     // --- Validate handover exists ---
     const existing = await this.prisma.vehicleHandover.findUnique({
@@ -296,7 +331,36 @@ export class VehicleHandoverService {
       });
     }
 
-    const { description, date, odometer, bookingId, note } = updateDto;
+    const { description, date, odometer, bookingId, note, imageUrls } = updateDto;
+
+    // --- Handle image uploads ---
+    let updatedImageUrls: string[] | undefined = undefined;
+
+    if (images && images.length > 0) {
+      try {
+        const uploadResults = await Promise.all(
+          images.map(file => this.cloudinary.uploadImage(file))
+        );
+        const newUrls = uploadResults.map(result => result.secure_url);
+
+        // Merge with existing URLs or provided URLs
+        updatedImageUrls = [...(existing.imageUrls || []), ...newUrls];
+      } catch (error) {
+        throw new BadRequestException({
+          message: 'Validation failed',
+          errors: [{ field: 'images', message: 'Failed to upload images to Cloudinary' }],
+        });
+      }
+    }
+
+    // If imageUrls provided in DTO, use them
+    if (imageUrls !== undefined) {
+      if (imageUrls === null) {
+        updatedImageUrls = [];
+      } else if (Array.isArray(imageUrls)) {
+        updatedImageUrls = imageUrls;
+      }
+    }
 
     if (odometer !== undefined) {
       if (isNaN(odometer) || odometer < 0) {
@@ -412,6 +476,7 @@ export class VehicleHandoverService {
       ...(utcDate && { date: utcDate }),
       ...(descriptionValue !== undefined && { description: descriptionValue }),
       ...(bookingId && { booking: { connect: { id: bookingId } } }),
+      ...(updatedImageUrls !== undefined && { imageUrls: updatedImageUrls }),
     };
 
     const updatedHandover = await this.prisma.vehicleHandover.update({
