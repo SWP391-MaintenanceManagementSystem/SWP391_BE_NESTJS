@@ -29,8 +29,9 @@ export class VehicleHandoverDTO {
   })
   date: string;
 
-  @Expose()
-  imageUrls?: string[] | null;
+  @Expose({ name: 'images' })
+  @Transform(({ obj }) => obj.imageUrls ?? [])
+  images?: string[];
 
   @Expose()
   createdAt: Date;
