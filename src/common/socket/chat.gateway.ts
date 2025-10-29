@@ -9,6 +9,7 @@ import { UseGuards, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsJwtGuard } from '../guard/ws.guard';
 import { ChatService } from '../../modules/chat/chat.service';
+import { ChatStatus } from '@prisma/client';
 
 @UseGuards(WsJwtGuard)
 @WebSocketGateway({ namespace: '/chat', cors: { origin: '*' } })
@@ -16,6 +17,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(ChatGateway.name);
 
+  // Map userId -> socketId
   private onlineUsers = new Map<string, string>();
 
   constructor(private readonly chatService: ChatService) {}
@@ -32,7 +34,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (userId) {
       this.onlineUsers.delete(userId);
       this.logger.log(`[OFFLINE] ${userId} (${client.id})`);
-      this.broadcastOnlineUsers();
     }
   }
 
@@ -40,14 +41,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   register(client: Socket, userId: string) {
     this.onlineUsers.set(userId, client.id);
     this.logger.log(`[ONLINE] ${userId} (${client.id})`);
-    this.broadcastOnlineUsers();
   }
 
   @SubscribeMessage('message')
-  async handleMessage(
-    client: Socket,
-    data: { to: string; message: string; conversationId?: string }
-  ) {
+  async handleMessage(client: Socket, data: { message: string; conversationId?: string }) {
     const senderId = [...this.onlineUsers.entries()].find(
       ([, socketId]) => socketId === client.id
     )?.[0];
@@ -59,29 +56,44 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       const savedMessage = await this.chatService.createMessage(senderId, {
-        receiverId: data.to,
         content: data.message,
         conversationId: data.conversationId,
+        receiverId: '', // Will be handled by the service based on conversation
       });
+      if (!savedMessage.conversationId) throw new Error('Conversation not found');
+      const conversation = await this.chatService.getConversationById(savedMessage.conversationId);
 
-      const receiverSocketId = this.onlineUsers.get(data.to);
-      if (receiverSocketId) {
-        this.server.to(receiverSocketId).emit('message', savedMessage);
+      if (conversation.staffId) {
+        const staffSocket = this.onlineUsers.get(conversation.staffId);
+        if (staffSocket) {
+          this.server.to(staffSocket).emit('message', savedMessage);
+        }
+      } else {
+        this.server.emit('new_ticket', savedMessage);
       }
 
       client.emit('message_sent', savedMessage);
     } catch (error) {
       client.emit('error', { message: 'Failed to send message' });
+      this.logger.error(error);
     }
   }
 
-  @SubscribeMessage('get_online_users')
-  getOnlineUsers(client: Socket) {
-    client.emit('online_users', Array.from(this.onlineUsers.keys()));
-  }
+  @SubscribeMessage('claim_ticket')
+  async claimTicket(client: Socket, conversationId: string) {
+    const staffId = [...this.onlineUsers.entries()].find(
+      ([, socketId]) => socketId === client.id
+    )?.[0];
 
-  private broadcastOnlineUsers() {
-    const onlineList = Array.from(this.onlineUsers.keys());
-    this.server.emit('online_users', onlineList);
+    if (!staffId) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+
+    const conversation = await this.chatService.assignStaffToConversation(conversationId, staffId);
+
+    client.emit('ticket_claimed', conversation);
+
+    this.server.emit('ticket_updated', conversation);
   }
 }

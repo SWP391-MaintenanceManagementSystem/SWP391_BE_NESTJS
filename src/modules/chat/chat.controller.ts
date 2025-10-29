@@ -16,9 +16,10 @@ export class ChatController {
 
   @Get('conversations/:conversationId/messages')
   async getMessagesByConversation(
-    @Param('conversationId') conversationId: string
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() currentUser: JWT_Payload
   ): Promise<MessageDTO[]> {
-    return this.chatService.getMessagesByConversation(conversationId);
+    return this.chatService.getMessagesByConversation(conversationId, currentUser.sub);
   }
 
   @Get('conversations')
@@ -32,5 +33,21 @@ export class ChatController {
     @CurrentUser() user: JWT_Payload
   ): Promise<MessageDTO> {
     return this.chatService.createMessage(user.sub, createMessageDto);
+  }
+
+  @Post('conversations/:conversationId/claim')
+  async claimConversation(
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() user: JWT_Payload
+  ): Promise<ConversationDTO> {
+    return this.chatService.assignStaffToConversation(conversationId, user.sub);
+  }
+
+  @Post('conversations/:conversationId/close')
+  async closeConversation(
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() user: JWT_Payload
+  ): Promise<ConversationDTO> {
+    return this.chatService.closeConversation(conversationId, user.sub);
   }
 }

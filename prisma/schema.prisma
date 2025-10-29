@@ -551,15 +551,15 @@ model VehicleHandover {
 
 model Message {
   id             String   @id @default(uuid())
-  conversationId String?
+  conversationId String   @map("conversation_id")
   senderId       String   @map("sender_id")
-  receiverId     String   @map("receiver_id")
+  receiverId     String?  @map("receiver_id")
   content        String
   sentAt         DateTime @default(now()) @map("sent_at") @db.Timestamptz
 
-  sender       Account       @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver     Account       @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  conversation Conversation? @relation(fields: [conversationId], references: [id])
+  sender       Account      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver     Account?     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
 
   @@map("messages")
 }
