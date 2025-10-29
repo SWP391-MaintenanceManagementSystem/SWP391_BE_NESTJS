@@ -836,7 +836,7 @@ export class EmployeeService {
   }
 
   async getAllEmployees(filter: EmployeeQueryDTO): Promise<EmployeeWithCenterDTO[]> {
-    let { orderBy = 'asc', sortBy = 'createdAt' } = filter;
+    const { orderBy = 'asc', sortBy = 'createdAt' } = filter;
 
     const where: Prisma.AccountWhereInput = {
       role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] },

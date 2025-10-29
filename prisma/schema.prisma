@@ -119,28 +119,38 @@ enum NotificationType {
   MEMBERSHIP
 }
 
+enum ChatStatus {
+  OPEN
+  CLOSED
+  PENDING
+}
+
 /**
  * ================= MODELS =================
  */
 
 model Account {
-  id             String         @id @default(uuid()) @map("id")
-  email          String         @unique
-  password       String?
-  phone          String?
-  role           AccountRole    @default(CUSTOMER)
-  status         AccountStatus  @default(NOT_VERIFY)
-  avatar         String?
-  avatarPublicId String?        @map("avatar_public_id")
-  provider       AuthProvider[] @default([EMAIL])
-  providerId     Json?          @map("provider_id")
-  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz
-  customer       Customer?
-  employee       Employee?
+  id                 String         @id @default(uuid()) @map("id")
+  email              String         @unique
+  password           String?
+  phone              String?
+  role               AccountRole    @default(CUSTOMER)
+  status             AccountStatus  @default(NOT_VERIFY)
+  avatar             String?
+  avatarPublicId     String?        @map("avatar_public_id")
+  provider           AuthProvider[] @default([EMAIL])
+  providerId         Json?          @map("provider_id")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  customer           Customer?
+  employee           Employee?
   // admin          Admin?
-  tokens         Token[]
-  notifications  Notification[]
+  tokens             Token[]
+  notifications      Notification[]
+  messages           Message[]      @relation("SentMessages")
+  receivedMsgs       Message[]      @relation("ReceivedMessages")
+  conversations      Conversation[] @relation("CustomerConversations")
+  staffConversations Conversation[] @relation("StaffConversations")
 
   @@map("accounts")
 }
@@ -537,4 +547,34 @@ model VehicleHandover {
   staff   Employee @relation(fields: [staffId], references: [accountId], onDelete: Cascade)
 
   @@map("vehicle_handovers")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String?
+  senderId       String   @map("sender_id")
+  receiverId     String   @map("receiver_id")
+  content        String
+  sentAt         DateTime @default(now()) @map("sent_at") @db.Timestamptz
+
+  sender       Account       @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver     Account       @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id])
+
+  @@map("messages")
+}
+
+model Conversation {
+  id         String     @id @default(uuid())
+  customerId String     @map("customer_id")
+  staffId    String?    @map("staff_id")
+  status     ChatStatus @default(OPEN)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  customer Account   @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Cascade)
+  staff    Account?  @relation("StaffConversations", fields: [staffId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@map("conversations")
 }

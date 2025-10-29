@@ -1,5 +1,6 @@
 export const FILE_FOLDER = {
   AVATAR: 'avatars',
+  HANDOVER: 'handovers',
 };
 
 export const VN_TIMEZONE = 'Asia/Ho_Chi_Minh';

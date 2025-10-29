@@ -24,7 +24,7 @@ export class ShiftService {
 
     // --- Calculate duration ---
     const oneDayMs = 24 * 60 * 60 * 1000;
-    let durationMs =
+    const durationMs =
       end.getTime() >= start.getTime()
         ? end.getTime() - start.getTime()
         : end.getTime() + oneDayMs - start.getTime();
