@@ -23,8 +23,8 @@ export class ChatController {
   }
 
   @Get('conversations')
-  async getUserConversations(@CurrentUser() currentUser: any): Promise<ConversationDTO[]> {
-    return this.chatService.getUserConversations(currentUser.id);
+  async getUserConversations(@CurrentUser() currentUser: JWT_Payload): Promise<ConversationDTO[]> {
+    return this.chatService.getUserConversations(currentUser.sub);
   }
 
   @Post('messages')
