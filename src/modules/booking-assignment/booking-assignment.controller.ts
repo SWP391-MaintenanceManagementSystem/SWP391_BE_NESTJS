@@ -4,6 +4,8 @@ import { CreateBookingAssignmentsDTO } from './dto/create-booking-assignments.dt
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { JWT_Payload } from 'src/common/types';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Roles } from 'src/common/decorator/role.decorator';
+import { AccountRole } from '@prisma/client';
 
 @Controller('api/booking-assignments')
 @ApiTags('Booking Assignments')
@@ -12,6 +14,7 @@ export class BookingAssignmentController {
   constructor(private readonly bookingAssignmentService: BookingAssignmentService) {}
 
   @Post('/')
+  @Roles(AccountRole.STAFF)
   async assignTechnicians(
     @Body() body: CreateBookingAssignmentsDTO,
     @CurrentUser() user: JWT_Payload
@@ -36,13 +39,6 @@ export class BookingAssignmentController {
         );
         return {
           data: customerAssignments,
-          message: 'Assignments retrieved successfully',
-        };
-      case 'TECHNICIAN':
-        const technicianAssignments =
-          await this.bookingAssignmentService.getAssignmentsForTechnician(bookingId, user.sub);
-        return {
-          data: technicianAssignments,
           message: 'Assignments retrieved successfully',
         };
       case 'STAFF':

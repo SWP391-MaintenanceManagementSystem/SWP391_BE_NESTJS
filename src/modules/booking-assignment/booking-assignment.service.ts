@@ -7,7 +7,6 @@ import { BookingAssignmentsDTO } from './dto/booking-assignments.dto';
 import { CustomerBookingAssignmentsDTO } from './dto/customer-booking-assigments.dto';
 import { StaffBookingAssignmentDTO } from './dto/staff-booking-assignments.dto';
 import { JWT_Payload } from 'src/common/types';
-import { TechnicianBookingAssignmentDTO } from './dto/technician-booking-assignments.dto';
 
 @Injectable()
 export class BookingAssignmentService {
@@ -20,8 +19,13 @@ export class BookingAssignmentService {
       include: { shift: true },
     });
     if (!booking) throw new BadRequestException('Booking not found.');
-    if (booking.status !== BookingStatus.CONFIRMED) {
-      throw new BadRequestException('Booking must be confirmed before assignment.');
+    const validBookingStatuses: BookingStatus[] = [
+      BookingStatus.ASSIGNED,
+      BookingStatus.CHECKED_IN,
+      BookingStatus.PENDING,
+    ];
+    if (!validBookingStatuses.includes(booking.status)) {
+      throw new BadRequestException('Booking cannot assign technicians at this time.');
     }
 
     const employees = await this.prismaService.employee.findMany({
@@ -31,27 +35,34 @@ export class BookingAssignmentService {
 
     const missingEmployees = employeeIds.filter(id => !employees.find(e => e.accountId === id));
     if (missingEmployees.length) {
-      throw new BadRequestException(`Employees not found: ${missingEmployees.join(', ')}`);
+      throw new BadRequestException({
+        message: 'Some employees were not found',
+        errors: missingEmployees.map(id => `Employee with accountId ${id} was not found`),
+      });
     }
 
     const nonTechnicians = employees.filter(e => e.account.role !== AccountRole.TECHNICIAN);
     if (nonTechnicians.length) {
-      throw new BadRequestException(
-        `These employees are not technicians: ${nonTechnicians.map(e => e.accountId).join(', ')}`
-      );
+      throw new BadRequestException({
+        message: 'Some employees are not technicians',
+        errors: nonTechnicians.map(e => `Employee ${e.account.email} is not a technician`),
+      });
     }
 
     const notInShift = employees.filter(
       e => !e.workSchedules.some(ws => ws.shiftId === booking.shiftId)
     );
     if (notInShift.length) {
-      throw new BadRequestException(
-        `These employees are not assigned to the booking's shift: ${notInShift.map(e => e.accountId).join(', ')}`
-      );
+      throw new BadRequestException({
+        message: 'Some employees are not assigned to the booking shift',
+        errors: notInShift.map(
+          e => `Employee ${e.account.email} is not assigned to the booking's shift`
+        ),
+      });
     }
 
     const ONGOING_BOOKING_STATUSES = [
-      BookingStatus.CONFIRMED,
+      BookingStatus.ASSIGNED,
       BookingStatus.CHECKED_IN,
       BookingStatus.IN_PROGRESS,
     ];
@@ -59,14 +70,21 @@ export class BookingAssignmentService {
     const ongoingBookings = await this.prismaService.bookingAssignment.findMany({
       where: {
         employeeId: { in: employeeIds },
-        booking: { status: { in: ONGOING_BOOKING_STATUSES } },
+        booking: {
+          status: { in: ONGOING_BOOKING_STATUSES },
+          shiftId: booking.shiftId,
+        },
       },
     });
-    const busyEmployees = ongoingBookings.map(b => b.employeeId);
+    const busyEmployees = ongoingBookings.map(b => {
+      const emp = employees.find(e => e.accountId === b.employeeId);
+      return emp?.account.email ?? b.employeeId;
+    });
     if (busyEmployees.length) {
-      throw new BadRequestException(
-        `Employees already have ongoing bookings: ${busyEmployees.join(', ')}`
-      );
+      throw new BadRequestException({
+        message: 'Some employees already have ongoing bookings',
+        errors: busyEmployees.map(email => `Employee ${email} is busy during this shift`),
+      });
     }
 
     const assignments = await this.prismaService.$transaction(async tx => {
@@ -86,6 +104,10 @@ export class BookingAssignmentService {
           })
         )
       );
+    });
+    await this.prismaService.booking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.ASSIGNED },
     });
 
     return plainToInstance(BookingAssignmentsDTO, assignments);
@@ -225,44 +247,6 @@ export class BookingAssignmentService {
     }));
 
     return plainToInstance(StaffBookingAssignmentDTO, staffAssignments);
-  }
-
-  async getAssignmentsForTechnician(bookingId: string, technicianId: string) {
-    const assignments = await this.prismaService.bookingAssignment.findMany({
-      where: {
-        bookingId,
-        employeeId: technicianId,
-        booking: {
-          status: {
-            notIn: ['CANCELLED', 'COMPLETED'],
-          },
-        },
-      },
-      include: {
-        employee: { include: { account: true } },
-        assigner: { include: { account: true } },
-        booking: true,
-      },
-    });
-
-    if (assignments.length === 0) {
-      throw new BadRequestException('No active assignments found for this booking.');
-    }
-
-    const technicianAssignments = assignments.map(a => ({
-      booking: a.booking,
-      employee: {
-        id: a.employee.accountId,
-        firstName: a.employee.firstName,
-        lastName: a.employee.lastName,
-        email: a.employee.account.email,
-        phoneNumber: a.employee.account.phone,
-        avatar: a.employee.account.avatar,
-      },
-      assignedBy: a.assigner ? `${a.assigner.firstName} ${a.assigner.lastName}` : null,
-    }));
-
-    return plainToInstance(TechnicianBookingAssignmentDTO, technicianAssignments);
   }
 
   async deleteAssignment(assignmentId: string, staff: JWT_Payload) {

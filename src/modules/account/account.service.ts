@@ -12,6 +12,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { EmployeeDTO } from '../employee/dto/employee.dto';
+import { EmployeeWithCenterDTO } from '../employee/dto/employee-with-center.dto';
 import { plainToInstance } from 'class-transformer';
 import { CloudinaryService } from '../upload/cloudinary.service';
 import { buildAccountOrderBy } from 'src/common/sort/sort.util';
@@ -153,12 +154,42 @@ export class AccountService {
     }
   }
 
-  async getAccountById(id: string): Promise<AccountWithProfileDTO | null> {
+  async getAccountById(id: string): Promise<AccountWithProfileDTO | EmployeeWithCenterDTO | null> {
     const account = await this.prisma.account.findUnique({
       where: { id: id },
       include: {
         customer: true,
-        employee: true,
+        employee: {
+          include: {
+            certificates: {
+              select: {
+                id: true,
+                name: true,
+                issuedAt: true,
+                expiresAt: true,
+              },
+            },
+            workCenters: {
+              where: {
+                OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+              },
+              include: {
+                serviceCenter: {
+                  select: {
+                    id: true,
+                    name: true,
+                    address: true,
+                    status: true,
+                  },
+                },
+              },
+              orderBy: {
+                startDate: 'desc',
+              },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -166,7 +197,63 @@ export class AccountService {
       return null;
     }
 
+    if (account.role === AccountRole.STAFF || account.role === AccountRole.TECHNICIAN) {
+      return this.mapAccountToEmployeeWithCenterDTO(account);
+    }
+
     return this.mapAccountToDTO(account);
+  }
+
+  mapAccountToEmployeeWithCenterDTO(account: any): EmployeeWithCenterDTO {
+    const workCenter = account.employee?.workCenters?.[0]
+      ? {
+          id: account.employee.workCenters[0].serviceCenter.id,
+          name: account.employee.workCenters[0].serviceCenter.name,
+          address: account.employee.workCenters[0].serviceCenter.address,
+          status: account.employee.workCenters[0].serviceCenter.status,
+          startDate: account.employee.workCenters[0].startDate,
+          endDate: account.employee.workCenters[0].endDate,
+        }
+      : {
+          id: null,
+          name: 'Not assigned',
+          startDate: null,
+          endDate: null,
+        };
+
+    const employeeWithCenter = plainToInstance(
+      EmployeeWithCenterDTO,
+      {
+        email: account.email,
+        id: account.id,
+        role: account.role,
+        phone: account.phone,
+        avatar: account.avatar,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt,
+        status: account.status,
+        provider: account.provider,
+        password: account.password || null,
+        profile: account.employee
+          ? {
+              firstName: account.employee.firstName,
+              lastName: account.employee.lastName,
+              certificates: account.employee.certificates.map((cert: any) => ({
+                id: cert.id,
+                name: cert.name,
+                issuedAt: cert.issuedAt,
+                expiresAt: cert.expiresAt,
+              })),
+              createdAt: account.employee.createdAt,
+              updatedAt: account.employee.updatedAt,
+            }
+          : null,
+        workCenter,
+      },
+      { excludeExtraneousValues: true }
+    );
+
+    return employeeWithCenter;
   }
 
   mapAccountToDTO(account: any): AccountWithProfileDTO {

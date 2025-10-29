@@ -9,6 +9,9 @@ export const buildBookingSearch = (keyword?: string): Prisma.BookingWhereInput |
     OR: [
       { note: containsInsensitive(keyword) },
       {
+        id: containsInsensitive(keyword),
+      },
+      {
         customer: {
           OR: [
             { firstName: containsInsensitive(keyword) },

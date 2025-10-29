@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { BookingService } from './booking.service';
 import { CreateBookingDTO } from './dto/create-booking.dto';
-import { ApiBearerAuth, ApiBody, ApiExtraModels, ApiTags, getSchemaPath } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BookingQueryDTO } from './dto/booking-query.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { JWT_Payload } from 'src/common/types';
@@ -10,12 +10,17 @@ import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
 import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
+import { TechnicianBookingService } from './technician-booking.service';
+import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
 
 @Controller('api/bookings')
 @ApiTags('Bookings')
 @ApiBearerAuth('jwt-auth')
 export class BookingController {
-  constructor(private readonly bookingService: BookingService) {}
+  constructor(
+    private readonly bookingService: BookingService,
+    private readonly technicianBookingService: TechnicianBookingService
+  ) {}
 
   @Get('/')
   async getBookings(@Query() query: BookingQueryDTO, @CurrentUser() user: JWT_Payload) {
@@ -33,9 +38,26 @@ export class BookingController {
     };
   }
 
+  @Get('/history')
+  async getCustomerBookingHistory(
+    @CurrentUser() user: JWT_Payload,
+    @Query() query: BookingHistoryQueryDTO
+  ) {
+    const { data, page, pageSize, total, totalPages } =
+      await this.bookingService.getCustomerBookingHistory(user, query);
+    return {
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages,
+      message: 'Get booking history successfully',
+    };
+  }
+
   @Get('/:id')
-  async getBookingById(@Param('id') id: string) {
-    const data = await this.bookingService.getBookingById(id);
+  async getBookingById(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
+    const data = await this.bookingService.getBookingById(id, user);
     return {
       data,
       message: 'Get booking successfully',

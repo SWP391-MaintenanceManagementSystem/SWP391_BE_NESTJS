@@ -1,8 +1,12 @@
-// src/modules/work-schedule/dto/work-schedule-query.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsOptional, IsString, IsNumber, IsUUID, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsUUID, IsDateString, IsEnum } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
+
+export enum WorkScheduleRoleFilter {
+  STAFF = 'STAFF',
+  TECHNICIAN = 'TECHNICIAN',
+}
 
 export class WorkScheduleQueryDTO {
   @ApiProperty({ required: false, description: 'Filter by work schedule ID' })
@@ -20,17 +24,31 @@ export class WorkScheduleQueryDTO {
   @IsUUID(4)
   employeeId?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by center ID' })
+  @ApiProperty({ required: false, description: 'Filter by service center ID' })
   @IsOptional()
   @IsUUID(4)
   centerId?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by date from' })
+  @ApiProperty({
+    required: false,
+    description: 'Filter by employee Role',
+    enum: WorkScheduleRoleFilter,
+  })
+  @IsOptional()
+  @IsEnum(WorkScheduleRoleFilter)
+  role?: WorkScheduleRoleFilter;
+
+  @ApiProperty({ required: false, description: 'Search by employee name or email' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiProperty({ required: false, description: 'Filter by date from (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
   dateFrom?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by date to' })
+  @ApiProperty({ required: false, description: 'Filter by date to (YYYY-MM-DD)' })
   @IsOptional()
   @IsDateString()
   dateTo?: string;

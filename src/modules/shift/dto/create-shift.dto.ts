@@ -20,21 +20,20 @@ export class CreateShiftDTO {
   @IsNotEmpty({ message: 'End time is required' })
   endTime: string;
 
-  @IsOptional()
-  @IsNumber({}, { message: 'Maximum slot must be a number' })
-  @Min(1, { message: 'Maximum slot must be at least 1' })
-  @Max(50, { message: 'Maximum slot cannot exceed 50' })
   @ApiPropertyOptional({
     example: 10,
     description: 'Maximum booking slots for this shift',
   })
-  maximumSlot?: number;
+  @Min(1, { message: 'Maximum slot must be at least 1' })
+  @Max(50, { message: 'Maximum slot cannot exceed 50' })
+  @IsNumber({}, { message: 'Maximum slot must be a number' })
+  @IsNotEmpty({ message: 'Maximum slot is required' })
+  maximumSlot: number;
 
   @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
   @IsNotEmpty({ message: 'Service Center ID is required' })
   @ApiProperty({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    description: 'Service center UUID',
+    example: 'uuid-service-center',
   })
   centerId: string;
 }

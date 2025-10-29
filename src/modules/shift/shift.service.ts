@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateShiftDTO } from './dto/create-shift.dto';
 import { UpdateShiftDTO } from './dto/update-shift.dto';
@@ -12,32 +7,63 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { ShiftStatus, Prisma } from '@prisma/client';
-import { timeStringToDate, dateToTimeString } from 'src/common/time/time.util';
+import { dateToTimeString, localTimeToDate } from 'src/utils';
 
 @Injectable()
 export class ShiftService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  private validateShiftTimes(startTimeStr: string, endTimeStr: string): string | null {
-    const startTime = timeStringToDate(startTimeStr);
-    const endTime = timeStringToDate(endTimeStr);
+  private validateTimes(startTimeStr: string, endTimeStr: string): string | null {
+    // --- Convert to Date ---
+    const start = localTimeToDate(startTimeStr);
+    const end = localTimeToDate(endTimeStr);
 
-    if (startTime.getTime() === endTime.getTime()) {
-      return 'Start time and end time cannot be the same';
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return 'Invalid time value';
     }
 
-    // start < end -> normal shift → valid
-    // start > end -> overnight shift → valid
+    // --- Calculate duration ---
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const durationMs =
+      end.getTime() >= start.getTime()
+        ? end.getTime() - start.getTime()
+        : end.getTime() + oneDayMs - start.getTime();
+
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    const startHour = start.getUTCHours();
+    const endHour = end.getUTCHours();
+
+    // --- Validate logic ---
+    if (start.getTime() === end.getTime()) {
+      return 'Start time and end time cannot be the same';
+    }
+    if (durationHours < 1) {
+      return 'Shift duration must be at least 1 hour';
+    }
+    if (durationHours > 16) {
+      return 'Shift duration cannot exceed 16 hours';
+    }
+
+    // --- Overnight case ---
+    if (end.getTime() < start.getTime()) {
+      const isEveningStart = startHour >= 17 && startHour <= 23;
+      const isMorningEnd = endHour >= 0 && endHour <= 12;
+      if (!isEveningStart || !isMorningEnd) {
+        return 'Overnight shifts must start in the evening (≥17:00) and end in the morning (≤12:00)';
+      }
+    }
+
     return null;
   }
 
   async createShift(shift: CreateShiftDTO): Promise<ShiftDTO> {
-    const startTime = timeStringToDate(shift.startTime);
-    const endTime = timeStringToDate(shift.endTime);
+    const startTime = localTimeToDate(shift.startTime);
+    const endTime = localTimeToDate(shift.endTime);
     const errors: Record<string, string> = {};
 
     // --- Validate start/end time logic (overnight check) ---
-    const timeError = this.validateShiftTimes(shift.startTime, shift.endTime);
+    const timeError = this.validateTimes(shift.startTime, shift.endTime);
     if (timeError) errors['timeRange'] = timeError;
 
     // --- Check if service center exists ---
@@ -131,7 +157,7 @@ export class ShiftService {
     );
   }
 
-  async getShifts(filter: ShiftQueryDTO): Promise<PaginationResponse<ShiftDTO>> {
+  async getShiftsWithCenters(filter: ShiftQueryDTO): Promise<PaginationResponse<ShiftDTO>> {
     const {
       page = 1,
       pageSize = 10,
@@ -149,8 +175,8 @@ export class ShiftService {
       }),
       ...(filter.status && { status: filter.status }),
       ...(filter.name && { name: { contains: filter.name, mode: 'insensitive' } }),
-      ...(startTime && { startTime: { gte: timeStringToDate(startTime) } }),
-      ...(endTime && { endTime: { lte: timeStringToDate(endTime) } }),
+      ...(startTime && { startTime: { gte: localTimeToDate(startTime) } }),
+      ...(endTime && { endTime: { lte: localTimeToDate(endTime) } }),
       ...(filter.maximumSlot !== undefined && { maximumSlot: filter.maximumSlot }),
     };
 
@@ -202,6 +228,31 @@ export class ShiftService {
     };
   }
 
+  async getShifts(): Promise<{ data: ShiftDTO[] }> {
+    const shifts = await this.prismaService.shift.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: {
+        serviceCenter: true,
+      },
+    });
+    const formatted = shifts.map(s => ({
+      ...s,
+      startTime: dateToTimeString(s.startTime),
+      endTime: dateToTimeString(s.endTime),
+      serviceCenter: s.serviceCenter
+        ? {
+            id: s.serviceCenter.id,
+            name: s.serviceCenter.name,
+            address: s.serviceCenter.address,
+            status: s.serviceCenter.status,
+            createdAt: s.serviceCenter.createdAt,
+            updatedAt: s.serviceCenter.updatedAt,
+          }
+        : undefined,
+    }));
+    return { data: plainToInstance(ShiftDTO, formatted, { excludeExtraneousValues: true }) };
+  }
+
   async updateShift(id: string, update: UpdateShiftDTO): Promise<ShiftDTO> {
     const existing = await this.prismaService.shift.findUnique({
       where: { id },
@@ -243,18 +294,18 @@ export class ShiftService {
     // --- Validate times ---
     let finalStartTime = existing.startTime;
     let finalEndTime = existing.endTime;
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
 
     if (update.startTime !== undefined) {
       if (!update.startTime || update.startTime.trim() === '') {
         errors.startTime = 'Start time can not be empty';
       } else {
         // Validate time format HH:MM:SS
-        const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
         if (!timeRegex.test(update.startTime)) {
           errors.startTime = 'Start time must be in format HH:MM:SS';
         } else {
           try {
-            finalStartTime = timeStringToDate(update.startTime);
+            finalStartTime = localTimeToDate(update.startTime);
             data.startTime = finalStartTime;
           } catch (error) {
             errors.startTime = 'Invalid start time format';
@@ -267,12 +318,11 @@ export class ShiftService {
       if (!update.endTime || update.endTime.trim() === '') {
         errors.endTime = 'End time can not be empty';
       } else {
-        const timeRegex = /^([01]\d|2[0-3]):([0-5]\d):([0-5]\d)$/;
         if (!timeRegex.test(update.endTime)) {
           errors.endTime = 'End time must be in format HH:MM:SS';
         } else {
           try {
-            finalEndTime = timeStringToDate(update.endTime);
+            finalEndTime = localTimeToDate(update.endTime);
             data.endTime = finalEndTime;
           } catch (error) {
             errors.endTime = 'Invalid end time format';
@@ -283,7 +333,7 @@ export class ShiftService {
 
     // Validate time range if both times are valid
     if (!errors.startTime && !errors.endTime) {
-      const timeError = this.validateShiftTimes(
+      const timeError = this.validateTimes(
         dateToTimeString(finalStartTime),
         dateToTimeString(finalEndTime)
       );

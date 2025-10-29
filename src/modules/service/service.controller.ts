@@ -16,61 +16,61 @@ export class ServiceController {
   @Get('/customer')
   @ApiBearerAuth('jwt-auth')
   async getServicesForCustomer(@Query() query: ServiceQueryCustomerDTO) {
-    const { data, page, pageSize, total, totalPages} = await this.serviceService.findAllForCustomer(query)
+    const { data, page, pageSize, total, totalPages } =
+      await this.serviceService.findAllForCustomer(query);
     return {
       message: 'Successfully',
       data,
       page,
       pageSize,
       total,
-      totalPages
-    }
+      totalPages,
+    };
   }
 
   @Get('/admin')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getServicesForAdmin(@Query() query: ServiceQueryDTO) {
-    const { data, page, pageSize, total, totalPages} = await this.serviceService.findAllForAdmin(query)
+    const { data, page, pageSize, total, totalPages } =
+      await this.serviceService.findAllForAdmin(query);
     return {
       message: 'Successfully',
       data,
       page,
       pageSize,
       total,
-      totalPages
-    }
+      totalPages,
+    };
   }
 
   @Get('search/:name')
   @ApiBearerAuth('jwt-auth')
   async getActiveServiceByName(@Param('name') name: string) {
-    const services = await this.serviceService.getServiceByNameForCustomer(name)
+    const services = await this.serviceService.getServiceByNameForCustomer(name);
     return {
       message: 'Successfully',
-      data: services
-    }
+      data: services,
+    };
   }
 
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getServiceByID(@Param('id') id: string) {
-    return await this.serviceService.getServiceById(id)
+    return await this.serviceService.getServiceById(id);
   }
 
   @Get('search-admin/:name')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
   async getServiceByName(@Param('name') name: string) {
-    const services = await this.serviceService.getServiceByNameForAdmin(name)
+    const services = await this.serviceService.getServiceByNameForAdmin(name);
     return {
       message: 'Successfully',
-      data: services
-    }
+      data: services,
+    };
   }
-
-
 
   @Post('/')
   @Roles(AccountRole.ADMIN)

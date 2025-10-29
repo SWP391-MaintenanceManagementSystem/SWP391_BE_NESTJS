@@ -38,8 +38,9 @@ import { WorkCenterModule } from './modules/work-center/work-center.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
 import { BookingAssignmentModule } from './modules/booking-assignment/booking-assignment.module';
-import { NotificationModule } from './modules/notification/notification.module';
-import { NotificationGateway } from './src/modules/notification/notification.gateway';
+import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { WebsocketModule } from './common/socket/socket.module';
 
 @Module({
   imports: [
@@ -81,7 +82,6 @@ import { NotificationGateway } from './src/modules/notification/notification.gat
     EmailModule,
     RedisModule,
     CustomerModule,
-    TechnicianModule,
     CertificateModule,
     VehicleModule,
     ServiceModule,
@@ -103,7 +103,10 @@ import { NotificationGateway } from './src/modules/notification/notification.gat
     BookingModule,
     BookingDetailModule,
     BookingAssignmentModule,
-    NotificationModule,
+    TechnicianModule,
+    VehicleHandoverModule,
+    ChatModule,
+    WebsocketModule,
   ],
   controllers: [AppController],
   providers: [

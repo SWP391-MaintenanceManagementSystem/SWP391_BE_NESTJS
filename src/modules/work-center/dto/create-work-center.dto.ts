@@ -11,7 +11,7 @@ import { Transform } from 'class-transformer';
 
 export class CreateWorkCenterDTO {
   @ApiProperty({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    example: 'uuid-employee',
     description: 'Employee account UUID',
   })
   @IsUUID(4, { message: 'Employee ID must be a valid UUID' })
@@ -19,7 +19,7 @@ export class CreateWorkCenterDTO {
   employeeId: string;
 
   @ApiProperty({
-    example: 'a1b2c3d4-5678-9abc-def0-123456789abc',
+    example: 'uuid-service-center',
     description: 'Service Center UUID',
   })
   @IsUUID(4, { message: 'Center ID must be a valid UUID' })
@@ -27,7 +27,7 @@ export class CreateWorkCenterDTO {
   centerId: string;
 
   @ApiProperty({
-    example: '2025-11-20T08:00:00.000Z',
+    example: '2025-11-20T08:00',
     description: 'Start date of the work center assignment',
   })
   @IsDateString({}, { message: 'Start date must be a valid ISO date string' })

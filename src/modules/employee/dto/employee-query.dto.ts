@@ -69,6 +69,11 @@ export class EmployeeQueryDTO {
   })
   hasWorkCenter?: boolean;
 
+  @ApiPropertyOptional({ required: false, description: 'Search by employee name or email' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({
     required: false,
     description: 'Sort order example: "createdAt" ',
@@ -86,7 +91,9 @@ export class EmployeeQueryDTO {
   @IsOptional()
   @IsString()
   orderBy?: Order;
+}
 
+export class EmployeeQueryWithPaginationDTO extends EmployeeQueryDTO {
   @ApiPropertyOptional({ required: false, description: 'Page number', example: 1 })
   @IsOptional()
   @Type(() => Number)

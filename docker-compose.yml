@@ -4,19 +4,23 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NODE_ENV=development
       - PORT=3000
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
-      # Point src folder from local machine to docker machine
       - ./src:/app/src
+
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     volumes:
       - redis_data:/data
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+      - '6379:6379'
+
 volumes:
   redis_data:
-

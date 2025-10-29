@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { Prisma, AccountRole } from '@prisma/client';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { EmployeeQueryDTO } from './dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from './dto/employee-query.dto';
 import { EmployeeWithCenterDTO } from './dto/employee-with-center.dto';
 import { plainToInstance } from 'class-transformer';
 import { UpdateEmployeeWithCenterDTO } from './dto/update-employee-with-center.dto';
@@ -10,9 +10,8 @@ import { UpdateTechnicianDTO } from './technician/dto/update-technician.dto';
 import { UpdateStaffDTO } from './staff/dto/update-staff.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
 import { AccountStatus } from '@prisma/client';
-import { CreateEmployeeWithCenterDTO } from './dto/create-employee-with-center.dto';
 import { ConfigService } from '@nestjs/config';
-import { hashPassword } from 'src/utils';
+import { hashPassword, parseDate, vnToUtcDate } from 'src/utils';
 import { CreateTechnicianDTO } from './technician/dto/create-technician.dto';
 import { CreateStaffDTO } from './staff/dto/create-staff.dto';
 
@@ -24,7 +23,7 @@ export class EmployeeService {
   ) {}
 
   async getEmployees(
-    filter: EmployeeQueryDTO,
+    filter: EmployeeQueryWithPaginationDTO,
     role: AccountRole
   ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
     let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = filter;
@@ -210,11 +209,31 @@ export class EmployeeService {
     };
   }
 
-  async updateEmployeeWithWorkCenter(
+  async assignEmployeeToServiceCenter(
     employeeId: string,
     workCenterData: UpdateEmployeeWithCenterDTO
   ) {
     const { centerId, startDate, endDate } = workCenterData;
+
+    const parsedStartDate = parseDate(startDate);
+    const parsedEndDate = endDate ? parseDate(endDate) : null;
+
+    if (!parsedStartDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { startDate: 'Invalid start date' },
+      });
+    }
+
+    if (endDate && !parsedEndDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { endDate: 'Invalid end date' },
+      });
+    }
+
+    const start = vnToUtcDate(parsedStartDate);
+    const end = parsedEndDate ? vnToUtcDate(parsedEndDate) : null;
 
     const employee = await this.prisma.employee.findUnique({
       where: { accountId: employeeId },
@@ -237,7 +256,7 @@ export class EmployeeService {
       });
     }
 
-    const currentAssignment = employee.workCenters[0]; // Active assignment (nếu có)
+    const currentAssignment = employee.workCenters[0];
 
     if (!centerId) {
       if (!currentAssignment) {
@@ -271,25 +290,30 @@ export class EmployeeService {
       });
     }
 
-    const hasChanges =
-      !currentAssignment ||
-      currentAssignment.centerId !== centerId ||
-      (startDate &&
-        new Date(currentAssignment.startDate).toISOString().split('T')[0] !==
-          new Date(startDate).toISOString().split('T')[0]) ||
-      (endDate || null) !==
-        (currentAssignment.endDate ? currentAssignment.endDate.toISOString().split('T')[0] : null);
-
-    if (!hasChanges) {
-      return {
-        employeeId,
-        workCenter: {
-          id: currentAssignment?.serviceCenter?.id ?? null,
-          name: currentAssignment?.serviceCenter?.name ?? 'Not assigned',
-          address: currentAssignment?.serviceCenter?.address ?? null,
-          status: currentAssignment?.serviceCenter?.status ?? null,
-        },
-      };
+    if (currentAssignment) {
+      if (currentAssignment.centerId === centerId) {
+        const updatedAssignment = await this.prisma.workCenter.update({
+          where: { id: currentAssignment.id },
+          data: {
+            startDate: start,
+            endDate: end,
+          },
+          include: {
+            serviceCenter: {
+              select: {
+                id: true,
+                name: true,
+                address: true,
+                status: true,
+              },
+            },
+          },
+        });
+        return {
+          employeeId,
+          workCenter: updatedAssignment.serviceCenter,
+        };
+      }
     }
 
     if (currentAssignment && currentAssignment.centerId !== centerId) {
@@ -303,8 +327,8 @@ export class EmployeeService {
       data: {
         employeeId,
         centerId,
-        startDate: startDate ? new Date(startDate) : new Date(),
-        endDate: endDate ? new Date(endDate) : null,
+        startDate: start,
+        endDate: end,
       },
       include: {
         serviceCenter: {
@@ -466,7 +490,7 @@ export class EmployeeService {
       await this.prisma.employee.update({ where: { accountId: employeeId }, data: employeeData });
 
     // Update work center assignment if provided
-    if (workCenter) await this.updateEmployeeWithWorkCenter(employeeId, workCenter);
+    if (workCenter) await this.assignEmployeeToServiceCenter(employeeId, workCenter);
 
     // Fetch latest data
     const updated = await this.prisma.account.findUnique({
@@ -649,7 +673,6 @@ export class EmployeeService {
       }
     }
 
-    // ✅ Throw validation errors if any
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
@@ -667,16 +690,20 @@ export class EmployeeService {
     }
 
     // Get default password from config
-    const defaultPassword =
-      this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD') ||
-      this.configService.get<string>('DEFAULT_STAFF_PASSWORD');
-    if (!defaultPassword) {
-      if (role === AccountRole.TECHNICIAN) {
+    let defaultPassword: string | undefined;
+
+    if (role === AccountRole.TECHNICIAN) {
+      defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
+      if (!defaultPassword) {
         throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
       }
-      if (role === AccountRole.STAFF) {
+    } else if (role === AccountRole.STAFF) {
+      defaultPassword = this.configService.get<string>('DEFAULT_STAFF_PASSWORD');
+      if (!defaultPassword) {
         throw new Error('DEFAULT_STAFF_PASSWORD is not set in environment variables');
       }
+    } else {
+      throw new Error(`Unsupported role: ${role}`);
     }
 
     // Create account and employee in transaction
@@ -706,7 +733,7 @@ export class EmployeeService {
 
     // Assign work center if provided
     if (workCenter) {
-      await this.updateEmployeeWithWorkCenter(result, workCenter);
+      await this.assignEmployeeToServiceCenter(result, workCenter);
     }
 
     // Fetch complete employee data (same as getEmployees logic)
@@ -804,6 +831,183 @@ export class EmployeeService {
     };
 
     return plainToInstance(EmployeeWithCenterDTO, transformed, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async getAllEmployees(filter: EmployeeQueryDTO): Promise<EmployeeWithCenterDTO[]> {
+    const { orderBy = 'asc', sortBy = 'createdAt' } = filter;
+
+    const where: Prisma.AccountWhereInput = {
+      role: { in: [AccountRole.STAFF, AccountRole.TECHNICIAN] },
+    };
+
+    // Account level filters
+    if (filter.email) where.email = { contains: filter.email, mode: 'insensitive' };
+    if (filter.phone) where.phone = { contains: filter.phone, mode: 'insensitive' };
+    if (filter.status) where.status = filter.status;
+
+    // Employee level filters
+    const employeeWhere: Prisma.EmployeeWhereInput = {};
+    const employeeConditions: any[] = [];
+
+    if (filter.employeeId) employeeWhere.accountId = filter.employeeId;
+    if (filter.firstName)
+      employeeWhere.firstName = { contains: filter.firstName, mode: 'insensitive' };
+    if (filter.lastName)
+      employeeWhere.lastName = { contains: filter.lastName, mode: 'insensitive' };
+
+    if (filter.search) {
+      const search = filter.search.trim();
+      const searchConditions: Prisma.AccountWhereInput[] = [
+        { email: { contains: search, mode: 'insensitive' } },
+        { employee: { firstName: { contains: search, mode: 'insensitive' } } },
+        { employee: { lastName: { contains: search, mode: 'insensitive' } } },
+        {
+          employee: {
+            AND: [
+              { firstName: { contains: search.split(' ')[0] || '', mode: 'insensitive' } },
+              { lastName: { contains: search.split(' ')[1] || '', mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
+
+      where.OR = searchConditions;
+    }
+
+    // WorkCenter assignment status filter
+    if (filter.hasWorkCenter !== undefined) {
+      if (filter.hasWorkCenter) {
+        employeeConditions.push({
+          workCenters: {
+            some: {
+              OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+            },
+          },
+        });
+      } else {
+        employeeConditions.push({
+          workCenters: { none: {} },
+        });
+      }
+    }
+
+    // Specific service center filters
+    if (filter.centerId || filter.name) {
+      const workCenterConditions: Prisma.WorkCenterWhereInput = {};
+      if (filter.centerId) workCenterConditions.centerId = filter.centerId;
+      if (filter.name)
+        workCenterConditions.serviceCenter = {
+          name: { contains: filter.name, mode: 'insensitive' },
+        };
+
+      workCenterConditions.OR = [{ endDate: null }, { endDate: { gt: new Date() } }];
+
+      if (filter.hasWorkCenter !== false) {
+        employeeConditions.push({
+          workCenters: { some: workCenterConditions },
+        });
+      }
+    }
+
+    if (employeeConditions.length > 0) {
+      employeeWhere.AND = employeeConditions;
+    }
+
+    where.employee = employeeWhere;
+
+    const data = await this.prisma.account.findMany({
+      where,
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        role: true,
+        status: true,
+        avatar: true,
+        avatarPublicId: true,
+        providerId: true,
+        createdAt: true,
+        updatedAt: true,
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            createdAt: true,
+            updatedAt: true,
+            certificates: {
+              select: {
+                name: true,
+                issuedAt: true,
+                expiresAt: true,
+              },
+            },
+            workCenters: {
+              where: {
+                OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+              },
+              select: {
+                id: true,
+                startDate: true,
+                endDate: true,
+                serviceCenter: {
+                  select: {
+                    id: true,
+                    name: true,
+                    address: true,
+                    status: true,
+                  },
+                },
+              },
+              orderBy: { startDate: 'desc' },
+              take: 1,
+            },
+          },
+        },
+      },
+      orderBy: { [sortBy]: orderBy },
+    });
+
+    const transformedData = data.map(emp => ({
+      id: emp.id,
+      email: emp.email,
+      phone: emp.phone,
+      role: emp.role,
+      status: emp.status,
+      avatar: emp.avatar,
+      avatarPublicId: emp.avatarPublicId,
+      providerId: emp.providerId,
+      createdAt: emp.createdAt,
+      updatedAt: emp.updatedAt,
+      profile: emp.employee
+        ? {
+            firstName: emp.employee.firstName,
+            lastName: emp.employee.lastName,
+            createdAt: emp.employee.createdAt,
+            updatedAt: emp.employee.updatedAt,
+            certificates:
+              emp.employee?.certificates?.map(c => ({
+                name: c.name,
+                issuedAt: c.issuedAt,
+                expiresAt: c.expiresAt,
+              })) ?? [],
+          }
+        : null,
+      workCenter: emp.employee?.workCenters?.[0]?.serviceCenter
+        ? {
+            id: emp.employee.workCenters[0].serviceCenter.id,
+            name: emp.employee.workCenters[0].serviceCenter.name,
+            startDate: emp.employee.workCenters[0].startDate,
+            endDate: emp.employee.workCenters[0].endDate,
+          }
+        : {
+            id: null,
+            name: 'Not assigned',
+          },
+    }));
+
+    return plainToInstance(EmployeeWithCenterDTO, transformedData, {
       excludeExtraneousValues: true,
     });
   }

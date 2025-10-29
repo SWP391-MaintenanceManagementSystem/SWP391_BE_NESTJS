@@ -5,7 +5,7 @@ import { CreateStaffDTO } from './dto/create-staff.dto';
 import { UpdateStaffDTO } from './dto/update-staff.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
-import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 
@@ -17,7 +17,7 @@ export class StaffController {
   @Get('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  async getStaffs(@Query() query: EmployeeQueryDTO) {
+  async getStaffs(@Query() query: EmployeeQueryWithPaginationDTO) {
     const { data, page, pageSize, total, totalPages } = await this.staffService.getStaffs(query);
     const staffs = data.map(staff => plainToInstance(AccountWithProfileDTO, staff));
     return {

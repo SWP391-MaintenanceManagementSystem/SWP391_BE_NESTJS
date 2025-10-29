@@ -1,5 +1,5 @@
 import { BookingStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Order } from 'src/common/sort/sort.config';
@@ -39,33 +39,42 @@ export class BookingQueryDTO {
 
   @ApiProperty({
     required: false,
+    description: 'Filter bookings on this specific date (ISO 8601 format)',
   })
   @IsOptional()
-  @Type(() => Date)
-  bookingDate?: Date;
+  @IsString()
+  bookingDate?: string;
 
   @ApiProperty({
     required: false,
-    description: 'Filter bookings from this date (yyyy-mm-dd)',
+    description: 'Filter bookings from this date (ISO 8601 format)',
   })
   @IsOptional()
-  @Type(() => Date)
-  fromDate?: Date;
+  @IsString()
+  fromDate?: string;
 
   @ApiProperty({
     required: false,
-    description: 'Filter bookings until this date (yyyy-mm-dd)',
+    description: 'Filter bookings until this date (ISO 8601 format)',
   })
   @IsOptional()
-  @Type(() => Date)
-  toDate?: Date;
+  @IsString()
+  toDate?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  isPremium?: boolean;
 
   @ApiProperty({
     required: false,
   })
   @IsOptional()
   @IsString()
-  orderBy?: string;
+  sortBy?: string;
 
   @ApiProperty({
     required: false,
@@ -73,7 +82,7 @@ export class BookingQueryDTO {
   })
   @IsOptional()
   @Type(() => String)
-  sortBy?: Order;
+  orderBy?: Order;
 
   @ApiProperty({
     required: false,
