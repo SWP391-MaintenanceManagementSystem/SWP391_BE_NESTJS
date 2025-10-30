@@ -10,7 +10,7 @@ import { JWT_Payload } from 'src/common/types';
 @ApiBearerAuth('jwt-auth')
 @ApiTags('Chats')
 @UseGuards(JwtAuthGuard)
-@Controller('chats')
+@Controller('api/chats')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
