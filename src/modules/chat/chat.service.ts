@@ -15,127 +15,112 @@ import { ChatStatus } from '@prisma/client';
 export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Find or create a new conversation.
+   * - If the sender is a customer → create a new ticket (staff = null)
+   * - If the sender is a staff → must provide customerId to find/create properly
+   */
   private async findOrCreateConversation(senderId: string, receiverId?: string): Promise<string> {
-    // Get sender role
     const sender = await this.prisma.account.findUnique({
       where: { id: senderId },
       select: { role: true },
     });
 
-    if (!sender) {
-      throw new NotFoundException('Sender not found');
-    }
+    if (!sender) throw new NotFoundException('Sender not found');
 
     let customerId: string;
     let staffId: string | null = null;
+
     if (sender.role === 'CUSTOMER') {
       customerId = senderId;
       staffId = null;
     } else {
-      if (!receiverId) throw new BadRequestException('Staff must provide customerId');
+      if (!receiverId) throw new BadRequestException('Staff must provide a customerId');
       customerId = receiverId;
       staffId = senderId;
     }
 
-    // Look for existing OPEN conversation for this customer
-    const existingConversation = await this.prisma.conversation.findFirst({
+    // Check if this customer already has an open ticket
+    const existing = await this.prisma.conversation.findFirst({
       where: {
         customerId,
         status: ChatStatus.OPEN,
       },
     });
 
-    if (existingConversation) {
-      return existingConversation.id;
-    }
+    if (existing) return existing.id;
 
-    // Create new conversation (ticket) for customer
-    const newConversation = await this.prisma.conversation.create({
+    // Otherwise, create a new one
+    const created = await this.prisma.conversation.create({
       data: {
         customerId,
-        staffId, // null initially
+        staffId,
         status: ChatStatus.OPEN,
       },
     });
 
-    return newConversation.id;
+    return created.id;
   }
 
-  async createMessage(senderId: string, createMessageDto: CreateMessageDTO): Promise<MessageDTO> {
-    let conversationId = createMessageDto.conversationId;
+  /**
+   * Send a message
+   * - Customer: automatically creates a ticket if none exists
+   * - Staff: can only send if already assigned
+   */
+  async createMessage(senderId: string, dto: CreateMessageDTO): Promise<MessageDTO> {
+    let conversationId = dto.conversationId;
 
-    // If no conversationId provided, find or create a conversation (only for customers)
+    // If no conversation exists → create a new one (for customer)
     if (!conversationId) {
-      conversationId = await this.findOrCreateConversation(senderId, createMessageDto.receiverId);
+      conversationId = await this.findOrCreateConversation(senderId, dto.receiverId);
     }
 
-    // Validate conversation exists and is open
+    // Validate conversation
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
     });
 
-    if (!conversation || conversation.status !== ChatStatus.OPEN) {
-      throw new ForbiddenException('Conversation is closed or does not exist');
-    }
+    if (!conversation || conversation.status !== ChatStatus.OPEN)
+      throw new ForbiddenException('Conversation not found or already closed');
 
-    // For staff replies, ensure they are assigned to the conversation
+    // Validate sender permissions
     const sender = await this.prisma.account.findUnique({
       where: { id: senderId },
       select: { role: true },
     });
 
-    if (sender?.role !== 'CUSTOMER' && conversation.staffId !== senderId) {
-      throw new ForbiddenException('Staff not assigned to this conversation');
-    }
+    if (sender?.role !== 'CUSTOMER' && conversation.staffId !== senderId)
+      throw new ForbiddenException('You are not allowed to send in this ticket');
 
+    // Create message
     const message = await this.prisma.message.create({
       data: {
         conversationId,
         senderId,
-        receiverId: createMessageDto.receiverId || conversation.staffId || null, // Use assigned staff or null
-        content: createMessageDto.content,
+        receiverId: dto.receiverId || conversation.staffId || null,
+        content: dto.content,
       },
       include: {
         sender: {
           select: {
             id: true,
             email: true,
-            customer: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-            employee: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
+            customer: { select: { firstName: true, lastName: true } },
+            employee: { select: { firstName: true, lastName: true } },
           },
         },
         receiver: {
           select: {
             id: true,
             email: true,
-            customer: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-            employee: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
+            customer: { select: { firstName: true, lastName: true } },
+            employee: { select: { firstName: true, lastName: true } },
           },
         },
       },
     });
 
-    // Update conversation timestamp
+    // Update latest activity timestamp
     await this.prisma.conversation.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() },
@@ -144,211 +129,143 @@ export class ChatService {
     return plainToInstance(MessageDTO, message, { excludeExtraneousValues: true });
   }
 
+  /**
+   * Get all messages in a conversation
+   */
   async getMessagesByConversation(conversationId: string, userId: string): Promise<MessageDTO[]> {
-    // Validate user has access to this conversation
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { customerId: true, staffId: true },
     });
 
-    if (!conversation || (conversation.customerId !== userId && conversation.staffId !== userId)) {
-      throw new ForbiddenException('Access denied to this conversation');
-    }
+    if (!conversation) throw new NotFoundException('Conversation not found');
+
+    if (conversation.customerId !== userId && conversation.staffId !== userId)
+      throw new ForbiddenException('You are not allowed to view this conversation');
 
     const messages = await this.prisma.message.findMany({
-      where: {
-        conversationId,
-      },
+      where: { conversationId },
       include: {
         sender: {
           select: {
             id: true,
             email: true,
-            customer: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-            employee: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
+            customer: { select: { firstName: true, lastName: true } },
+            employee: { select: { firstName: true, lastName: true } },
           },
         },
         receiver: {
           select: {
             id: true,
             email: true,
-            customer: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
-            employee: {
-              select: {
-                firstName: true,
-                lastName: true,
-              },
-            },
+            customer: { select: { firstName: true, lastName: true } },
+            employee: { select: { firstName: true, lastName: true } },
           },
         },
       },
-      orderBy: {
-        sentAt: 'asc',
-      },
+      orderBy: { sentAt: 'asc' },
     });
 
-    return plainToInstance(MessageDTO, messages, { excludeExtraneousValues: true });
+    return plainToInstance(MessageDTO, messages, {
+      excludeExtraneousValues: true,
+    });
   }
 
+  /**
+   * Get conversations for a specific user
+   * - Customer: sees all their tickets
+   * - Staff: sees assigned + unclaimed open tickets
+   */
   async getUserConversations(userId: string): Promise<ConversationDTO[]> {
     const user = await this.prisma.account.findUnique({
       where: { id: userId },
       select: { role: true },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+    if (!user) throw new NotFoundException('User not found');
 
-    let conversations;
+    const whereClause =
+      user.role === 'CUSTOMER'
+        ? { customerId: userId }
+        : {
+            OR: [{ staffId: userId }, { staffId: null, status: ChatStatus.OPEN }],
+          };
 
-    if (user.role === 'CUSTOMER') {
-      // Customers see all their conversations
-      conversations = await this.prisma.conversation.findMany({
-        where: { customerId: userId },
-        include: {
-          customer: {
-            select: {
-              id: true,
-              email: true,
-              customer: { select: { firstName: true, lastName: true } },
-            },
-          },
-          staff: {
-            select: {
-              id: true,
-              email: true,
-              employee: { select: { firstName: true, lastName: true } },
-            },
-          },
-          messages: {
-            include: {
-              sender: {
-                select: {
-                  id: true,
-                  email: true,
-                  customer: { select: { firstName: true, lastName: true } },
-                  employee: { select: { firstName: true, lastName: true } },
-                },
-              },
-              receiver: {
-                select: {
-                  id: true,
-                  email: true,
-                  customer: { select: { firstName: true, lastName: true } },
-                  employee: { select: { firstName: true, lastName: true } },
-                },
-              },
-            },
-            orderBy: { sentAt: 'desc' },
-            take: 1, // Only get the last message
+    const conversations = await this.prisma.conversation.findMany({
+      where: whereClause,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            email: true,
+            customer: { select: { firstName: true, lastName: true } },
           },
         },
-        orderBy: { updatedAt: 'desc' },
-      });
-    } else {
-      // Staff see assigned conversations OR open tickets available for claiming
-      conversations = await this.prisma.conversation.findMany({
-        where: {
-          OR: [
-            { staffId: userId }, // Assigned to this staff
-            { staffId: null, status: ChatStatus.OPEN }, // Available to claim
-          ],
-        },
-        include: {
-          customer: {
-            select: {
-              id: true,
-              email: true,
-              customer: { select: { firstName: true, lastName: true } },
-            },
-          },
-          staff: {
-            select: {
-              id: true,
-              email: true,
-              employee: { select: { firstName: true, lastName: true } },
-            },
-          },
-          messages: {
-            include: {
-              sender: {
-                select: {
-                  id: true,
-                  email: true,
-                  customer: { select: { firstName: true, lastName: true } },
-                  employee: { select: { firstName: true, lastName: true } },
-                },
-              },
-              receiver: {
-                select: {
-                  id: true,
-                  email: true,
-                  customer: { select: { firstName: true, lastName: true } },
-                  employee: { select: { firstName: true, lastName: true } },
-                },
-              },
-            },
-            orderBy: { sentAt: 'desc' },
-            take: 1, // Only get the last message
+        staff: {
+          select: {
+            id: true,
+            email: true,
+            employee: { select: { firstName: true, lastName: true } },
           },
         },
-        orderBy: { updatedAt: 'desc' },
-      });
-    }
+        messages: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                email: true,
+                customer: { select: { firstName: true, lastName: true } },
+                employee: { select: { firstName: true, lastName: true } },
+              },
+            },
+            receiver: {
+              select: {
+                id: true,
+                email: true,
+                customer: { select: { firstName: true, lastName: true } },
+                employee: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+          orderBy: { sentAt: 'desc' },
+          take: 1,
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
 
     return plainToInstance(ConversationDTO, conversations, {
       excludeExtraneousValues: true,
     });
   }
 
+  /**
+   * Staff claims an open ticket
+   */
   async assignStaffToConversation(
     conversationId: string,
     staffId: string
   ): Promise<ConversationDTO> {
-    // Validate staff exists and is staff role
     const staff = await this.prisma.account.findUnique({
       where: { id: staffId },
       select: { role: true },
     });
 
-    if (!staff || staff.role === 'CUSTOMER') {
-      throw new ForbiddenException('Invalid staff member');
-    }
+    if (!staff || staff.role === 'CUSTOMER') throw new ForbiddenException('Invalid staff account');
 
-    // Check if conversation exists and is available to claim
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
     });
 
-    if (!conversation) {
-      throw new NotFoundException('Conversation not found');
-    }
+    if (!conversation) throw new NotFoundException('Conversation not found');
 
-    if (conversation.status !== ChatStatus.OPEN) {
+    if (conversation.status !== ChatStatus.OPEN)
       throw new ForbiddenException('Conversation is not open');
-    }
 
-    if (conversation.staffId && conversation.staffId !== staffId) {
-      throw new ForbiddenException('Conversation already assigned to another staff member');
-    }
+    if (conversation.staffId && conversation.staffId !== staffId)
+      throw new ForbiddenException('This ticket has already been claimed');
 
-    const updatedConversation = await this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: { staffId },
       include: {
@@ -367,55 +284,35 @@ export class ChatService {
           },
         },
         messages: {
-          include: {
-            sender: {
-              select: {
-                id: true,
-                email: true,
-                customer: { select: { firstName: true, lastName: true } },
-                employee: { select: { firstName: true, lastName: true } },
-              },
-            },
-            receiver: {
-              select: {
-                id: true,
-                email: true,
-                customer: { select: { firstName: true, lastName: true } },
-                employee: { select: { firstName: true, lastName: true } },
-              },
-            },
-          },
           orderBy: { sentAt: 'desc' },
           take: 1,
         },
       },
     });
 
-    return plainToInstance(ConversationDTO, updatedConversation, {
+    return plainToInstance(ConversationDTO, updated, {
       excludeExtraneousValues: true,
     });
   }
 
+  /**
+   * Staff closes a ticket
+   */
   async closeConversation(conversationId: string, staffId: string): Promise<ConversationDTO> {
-    // Validate staff is assigned to this conversation
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { staffId: true, status: true },
     });
 
-    if (!conversation) {
-      throw new NotFoundException('Conversation not found');
-    }
+    if (!conversation) throw new NotFoundException('Conversation not found');
 
-    if (conversation.staffId !== staffId) {
-      throw new ForbiddenException('Only assigned staff can close this conversation');
-    }
+    if (conversation.staffId !== staffId)
+      throw new ForbiddenException('Only the assigned staff can close this ticket');
 
-    if (conversation.status !== ChatStatus.OPEN) {
+    if (conversation.status !== ChatStatus.OPEN)
       throw new ForbiddenException('Conversation is already closed');
-    }
 
-    const updatedConversation = await this.prisma.conversation.update({
+    const updated = await this.prisma.conversation.update({
       where: { id: conversationId },
       data: { status: ChatStatus.CLOSED },
       include: {
@@ -433,45 +330,22 @@ export class ChatService {
             employee: { select: { firstName: true, lastName: true } },
           },
         },
-        messages: {
-          include: {
-            sender: {
-              select: {
-                id: true,
-                email: true,
-                customer: { select: { firstName: true, lastName: true } },
-                employee: { select: { firstName: true, lastName: true } },
-              },
-            },
-            receiver: {
-              select: {
-                id: true,
-                email: true,
-                customer: { select: { firstName: true, lastName: true } },
-                employee: { select: { firstName: true, lastName: true } },
-              },
-            },
-          },
-          orderBy: { sentAt: 'desc' },
-          take: 1,
-        },
       },
     });
 
-    return plainToInstance(ConversationDTO, updatedConversation, {
+    return plainToInstance(ConversationDTO, updated, {
       excludeExtraneousValues: true,
     });
   }
 
+  /**
+   * Get a conversation by its ID
+   */
   async getConversationById(conversationId: string) {
     const conversation = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
     });
-
-    if (!conversation) {
-      throw new NotFoundException('Conversation not found');
-    }
-
+    if (!conversation) throw new NotFoundException('Conversation not found');
     return conversation;
   }
 }

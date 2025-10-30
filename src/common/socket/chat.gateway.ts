@@ -9,7 +9,6 @@ import { UseGuards, Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsJwtGuard } from '../guard/ws.guard';
 import { ChatService } from '../../modules/chat/chat.service';
-import { ChatStatus } from '@prisma/client';
 import { JWT_Payload } from '../types';
 
 @UseGuards(WsJwtGuard)
@@ -17,16 +16,16 @@ import { JWT_Payload } from '../types';
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
   private readonly logger = new Logger(ChatGateway.name);
-
-  // Map userId -> socketId
-  private onlineUsers = new Map<string, string>();
+  private onlineUsers = new Map<string, string>(); // userId -> socketId
 
   constructor(private readonly chatService: ChatService) {}
 
+  // 🔌 Handle new socket connection
   handleConnection(client: Socket) {
     this.logger.log(`[CONNECTED] ${client.id}`);
   }
 
+  // ❌ Handle disconnection
   handleDisconnect(client: Socket) {
     const userId = [...this.onlineUsers.entries()].find(
       ([, socketId]) => socketId === client.id
@@ -34,23 +33,28 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     if (userId) {
       this.onlineUsers.delete(userId);
-      this.logger.log(`[OFFLINE] ${userId} (${client.id})`);
+      this.logger.log(`[DISCONNECTED] ${userId} (${client.id})`);
     }
   }
 
+  // 🧩 Register user (after successful JWT auth)
   @SubscribeMessage('register')
-  register(client: Socket) {
+  async register(client: Socket) {
     const user = client.data.user as JWT_Payload;
     if (!user) {
       client.emit('error', { message: 'Unauthorized' });
       return;
     }
+
     this.onlineUsers.set(user.sub, client.id);
     this.logger.log(`[ONLINE] ${user.sub} (${client.id})`);
+    client.emit('registered', { message: 'Registered successfully.' });
   }
 
+  // 💬 Handle new message
   @SubscribeMessage('message')
   async handleMessage(client: Socket, data: { message: string; conversationId?: string }) {
+    console.log('🚀 ~ ChatGateway ~ handleMessage ~ data:', data);
     const senderId = [...this.onlineUsers.entries()].find(
       ([, socketId]) => socketId === client.id
     )?.[0];
@@ -60,35 +64,66 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    if (!data.message || data.message.trim() === '') {
-      client.emit('error', { message: 'Message content is required' });
+    if (!data.message?.trim()) {
+      client.emit('error', { message: 'Message cannot be empty.' });
       return;
     }
 
     try {
-      const savedMessage = await this.chatService.createMessage(senderId, {
+      // Create or continue conversation
+      const message = await this.chatService.createMessage(senderId, {
         content: data.message.trim(),
         conversationId: data.conversationId,
       });
-      if (!savedMessage.conversationId) throw new Error('Conversation not found');
-      const conversation = await this.chatService.getConversationById(savedMessage.conversationId);
 
+      const conversation = await this.chatService.getConversationById(message.conversationId!);
+
+      // Notify both parties
       if (conversation.staffId) {
         const staffSocket = this.onlineUsers.get(conversation.staffId);
         if (staffSocket) {
-          this.server.to(staffSocket).emit('message', savedMessage);
+          this.server.to(staffSocket).emit('message', message);
         }
       } else {
-        this.server.emit('new_ticket', savedMessage);
+        // Notify all staff about a new ticket
+        this.server.emit('new_ticket', conversation);
       }
 
-      client.emit('message_sent', savedMessage);
-    } catch (error) {
-      client.emit('error', { message: 'Failed to send message' });
-      this.logger.error(error);
+      // Acknowledge sender
+      client.emit('message_sent', message);
+    } catch (err) {
+      this.logger.error(err);
+      client.emit('error', { message: 'Failed to send message.' });
     }
   }
 
+  // 🧾 Get user's conversations
+  @SubscribeMessage('get_conversations')
+  async getConversations(client: Socket) {
+    const user = client.data.user as JWT_Payload;
+    if (!user) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+
+    const conversations = await this.chatService.getUserConversations(user.sub);
+    client.emit('conversations', conversations);
+  }
+
+  // 📋 Get messages for a conversation
+  @SubscribeMessage('get_messages')
+  async getMessages(client: Socket, conversationId: string) {
+    const user = client.data.user as JWT_Payload;
+    if (!user) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+
+    const messages = await this.chatService.getMessagesByConversation(conversationId, user.sub);
+    client.emit('messages', messages);
+  }
+
+  // 🧑‍🔧 Staff claims a ticket
   @SubscribeMessage('claim_ticket')
   async claimTicket(client: Socket, conversationId: string) {
     const staffId = [...this.onlineUsers.entries()].find(
@@ -100,10 +135,39 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const conversation = await this.chatService.assignStaffToConversation(conversationId, staffId);
+    try {
+      const conversation = await this.chatService.assignStaffToConversation(
+        conversationId,
+        staffId
+      );
 
-    client.emit('ticket_claimed', conversation);
+      client.emit('ticket_claimed', conversation);
+      this.server.emit('ticket_updated', conversation);
+    } catch (err) {
+      this.logger.error(err);
+      client.emit('error', { message: 'Failed to claim ticket.' });
+    }
+  }
 
-    this.server.emit('ticket_updated', conversation);
+  // 🔒 Staff closes a ticket
+  @SubscribeMessage('close_ticket')
+  async closeTicket(client: Socket, conversationId: string) {
+    const staffId = [...this.onlineUsers.entries()].find(
+      ([, socketId]) => socketId === client.id
+    )?.[0];
+
+    if (!staffId) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const conversation = await this.chatService.closeConversation(conversationId, staffId);
+      client.emit('ticket_closed', conversation);
+      this.server.emit('ticket_updated', conversation);
+    } catch (err) {
+      this.logger.error(err);
+      client.emit('error', { message: 'Failed to close ticket.' });
+    }
   }
 }
