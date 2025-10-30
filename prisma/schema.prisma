@@ -533,7 +533,7 @@ model Notification {
 
 model VehicleHandover {
   id          String   @id @default(uuid())
-  bookingId   String   @unique
+  bookingId   String   @unique @map("booking_id")
   odometer    Int
   note        String?
   description String[]

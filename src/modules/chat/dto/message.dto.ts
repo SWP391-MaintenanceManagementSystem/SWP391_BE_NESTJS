@@ -46,7 +46,7 @@ export class MessageDTO {
   senderId: string;
 
   @Expose()
-  receiverId: string;
+  receiverId: string | null;
 
   @Expose()
   @Transform(({ obj }) => ({
@@ -59,12 +59,15 @@ export class MessageDTO {
   sender: MessageSenderDTO;
 
   @Expose()
-  @Transform(({ obj }) => ({
-    id: obj.receiver.id,
-    email: obj.receiver.email,
-    firstName: obj.receiver.customer?.firstName || obj.receiver.employee?.firstName,
-    lastName: obj.receiver.customer?.lastName || obj.receiver.employee?.lastName,
-  }))
+  @Transform(({ obj }) => {
+    if (!obj.receiver) return null;
+    return {
+      id: obj.receiver.id,
+      email: obj.receiver.email,
+      firstName: obj.receiver.customer?.firstName || obj.receiver.employee?.firstName,
+      lastName: obj.receiver.customer?.lastName || obj.receiver.employee?.lastName,
+    };
+  })
   @Type(() => MessageReceiverDTO)
-  receiver: MessageReceiverDTO;
+  receiver: MessageReceiverDTO | null;
 }
