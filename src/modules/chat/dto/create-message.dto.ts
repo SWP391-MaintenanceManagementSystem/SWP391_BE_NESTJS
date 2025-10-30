@@ -12,13 +12,14 @@ export class CreateMessageDTO {
   conversationId?: string;
 
   @ApiProperty({
-    required: true,
+    required: false,
     example: 'customer-or-staff-user-id',
-    description: 'ID of the recipient (customer or staff)',
+    description:
+      'ID of the recipient (customer or staff). Optional for customer messages - will be set based on conversation',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  receiverId: string;
+  receiverId?: string;
 
   @ApiProperty({
     required: true,

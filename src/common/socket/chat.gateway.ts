@@ -69,7 +69,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const savedMessage = await this.chatService.createMessage(senderId, {
         content: data.message.trim(),
         conversationId: data.conversationId,
-        receiverId: undefined, // Will be handled by the service based on conversation
       });
       if (!savedMessage.conversationId) throw new Error('Conversation not found');
       const conversation = await this.chatService.getConversationById(savedMessage.conversationId);
