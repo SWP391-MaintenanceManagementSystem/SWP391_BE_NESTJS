@@ -39,6 +39,8 @@ import { BookingModule } from './modules/booking/booking.module';
 import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
 import { BookingAssignmentModule } from './modules/booking-assignment/booking-assignment.module';
 import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { WebsocketModule } from './common/socket/socket.module';
 
 @Module({
   imports: [
@@ -103,6 +105,8 @@ import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover
     BookingAssignmentModule,
     TechnicianModule,
     VehicleHandoverModule,
+    ChatModule,
+    WebsocketModule,
   ],
   controllers: [AppController],
   providers: [
