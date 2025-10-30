@@ -5,7 +5,7 @@ import { ChatModule } from '../../modules/chat/chat.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
-  imports: [forwardRef(() => ChatModule), JwtModule],
+  imports: [forwardRef(() => ChatModule)],
   providers: [ChatGateway, NotificationGateway],
   exports: [ChatGateway, NotificationGateway],
 })

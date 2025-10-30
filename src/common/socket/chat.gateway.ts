@@ -38,7 +38,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('register')
-  register(client: Socket, userId: string) {
+  register(client: Socket) {
+    const userId = client.data.userId;
+    if (!userId) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
     this.onlineUsers.set(userId, client.id);
     this.logger.log(`[ONLINE] ${userId} (${client.id})`);
   }
