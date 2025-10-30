@@ -1,14 +1,11 @@
-import { forwardRef, Module } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
-import { WebsocketModule } from '../../common/socket/socket.module';
-import { ChatGateway } from '../../common/socket/chat.gateway';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { Module } from '@nestjs/common';
 
 @Module({
   imports: [
-    forwardRef(() => WebsocketModule),
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -20,7 +17,7 @@ import { ConfigService } from '@nestjs/config';
     }),
   ],
   controllers: [ChatController],
-  providers: [ChatService, ChatGateway],
+  providers: [ChatService],
   exports: [ChatService],
 })
 export class ChatModule {}

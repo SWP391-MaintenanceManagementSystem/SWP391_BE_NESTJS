@@ -69,7 +69,6 @@ export class ChatService {
    */
   async createMessage(senderId: string, dto: CreateMessageDTO): Promise<MessageDTO> {
     let conversationId = dto.conversationId;
-
     // If no conversation exists → create a new one (for customer)
     if (!conversationId) {
       conversationId = await this.findOrCreateConversation(senderId, dto.receiverId);
