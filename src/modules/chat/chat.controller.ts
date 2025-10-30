@@ -4,13 +4,13 @@ import { MessageDTO } from './dto/message.dto';
 import { ConversationDTO } from './dto/conversation.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorator/current-user.decorator';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateMessageDTO } from './dto/create-message.dto';
 import { JWT_Payload } from 'src/common/types';
-
-@Controller('chats')
+@ApiBearerAuth('jwt-auth')
 @ApiTags('Chats')
 @UseGuards(JwtAuthGuard)
+@Controller('chats')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
