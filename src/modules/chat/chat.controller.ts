@@ -18,36 +18,59 @@ export class ChatController {
   async getMessagesByConversation(
     @Param('conversationId') conversationId: string,
     @CurrentUser() currentUser: JWT_Payload
-  ): Promise<MessageDTO[]> {
-    return this.chatService.getMessagesByConversation(conversationId, currentUser.sub);
+  ) {
+    const messages = await this.chatService.getMessagesByConversation(
+      conversationId,
+      currentUser.sub
+    );
+    return {
+      data: messages,
+      message: 'Messages retrieved successfully.',
+    };
   }
 
   @Get('conversations')
-  async getUserConversations(@CurrentUser() currentUser: JWT_Payload): Promise<ConversationDTO[]> {
-    return this.chatService.getUserConversations(currentUser.sub);
+  async getUserConversations(@CurrentUser() currentUser: JWT_Payload) {
+    const conversations = await this.chatService.getUserConversations(currentUser.sub);
+    return {
+      data: conversations,
+      message: 'User conversations retrieved successfully.',
+    };
   }
 
   @Post('messages')
   async createMessage(
     @Body() createMessageDto: CreateMessageDTO,
     @CurrentUser() user: JWT_Payload
-  ): Promise<MessageDTO> {
-    return this.chatService.createMessage(user.sub, createMessageDto);
+  ) {
+    const message = await this.chatService.createMessage(user.sub, createMessageDto);
+    return {
+      data: message,
+      message: 'Message created successfully.',
+    };
   }
 
   @Post('conversations/:conversationId/claim')
   async claimConversation(
     @Param('conversationId') conversationId: string,
     @CurrentUser() user: JWT_Payload
-  ): Promise<ConversationDTO> {
-    return this.chatService.assignStaffToConversation(conversationId, user.sub);
+  ) {
+    const conversation = await this.chatService.assignStaffToConversation(conversationId, user.sub);
+    return {
+      data: conversation,
+      message: 'Conversation claimed successfully.',
+    };
   }
 
   @Post('conversations/:conversationId/close')
   async closeConversation(
     @Param('conversationId') conversationId: string,
     @CurrentUser() user: JWT_Payload
-  ): Promise<ConversationDTO> {
-    return this.chatService.closeConversation(conversationId, user.sub);
+  ) {
+    const conversation = await this.chatService.closeConversation(conversationId, user.sub);
+    return {
+      data: conversation,
+      message: 'Conversation closed successfully.',
+    };
   }
 }
