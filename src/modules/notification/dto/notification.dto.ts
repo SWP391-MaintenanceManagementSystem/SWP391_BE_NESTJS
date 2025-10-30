@@ -1,5 +1,8 @@
 import { Expose, Transform } from 'class-transformer';
 import { NotificationType } from '@prisma/client';
+import { format } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { VN_DATE_TIME_FORMAT, VN_TIMEZONE } from 'src/common/constants';
 
 export class NotificationDTO {
   @Expose()
@@ -18,14 +21,19 @@ export class NotificationDTO {
   is_read: boolean;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  sent_at: Date;
+  @Transform(({ obj }) => {
+    const vnTime = toZonedTime(obj.sent_at, VN_TIMEZONE);
+    return format(vnTime, VN_DATE_TIME_FORMAT);
+  })
+  sent_at: string;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  read_at: Date;
+  @Transform(({ obj }) => {
+    const vnTime = toZonedTime(obj.read_at, VN_TIMEZONE);
+    return format(vnTime, VN_DATE_TIME_FORMAT);
+  })
+  read_at: string;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   createdAt: Date;
 }

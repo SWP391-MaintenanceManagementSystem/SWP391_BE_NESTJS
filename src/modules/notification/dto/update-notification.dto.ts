@@ -11,7 +11,7 @@ export class UpdateNotificationDTO {
 
   @ApiPropertyOptional({
     description: 'Timestamp when notification was read',
-    example: '2024-01-20T08:00:00.000Z',
+    example: '2024-01-20T08:00',
   })
   @IsOptional()
   @IsDateString()

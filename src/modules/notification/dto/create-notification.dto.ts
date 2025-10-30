@@ -1,20 +1,23 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsString, IsEnum } from 'class-validator';
 import { NotificationType } from '@prisma/client';
 
 export class CreateNotificationDTO {
-  @ApiProperty({ description: 'Account ID associated with the notification' })
-  @IsUUID()
-  @IsNotEmpty()
-  accountId: string;
-
-  @ApiProperty({ example: 'Content', description: 'Content of the notification' })
+  @ApiProperty({
+    example: '',
+  })
   @IsString()
   @IsNotEmpty()
   content: string;
 
-  @ApiProperty({ description: 'Type of the notification', enum: NotificationType })
-  @IsString()
+  @ApiProperty({
+    description: 'Type of the notification',
+    enum: NotificationType,
+    example: NotificationType.BOOKING,
+  })
+  @IsEnum(NotificationType, {
+    message: `notification_type must be one of: ${Object.values(NotificationType).join(', ')}`,
+  })
   @IsNotEmpty()
   notification_type: NotificationType;
 }

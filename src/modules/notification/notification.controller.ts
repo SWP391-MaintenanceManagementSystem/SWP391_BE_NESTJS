@@ -1,18 +1,40 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { NotificationService } from './notification.service';
 import { CreateNotificationDTO } from './dto/create-notification.dto';
-import { UpdateNotificationDTO } from './dto/update-notification.dto';
 import { NotificationQueryDTO } from './dto/notification-query.dto';
+import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
+import { RoleGuard } from 'src/common/guard/role.guard';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { JWT_Payload } from 'src/common/types';
 
 @ApiTags('Notifications')
-@Controller('notifications')
+@ApiBearerAuth('jwt-auth')
+@UseGuards(JwtAuthGuard, RoleGuard)
+@Controller('api/notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
   @Post()
-  async create(@Body() createNotificationDto: CreateNotificationDTO) {
-    const data = await this.notificationService.createNotification(createNotificationDto);
+  @ApiOperation({
+    summary: 'Create notification for current user',
+    description: 'Creates a notification for the authenticated user',
+  })
+  async create(
+    @Body() createNotificationDto: CreateNotificationDTO,
+    @CurrentUser() user: JWT_Payload
+  ) {
+    const data = await this.notificationService.createNotification(user.sub, createNotificationDto);
     return {
       message: 'Notification created successfully',
       data,
@@ -20,35 +42,77 @@ export class NotificationController {
   }
 
   @Get()
-  async findAll(@Query() query: NotificationQueryDTO) {
-    const data = await this.notificationService.getNotifications(query);
+  @ApiOperation({
+    summary: 'Get all notifications for current user',
+    description: 'Retrieves paginated notifications for the authenticated user',
+  })
+  async findAll(@Query() query: NotificationQueryDTO, @CurrentUser() user: JWT_Payload) {
+    const data = await this.notificationService.getNotifications(user.sub, query);
     return {
       message: 'Notifications retrieved successfully',
+      ...data,
+    };
+  }
+
+  @Get('unread-count')
+  @ApiOperation({
+    summary: 'Get unread notification count',
+    description: 'Returns the count of unread notifications for current user',
+  })
+  async getUnreadCount(@CurrentUser() user: JWT_Payload) {
+    const data = await this.notificationService.getUnreadCount(user.sub);
+    return {
+      message: 'Unread count retrieved successfully',
       data,
     };
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    const data = await this.notificationService.getNotificationById(id);
+  @ApiOperation({
+    summary: 'Get notification by ID',
+    description: 'Retrieves a specific notification (ownership checked)',
+  })
+  async findOne(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
+    const data = await this.notificationService.getNotificationById(id, user.sub);
     return {
       message: 'Notification retrieved successfully',
       data,
     };
   }
 
-  @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateNotificationDto: UpdateNotificationDTO) {
-    const data = await this.notificationService.updateNotification(id, updateNotificationDto);
+  @Patch(':id/read')
+  @ApiOperation({
+    summary: 'Mark notification as read',
+    description: 'Marks a specific notification as read',
+  })
+  async markAsRead(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
+    const data = await this.notificationService.markAsRead(id, user.sub);
     return {
-      message: 'Notification updated successfully',
+      message: 'Notification marked as read',
+      data,
+    };
+  }
+
+  @Patch('read-all')
+  @ApiOperation({
+    summary: 'Mark all notifications as read',
+    description: 'Marks all unread notifications as read for current user',
+  })
+  async markAllAsRead(@CurrentUser() user: JWT_Payload) {
+    const data = await this.notificationService.markAllAsRead(user.sub);
+    return {
+      message: `${data.count} notifications marked as read`,
       data,
     };
   }
 
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    await this.notificationService.deleteNotification(id);
+  @ApiOperation({
+    summary: 'Delete notification',
+    description: 'Deletes a specific notification (ownership checked)',
+  })
+  async remove(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
+    await this.notificationService.deleteNotification(id, user.sub);
     return {
       message: 'Notification deleted successfully',
     };

@@ -19,6 +19,8 @@ import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
 import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
 import { CreateWorkScheduleDTO } from './dto/create-work-schedule.dto';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationType } from '@prisma/client';
 
 @ApiTags('Work Schedules')
 @Controller('api/work-schedules')
@@ -28,6 +30,20 @@ export class WorkScheduleController {
   constructor(private readonly workScheduleService: WorkScheduleService) {}
 
   @Post()
+  @EmitNotification({
+    type: NotificationType.SHIFT,
+    message: response => {
+      const schedules = response?.data;
+      if (Array.isArray(schedules) && schedules.length > 0) {
+        const first = schedules[0];
+        const date = new Date(first.date).toISOString().split('T')[0];
+        const shiftName = first.shift?.name || 'a shift';
+        return `You have been assigned to ${shiftName} on ${date}.`;
+      }
+      return 'You have been assigned a new work schedule.';
+    },
+    targetUserIdField: 'data',
+  })
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateWorkScheduleDTO })
   async createWorkSchedule(@Body() createDto: CreateWorkScheduleDTO, @CurrentUser() user: any) {

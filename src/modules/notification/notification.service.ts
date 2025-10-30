@@ -1,4 +1,11 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Inject,
+  forwardRef,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateNotificationDTO } from './dto/create-notification.dto';
 import { UpdateNotificationDTO } from './dto/update-notification.dto';
@@ -6,45 +13,129 @@ import { NotificationDTO } from './dto/notification.dto';
 import { NotificationQueryDTO } from './dto/notification-query.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
+import { NotificationGateway } from 'src/common/socket/notification.gateway';
+import { NotificationType } from '@prisma/client';
 
 @Injectable()
 export class NotificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger('NotificationService');
 
-  async createNotification(createData: CreateNotificationDTO): Promise<NotificationDTO> {
-    const { accountId, content, notification_type } = createData;
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => NotificationGateway))
+    private readonly notificationGateway: NotificationGateway
+  ) {}
 
-    const errors: Record<string, string> = {};
+  async sendNotification(
+    accountId: string,
+    content: string,
+    type: NotificationType
+  ): Promise<void> {
+    console.log('=== sendNotification ===');
+    console.log(`accountId: ${accountId} (type: ${typeof accountId})`);
+    console.log(`content: ${content}`);
+    console.log(`type: ${type}`);
 
-    // Validate accountId
-    if (!accountId || accountId.trim() === '') {
-      errors.accountId = 'Account ID is required and cannot be empty';
-    } else {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!uuidRegex.test(accountId)) {
-        errors.accountId = 'Account ID must be a valid UUID';
-      }
+    if (typeof accountId !== 'string' || !accountId.trim()) {
+      this.logger.error(`Invalid accountId: ${accountId}`);
+      throw new BadRequestException('Invalid accountId');
     }
 
     // Validate content
     if (!content || content.trim() === '') {
-      errors.content = 'Content is required and cannot be empty';
-    } else if (content.length > 500) {
-      errors.content = 'Content must not exceed 500 characters';
+      throw new BadRequestException('Notification content cannot be empty');
     }
 
-    // Validate notification_type
-    if (!notification_type) {
-      errors.notification_type = 'Notification type is required';
+    if (content.length > 500) {
+      content = content.substring(0, 497) + '...';
     }
 
-    if (Object.keys(errors).length > 0) {
+    try {
+      const notification = await this.prisma.notification.create({
+        data: {
+          accountId,
+          content,
+          notification_type: type,
+          is_read: false,
+        },
+      });
+      console.log(`Notification created: ${notification.id}`);
+
+      // Send real-time notification via WebSocket
+      console.log('Sending via WebSocket...');
+      this.notificationGateway.sendNotificationWithData(accountId, {
+        id: notification.id,
+        content: notification.content,
+        notification_type: notification.notification_type,
+        sent_at: notification.sent_at,
+      });
+      this.logger.log(`WebSocket notification sent to ${accountId}`);
+    } catch (error) {
+      this.logger.error('Failed to send notification:', error);
+      throw error; // Re-throw to see error in interceptor
+    }
+  }
+
+  async sendBulkNotifications(
+    accountIds: string[],
+    content: string,
+    type: NotificationType
+  ): Promise<void> {
+    if (accountIds.length === 0) return;
+
+    try {
+      // Create notifications in bulk
+      await this.prisma.notification.createMany({
+        data: accountIds.map(accountId => ({
+          accountId,
+          content,
+          notification_type: type,
+          is_read: false,
+        })),
+      });
+
+      // Send real-time notifications
+      accountIds.forEach(accountId => {
+        this.notificationGateway.sendNotificationWithData(accountId, {
+          content,
+          notification_type: type,
+          sent_at: new Date().toISOString(),
+        });
+      });
+    } catch (error) {
+      this.logger.error('Failed to send bulk notifications:', error);
+    }
+  }
+
+  async createNotification(
+    accountId: string,
+    createData: CreateNotificationDTO
+  ): Promise<NotificationDTO> {
+    const { content, notification_type } = createData;
+
+    console.log(`accountId: ${accountId}, content: ${content}, type: ${notification_type}`);
+
+    // Validate content
+    if (content.length > 500) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: errors,
+        errors: { content: 'Content must not exceed 500 characters' },
       });
     }
 
+    // Verify account exists
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+    });
+
+    if (!account) {
+      throw new NotFoundException({
+        message: 'Validation failed',
+        errors: { accountId: 'Account not found' },
+      });
+    }
+
+    // Create notification
     const notification = await this.prisma.notification.create({
       data: {
         accountId,
@@ -54,27 +145,44 @@ export class NotificationService {
       },
     });
 
+    console.log('Notification created:', notification);
+
+    // Send real-time notification
+    try {
+      this.notificationGateway.sendNotificationWithData(accountId, {
+        id: notification.id,
+        content: notification.content,
+        notification_type: notification.notification_type,
+        sent_at: notification.sent_at,
+      });
+      console.log(`Real-time notification sent to user ${accountId}`);
+    } catch (error) {
+      this.logger.error('Failed to send real-time notification:', error);
+    }
+
     return plainToInstance(NotificationDTO, notification, {
       excludeExtraneousValues: true,
     });
   }
 
+  /**
+   * Get notifications for current user with pagination
+   */
   async getNotifications(
+    accountId: string,
     filter: NotificationQueryDTO
   ): Promise<PaginationResponse<NotificationDTO>> {
     const {
-      accountId,
       is_read,
       notification_type,
-      orderBy = 'asc',
-      sortBy = 'createdAt',
+      orderBy = 'desc',
+      sortBy = 'sent_at',
       page = 1,
       pageSize = 10,
     } = filter;
 
-    const where: any = {};
+    const where: any = { accountId };
 
-    if (accountId) where.accountId = accountId;
     if (is_read !== undefined) where.is_read = is_read === true;
     if (notification_type) where.notification_type = notification_type;
 
@@ -102,7 +210,7 @@ export class NotificationService {
     };
   }
 
-  async getNotificationById(id: string): Promise<NotificationDTO> {
+  async getNotificationById(id: string, accountId: string): Promise<NotificationDTO> {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
       throw new BadRequestException({
@@ -119,8 +227,62 @@ export class NotificationService {
       throw new NotFoundException('Notification not found');
     }
 
+    if (notification.accountId !== accountId) {
+      throw new NotFoundException('Notification not found');
+    }
+
     return plainToInstance(NotificationDTO, notification, {
       excludeExtraneousValues: true,
+    });
+  }
+
+  async markAsRead(id: string, accountId: string): Promise<NotificationDTO> {
+    await this.getNotificationById(id, accountId);
+
+    const notification = await this.prisma.notification.update({
+      where: { id },
+      data: {
+        is_read: true,
+        read_at: new Date(),
+      },
+    });
+
+    return plainToInstance(NotificationDTO, notification, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async markAllAsRead(accountId: string): Promise<{ count: number }> {
+    const result = await this.prisma.notification.updateMany({
+      where: {
+        accountId,
+        is_read: false,
+      },
+      data: {
+        is_read: true,
+        read_at: new Date(),
+      },
+    });
+
+    return { count: result.count };
+  }
+
+  async getUnreadCount(accountId: string): Promise<{ count: number }> {
+    const count = await this.prisma.notification.count({
+      where: {
+        accountId,
+        is_read: false,
+      },
+    });
+
+    return { count };
+  }
+
+  async deleteNotification(id: string, accountId: string): Promise<void> {
+    await this.getNotificationById(id, accountId);
+
+    await this.prisma.notification.delete({
+      where: { id },
     });
   }
 
@@ -128,52 +290,6 @@ export class NotificationService {
     id: string,
     updateData: UpdateNotificationDTO
   ): Promise<NotificationDTO> {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: { id: 'Notification ID must be a valid UUID' },
-      });
-    }
-
-    const existing = await this.prisma.notification.findUnique({
-      where: { id },
-    });
-
-    if (!existing) {
-      throw new NotFoundException('Notification not found');
-    }
-
-    const { is_read } = updateData;
-    const data: any = {};
-
-    if (is_read !== undefined) {
-      data.is_read = is_read;
-      if (is_read && !existing.read_at) {
-        data.read_at = new Date();
-      }
-    }
-
-    const notification = await this.prisma.notification.update({
-      where: { id },
-      data,
-    });
-
-    return plainToInstance(NotificationDTO, notification, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  // Hard delete
-  async deleteNotification(id: string): Promise<void> {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: { id: 'Notification ID must be a valid UUID' },
-      });
-    }
-
     const notification = await this.prisma.notification.findUnique({
       where: { id },
     });
@@ -182,8 +298,13 @@ export class NotificationService {
       throw new NotFoundException('Notification not found');
     }
 
-    await this.prisma.notification.delete({
+    const updated = await this.prisma.notification.update({
       where: { id },
+      data: updateData,
+    });
+
+    return plainToInstance(NotificationDTO, updated, {
+      excludeExtraneousValues: true,
     });
   }
 }
