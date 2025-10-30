@@ -10,6 +10,7 @@ import { Server, Socket } from 'socket.io';
 import { WsJwtGuard } from '../guard/ws.guard';
 import { ChatService } from '../../modules/chat/chat.service';
 import { ChatStatus } from '@prisma/client';
+import { JWT_Payload } from '../types';
 
 @UseGuards(WsJwtGuard)
 @WebSocketGateway({ namespace: '/chat', cors: { origin: '*' } })
@@ -38,9 +39,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('register')
-  register(client: Socket, userId: string) {
-    this.onlineUsers.set(userId, client.id);
-    this.logger.log(`[ONLINE] ${userId} (${client.id})`);
+  register(client: Socket) {
+    const user = client.data.user as JWT_Payload;
+    if (!user) {
+      client.emit('error', { message: 'Unauthorized' });
+      return;
+    }
+    this.onlineUsers.set(user.sub, client.id);
+    this.logger.log(`[ONLINE] ${user.sub} (${client.id})`);
   }
 
   @SubscribeMessage('message')
@@ -54,11 +60,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    if (!data.message || data.message.trim() === '') {
+      client.emit('error', { message: 'Message content is required' });
+      return;
+    }
+
     try {
       const savedMessage = await this.chatService.createMessage(senderId, {
-        content: data.message,
+        content: data.message.trim(),
         conversationId: data.conversationId,
-        receiverId: '', // Will be handled by the service based on conversation
       });
       if (!savedMessage.conversationId) throw new Error('Conversation not found');
       const conversation = await this.chatService.getConversationById(savedMessage.conversationId);
