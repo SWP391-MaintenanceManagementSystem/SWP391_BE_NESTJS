@@ -88,13 +88,32 @@ export class NotificationInterceptor implements NestInterceptor {
 
   private extractNestedValue(obj: any, path: string): any {
     if (!obj || !path) return undefined;
-    const isArrayPath = path.includes('[]');
-    const parts = path.replace('[]', '').split('.');
 
-    const value = parts.reduce((current, key) => current?.[key], obj);
-    if (isArrayPath && Array.isArray(value)) {
-      return value.map(v => v);
+    const segments = path.split('.');
+    let current: any[] = [obj];
+
+    for (const segment of segments) {
+      const isArray = segment.endsWith('[]');
+      const key = isArray ? segment.slice(0, -2) : segment;
+
+      const next: any[] = [];
+
+      for (const item of current) {
+        const value = item?.[key];
+
+        if (Array.isArray(value)) {
+          if (isArray) next.push(...value);
+          else next.push(value);
+        } else if (value !== undefined) {
+          next.push(value);
+        }
+      }
+
+      if (next.length === 0) return undefined;
+
+      current = next;
     }
-    return value;
+
+    return current.length === 1 ? current[0] : current;
   }
 }

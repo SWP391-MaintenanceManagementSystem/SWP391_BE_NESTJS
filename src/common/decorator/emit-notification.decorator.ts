@@ -9,5 +9,19 @@ export interface NotificationMetadata {
 
 export const NOTIFICATION_KEY = 'notification';
 
-export const EmitNotification = (metadata: NotificationMetadata) =>
-  SetMetadata(NOTIFICATION_KEY, metadata);
+export const EmitNotification = (metadata: NotificationMetadata) => {
+  let normalizedField = metadata.targetUserIdField;
+
+  if (normalizedField) {
+    if (!normalizedField.includes('.') && !normalizedField.includes('[]')) {
+      normalizedField = `${normalizedField}[]`;
+    } else if (normalizedField.startsWith('data.') && !normalizedField.includes('data[]')) {
+      normalizedField = normalizedField.replace('data.', 'data[].');
+    }
+  }
+
+  return SetMetadata(NOTIFICATION_KEY, {
+    ...metadata,
+    targetUserIdField: normalizedField,
+  });
+};
