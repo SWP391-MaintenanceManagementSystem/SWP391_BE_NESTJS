@@ -102,6 +102,23 @@ const dateToTimeString = (date: Date): string => {
   return date.toISOString().substring(11, 19);
 };
 
+function encodeBase64(input: string): string {
+  return btoa(
+    encodeURIComponent(input).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+      String.fromCharCode(parseInt(p1, 16))
+    )
+  );
+}
+
+function b64DecodeUnicode(str: string) {
+  return decodeURIComponent(
+    atob(str)
+      .split('')
+      .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+      .join('')
+  );
+}
+
 export {
   hashPassword,
   comparePassword,
@@ -118,4 +135,6 @@ export {
   parseDate,
   timeStringToDate,
   dateToTimeString,
+  encodeBase64,
+  b64DecodeUnicode,
 };

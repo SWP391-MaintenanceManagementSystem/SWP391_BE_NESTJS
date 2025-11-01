@@ -12,6 +12,7 @@ import { SubscriptionService } from '../subscription/subscription.service';
 import { MembershipDTO } from '../membership/dto/membership.dto';
 import { plainToInstance } from 'class-transformer';
 import { TransactionDTO } from './dto/transaction.dto';
+import { encodeBase64 } from 'src/utils';
 
 type PaymentReference = MembershipDTO | Booking;
 
@@ -73,6 +74,21 @@ export class PaymentService {
         status: TransactionStatus.PENDING,
       },
     });
+
+    if (amount === 0 && referenceType === ReferenceType.BOOKING) {
+      const booking = await this.prismaService.booking.findUnique({
+        where: { id: referenceId, customerId },
+      });
+      if (!booking) throw new NotFoundException('Booking not found');
+      await this.prismaService.booking.update({
+        where: { id: referenceId },
+        data: { status: 'CHECKED_OUT' },
+      });
+      const encodedId = encodeBase64(referenceId);
+      return {
+        url: `${process.env.FRONTEND_URL}/payment-success?free=true&transactionId=${encodedId}`,
+      };
+    }
 
     if (existingTx) {
       if (!existingTx.sessionId) {

@@ -4,6 +4,7 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import * as dateFns from 'date-fns';
 import { EmailService } from '../email/email.service';
 import { CustomerService } from '../customer/customer.service';
+import { SubscriptionStatus } from '@prisma/client';
 @Injectable()
 export class ScheduleService {
   private readonly logger = new Logger(ScheduleService.name);
@@ -89,5 +90,47 @@ export class ScheduleService {
         this.logger.debug(`Send email to ${customer.email} successfully`);
       }
     }
+  }
+
+  @Cron(CronExpression.EVERY_HOUR, { timeZone: 'Asia/Ho_Chi_Minh' })
+  async handleActivatePendingMemberships() {
+    this.logger.debug('ACTIVATE PENDING MEMBERSHIPS');
+    const now = new Date();
+
+    const toActivate = await this.prisma.subscription.findMany({
+      where: {
+        status: SubscriptionStatus.INACTIVE,
+        startDate: { lte: now },
+      },
+      include: { customer: true },
+    });
+
+    if (toActivate.length === 0) {
+      this.logger.debug('No subscriptions to activate.');
+      return;
+    }
+
+    const updated = await this.prisma.subscription.updateMany({
+      where: {
+        status: SubscriptionStatus.INACTIVE,
+        startDate: { lte: now },
+      },
+      data: {
+        status: SubscriptionStatus.ACTIVE,
+      },
+    });
+
+    await this.prisma.customer.updateMany({
+      where: {
+        accountId: {
+          in: toActivate.map(s => s.customerId),
+        },
+      },
+      data: {
+        isPremium: true,
+      },
+    });
+
+    this.logger.debug(`Activated ${updated.count} pending subscriptions.`);
   }
 }
