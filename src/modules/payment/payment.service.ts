@@ -84,7 +84,7 @@ export class PaymentService {
         where: { id: referenceId },
         data: { status: 'CHECKED_OUT' },
       });
-      const encodedId = encodeBase64(referenceId);
+      const encodedId = encodeBase64(existingTx?.id || '');
       return {
         url: `${process.env.FRONTEND_URL}/payment-success?free=true&transaction_id=${encodedId}`,
       };
