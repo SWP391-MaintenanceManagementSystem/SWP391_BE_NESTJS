@@ -236,4 +236,14 @@ export class PaymentService {
     }
     return plainToInstance(TransactionDTO, transaction);
   }
+
+  async getTransactionById(transactionId: string) {
+    const transaction = await this.prismaService.transaction.findUnique({
+      where: { id: transactionId },
+    });
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+    return plainToInstance(TransactionDTO, transaction);
+  }
 }

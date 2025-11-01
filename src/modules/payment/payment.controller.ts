@@ -85,9 +85,18 @@ export class PaymentController {
     };
   }
 
-  @Get('transaction/:sessionId')
+  @Get('transaction/session/:sessionId')
   async getTransactionBySessionId(@Param('sessionId') sessionId: string) {
     const transaction = await this.paymentService.getTransactionBySessionId(sessionId);
+    return {
+      message: 'Transaction retrieved successfully',
+      data: transaction,
+    };
+  }
+
+  @Get('transaction/:sessionId')
+  async getTransactionById(@Param('sessionId') sessionId: string) {
+    const transaction = await this.paymentService.getTransactionById(sessionId);
     return {
       message: 'Transaction retrieved successfully',
       data: transaction,
