@@ -482,7 +482,6 @@ export class BookingService {
   }
 
   async cancelBooking(bookingId: string, user: JWT_Payload): Promise<BookingDTO> {
-    console.log('🚀 ~ BookingService ~ cancelBooking ~ bookingId:', bookingId);
     const booking = await this.prismaService.booking.findUniqueOrThrow({
       where: { id: bookingId },
     });
