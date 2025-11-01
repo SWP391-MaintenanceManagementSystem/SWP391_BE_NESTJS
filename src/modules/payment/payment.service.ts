@@ -86,7 +86,7 @@ export class PaymentService {
       });
       const encodedId = encodeBase64(referenceId);
       return {
-        url: `${process.env.FRONTEND_URL}/payment-success?free=true&transactionId=${encodedId}`,
+        url: `${process.env.FRONTEND_URL}/payment-success?free=true&transaction_id=${encodedId}`,
       };
     }
 
