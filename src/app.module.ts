@@ -41,6 +41,7 @@ import { BookingAssignmentModule } from './modules/booking-assignment/booking-as
 import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { WebsocketModule } from './common/socket/socket.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { WebsocketModule } from './common/socket/socket.module';
     VehicleHandoverModule,
     ChatModule,
     WebsocketModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [
