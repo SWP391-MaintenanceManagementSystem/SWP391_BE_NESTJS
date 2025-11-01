@@ -73,4 +73,13 @@ export class ChatController {
       message: 'Conversation closed successfully.',
     };
   }
+
+  @Post('conversations')
+  async createConversation(@CurrentUser() user: JWT_Payload) {
+    const conversation = await this.chatService.createConversationForCustomer(user.sub);
+    return {
+      data: conversation,
+      message: 'Conversation created successfully.',
+    };
+  }
 }

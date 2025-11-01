@@ -347,4 +347,14 @@ export class ChatService {
     if (!conversation) throw new NotFoundException('Conversation not found');
     return conversation;
   }
+
+  async createConversationForCustomer(customerId: string) {
+    const conversation = await this.prisma.conversation.create({
+      data: {
+        customerId,
+        status: ChatStatus.OPEN,
+      },
+    });
+    return conversation;
+  }
 }
