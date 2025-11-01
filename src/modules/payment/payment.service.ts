@@ -84,12 +84,23 @@ export class PaymentService {
         where: { id: referenceId },
         data: { status: 'CHECKED_OUT' },
       });
-      const encodedId = encodeBase64(existingTx?.id || '');
+
+      const transaction = await this.prismaService.transaction.create({
+        data: {
+          amount: 0,
+          customerId,
+          referenceId,
+          referenceType,
+          status: TransactionStatus.SUCCESS,
+          method: Method.CARD,
+        },
+      });
+
+      const encodedId = encodeBase64(transaction.id);
       return {
         url: `${process.env.FRONTEND_URL}/payment-success?free=true&transaction_id=${encodedId}`,
       };
     }
-
     if (existingTx) {
       if (!existingTx.sessionId) {
         const { sessionId, url } = await this.createStripeSession(
