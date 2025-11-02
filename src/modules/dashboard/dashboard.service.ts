@@ -126,7 +126,7 @@ export class DashboardService {
       select: { name: true, stock: true, minStock: true, price: true, status: true },
     });
 
-    let instock = 0,
+    let inStock = 0,
       lowStock = 0,
       disStock = 0,
       totalValue = 0;
@@ -136,7 +136,7 @@ export class DashboardService {
       totalValue += (p.price ?? 0) * p.stock;
       switch (p.status) {
         case 'AVAILABLE':
-          instock++;
+          inStock++;
           break;
         case 'OUT_OF_STOCK':
           lowStock++;
@@ -148,7 +148,7 @@ export class DashboardService {
       }
     }
 
-    return { instock, lowStock, disStock, totalItems: parts.length, totalValue, lowStockItems };
+    return { inStock, lowStock, disStock, totalItems: parts.length, totalValue, lowStockItems };
   }
 
  async getBookingsByServiceCenter(): Promise<ServiceCenterStatsDTO[]> {

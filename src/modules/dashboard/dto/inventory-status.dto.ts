@@ -5,7 +5,7 @@ import { LowStockItemDTO } from './low-stock-item.dto';
 export class InventoryStatusDTO {
   @ApiProperty({ example: 100 })
   @Expose()
-  instock: number;
+  inStock: number;
 
   @ApiProperty({ example: 5 })
   @Expose()
