@@ -942,4 +942,50 @@ export class WorkScheduleService {
       where: { id },
     });
   }
+
+  async getWorkSchedulesByEmployeeId(employeeId: string): Promise<WorkScheduleDTO[]> {
+    const workSchedules = await this.prismaService.workSchedule.findMany({
+      where: { employeeId },
+      include: {
+        shift: { include: { serviceCenter: true } },
+        employee: {
+          include: {
+            account: {
+              select: {
+                id: true,
+                email: true,
+                role: true,
+                phone: true,
+                avatar: true,
+                createdAt: true,
+                updatedAt: true,
+                employee: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    createdAt: true,
+                    updatedAt: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return workSchedules.map(schedule =>
+      plainToInstance(WorkScheduleDTO, {
+        ...schedule,
+        date: dateToString(schedule.date),
+        shift: schedule.shift
+          ? {
+              ...schedule.shift,
+              startTime: dateToTimeString(schedule.shift.startTime),
+              endTime: dateToTimeString(schedule.shift.endTime),
+            }
+          : undefined,
+      })
+    );
+  }
 }
