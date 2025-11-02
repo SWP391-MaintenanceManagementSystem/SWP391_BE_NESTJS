@@ -29,6 +29,7 @@ import { StaffBookingService } from './staff-booking.service';
 import { StaffBookingDTO } from './dto/staff-booking.dto';
 import { TechnicianBookingService } from './technician-booking.service';
 import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
+import { FREE_PACKAGE_ID } from 'src/common/constants';
 import { BookingHistoryDTO } from './dto/booking-history.dto';
 
 export const CAN_ADJUST: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.ASSIGNED];
@@ -278,7 +279,12 @@ export class BookingService {
 
   private buildBookingDetails(bookingId: string, services: Service[], packages: Package[]) {
     return [
-      ...packages.map(p => ({ bookingId, packageId: p.id, unitPrice: p.price, quantity: 1 })),
+      ...packages.map(p => ({
+        bookingId,
+        packageId: p.id,
+        unitPrice: p.id === FREE_PACKAGE_ID ? 0 : p.price, // Free package gets 0 price
+        quantity: 1,
+      })),
       ...services.map(s => ({ bookingId, serviceId: s.id, unitPrice: s.price, quantity: 1 })),
     ];
   }

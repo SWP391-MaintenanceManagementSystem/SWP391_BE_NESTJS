@@ -476,12 +476,13 @@ model Transaction {
 }
 
 model Subscription {
-  id           String             @id @default(uuid())
-  customerId   String             @map("customer_id")
-  membershipId String             @map("membership_id")
-  status       SubscriptionStatus @default(ACTIVE)
-  startDate    DateTime           @map("start_date") @db.Timestamptz
-  endDate      DateTime           @map("end_date") @db.Timestamptz
+  id             String             @id @default(uuid())
+  customerId     String             @map("customer_id")
+  membershipId   String             @map("membership_id")
+  status         SubscriptionStatus @default(ACTIVE)
+  lastFreeUsedAt DateTime?          @map("last_free_used_at") @db.Timestamptz
+  startDate      DateTime           @map("start_date") @db.Timestamptz
+  endDate        DateTime           @map("end_date") @db.Timestamptz
 
   customer   Customer   @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
   membership Membership @relation(fields: [membershipId], references: [id])

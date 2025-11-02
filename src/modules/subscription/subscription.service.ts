@@ -1,11 +1,11 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PaymentService } from '../payment/payment.service';
-import * as dateFns from 'date-fns';
 import { Prisma, SubscriptionStatus } from '@prisma/client';
 import { MembershipService } from '../membership/membership.service';
 import { convertToPeriod } from '../../utils';
 import { CustomerService } from '../customer/customer.service';
+import { plainToInstance } from 'class-transformer';
+import { SubscriptionDTO } from './dto/subscription.dto';
 @Injectable()
 export class SubscriptionService {
   constructor(
@@ -45,40 +45,98 @@ export class SubscriptionService {
     return subscription;
   }
 
-  async updateOrCreateSubscription(membershipId: string, customerId: string) {
-    const existingSubscription = await this.prismaService.subscription.findFirst({
-      where: {
-        membershipId,
-        customerId,
-        status: SubscriptionStatus.ACTIVE,
-      },
-      include: {
-        customer: true,
-        membership: true,
-      },
-    });
+  // async updateOrCreateSubscription(membershipId: string, customerId: string) {
+  //   const existingSubscription = await this.prismaService.subscription.findFirst({
+  //     where: {
+  //       membershipId,
+  //       customerId,
+  //       status: SubscriptionStatus.ACTIVE,
+  //     },
+  //     include: {
+  //       customer: true,
+  //       membership: true,
+  //     },
+  //   });
 
-    if (existingSubscription) {
+  //   if (existingSubscription) {
+  //     const membership = await this.membershipService.getMembershipById(membershipId);
+  //     if (!membership) {
+  //       throw new NotFoundException('Membership not found');
+  //     }
+  //     const newEndDate = convertToPeriod(
+  //       membership.periodType,
+  //       membership.duration,
+  //       existingSubscription.endDate
+  //     );
+  //     const updated = await this.updateSubscription(existingSubscription.id, {
+  //       endDate: newEndDate,
+  //     });
+  //     await this.prismaService.customer.update({
+  //       where: { accountId: customerId },
+  //       data: { isPremium: true },
+  //     });
+  //     return updated;
+  //   } else {
+  //     return this.createSubscription(membershipId, customerId);
+  //   }
+  // }
+
+  async updateOrCreateSubscription(membershipId: string, customerId: string) {
+    const activeSubs = await this.prismaService.subscription.findMany({
+      where: { customerId, status: SubscriptionStatus.ACTIVE },
+      include: { membership: true },
+    });
+    const sameMembership = activeSubs.filter(sub => sub.membershipId === membershipId);
+    if (sameMembership.length > 0) {
       const membership = await this.membershipService.getMembershipById(membershipId);
       if (!membership) {
         throw new NotFoundException('Membership not found');
       }
+
       const newEndDate = convertToPeriod(
         membership.periodType,
         membership.duration,
-        existingSubscription.endDate
+        sameMembership[0].endDate
       );
-      const updated = await this.updateSubscription(existingSubscription.id, {
-        endDate: newEndDate,
-      });
-      await this.prismaService.customer.update({
-        where: { accountId: customerId },
-        data: { isPremium: true },
-      });
+
+      const updated = await this.updateSubscription(sameMembership[0].id, { endDate: newEndDate });
+
       return updated;
-    } else {
-      return this.createSubscription(membershipId, customerId);
     }
+
+    let startDate = new Date();
+    const latestEnd =
+      activeSubs.length > 0
+        ? activeSubs.reduce(
+            (latest, s) => (s.endDate > latest ? s.endDate : latest),
+            activeSubs[0].endDate
+          )
+        : null;
+
+    const membership = await this.membershipService.getMembershipById(membershipId);
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+
+    startDate = latestEnd && latestEnd > new Date() ? latestEnd : new Date();
+    const endDate = convertToPeriod(membership.periodType, membership.duration, startDate);
+
+    const newSub = await this.prismaService.subscription.create({
+      data: {
+        membershipId,
+        customerId,
+        startDate,
+        endDate,
+        status: SubscriptionStatus.INACTIVE,
+      },
+    });
+
+    await this.prismaService.customer.update({
+      where: { accountId: customerId },
+      data: { isPremium: true },
+    });
+
+    return plainToInstance(SubscriptionDTO, newSub);
   }
 
   async getSubscriptionByCustomerId(customerId: string) {

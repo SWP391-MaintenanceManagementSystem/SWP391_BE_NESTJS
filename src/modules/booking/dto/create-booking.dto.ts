@@ -34,7 +34,6 @@ export class CreateBookingDTO {
 
   @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
   @IsUUID('4', { each: true })
   @ApiProperty({ type: [String], example: ['uuid-service-1', 'uuid-service-2'], required: false })
   serviceIds?: string[];

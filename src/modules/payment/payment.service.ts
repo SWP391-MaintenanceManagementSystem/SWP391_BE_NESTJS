@@ -12,6 +12,7 @@ import { SubscriptionService } from '../subscription/subscription.service';
 import { MembershipDTO } from '../membership/dto/membership.dto';
 import { plainToInstance } from 'class-transformer';
 import { TransactionDTO } from './dto/transaction.dto';
+import { encodeBase64 } from 'src/utils';
 
 type PaymentReference = MembershipDTO | Booking;
 
@@ -74,6 +75,32 @@ export class PaymentService {
       },
     });
 
+    if (amount === 0 && referenceType === ReferenceType.BOOKING) {
+      const booking = await this.prismaService.booking.findUnique({
+        where: { id: referenceId, customerId },
+      });
+      if (!booking) throw new NotFoundException('Booking not found');
+      await this.prismaService.booking.update({
+        where: { id: referenceId },
+        data: { status: 'CHECKED_OUT' },
+      });
+
+      const transaction = await this.prismaService.transaction.create({
+        data: {
+          amount: 0,
+          customerId,
+          referenceId,
+          referenceType,
+          status: TransactionStatus.SUCCESS,
+          method: Method.CARD,
+        },
+      });
+
+      const encodedId = encodeBase64(transaction.id);
+      return {
+        url: `${process.env.FRONTEND_URL}/payment-success?free=true&transaction_id=${encodedId}`,
+      };
+    }
     if (existingTx) {
       if (!existingTx.sessionId) {
         const { sessionId, url } = await this.createStripeSession(
@@ -214,6 +241,16 @@ export class PaymentService {
   async getTransactionBySessionId(sessionId: string) {
     const transaction = await this.prismaService.transaction.findUnique({
       where: { sessionId },
+    });
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+    return plainToInstance(TransactionDTO, transaction);
+  }
+
+  async getTransactionById(transactionId: string) {
+    const transaction = await this.prismaService.transaction.findUnique({
+      where: { id: transactionId },
     });
     if (!transaction) {
       throw new NotFoundException('Transaction not found');
