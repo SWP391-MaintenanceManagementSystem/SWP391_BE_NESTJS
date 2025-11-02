@@ -24,7 +24,6 @@ export class NotificationQueryDTO {
   @ApiPropertyOptional({
     required: false,
     description: 'Field to sort by',
-    example: 'sent_at',
   })
   @IsOptional()
   sortBy?: string;

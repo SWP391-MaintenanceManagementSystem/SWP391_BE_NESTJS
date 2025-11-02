@@ -29,11 +29,12 @@ export class NotificationDTO {
 
   @Expose()
   @Transform(({ obj }) => {
+    if (!obj.read_at) return null;
     const vnTime = toZonedTime(obj.read_at, VN_TIMEZONE);
     return format(vnTime, VN_DATE_TIME_FORMAT);
   })
-  read_at: string;
+  read_at: string | null;
 
   @Expose()
-  createdAt: Date;
+  created_at: Date;
 }
