@@ -69,7 +69,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      // Create or continue conversation
       const message = await this.chatService.createMessage(senderId, {
         content: data.message.trim(),
         conversationId: data.conversationId,
@@ -77,18 +76,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const conversation = await this.chatService.getConversationById(message.conversationId!);
 
-      // Notify both parties
-      if (conversation.staffId) {
-        const staffSocket = this.onlineUsers.get(conversation.staffId);
-        if (staffSocket) {
-          this.server.to(staffSocket).emit('message', message);
-        }
-      } else {
-        // Notify all staff about a new ticket
+      const customerSocket = conversation.customerId
+        ? this.onlineUsers.get(conversation.customerId)
+        : null;
+
+      const staffSocket = conversation.staffId ? this.onlineUsers.get(conversation.staffId) : null;
+
+      if (!conversation.staffId) {
         this.server.emit('new_ticket', conversation);
       }
 
-      // Acknowledge sender
+      if (customerSocket && customerSocket !== client.id) {
+        this.server.to(customerSocket).emit('message', message);
+      }
+
+      if (staffSocket && staffSocket !== client.id) {
+        this.server.to(staffSocket).emit('message', message);
+      }
+
       client.emit('message_sent', message);
     } catch (err) {
       this.logger.error(err);
