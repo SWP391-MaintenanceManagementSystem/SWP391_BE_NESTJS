@@ -41,8 +41,6 @@ import { BookingAssignmentModule } from './modules/booking-assignment/booking-as
 import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover.module';
 import { ChatModule } from './modules/chat/chat.module';
 import { WebsocketModule } from './common/socket/socket.module';
-import { NotificationModule } from './modules/notification/notification.module';
-import { NotificationInterceptor } from './common/interceptor/notification.interceptor';
 
 @Module({
   imports: [
@@ -109,7 +107,6 @@ import { NotificationInterceptor } from './common/interceptor/notification.inter
     VehicleHandoverModule,
     ChatModule,
     WebsocketModule,
-    NotificationModule,
   ],
   controllers: [AppController],
   providers: [
@@ -129,10 +126,6 @@ import { NotificationInterceptor } from './common/interceptor/notification.inter
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: NotificationInterceptor,
     },
   ],
 })
