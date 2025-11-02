@@ -236,37 +236,6 @@ export class NotificationService {
     });
   }
 
-  async markAsRead(id: string, accountId: string): Promise<NotificationDTO> {
-    await this.getNotificationById(id, accountId);
-
-    const notification = await this.prisma.notification.update({
-      where: { id },
-      data: {
-        is_read: true,
-        read_at: new Date(),
-      },
-    });
-
-    return plainToInstance(NotificationDTO, notification, {
-      excludeExtraneousValues: true,
-    });
-  }
-
-  async markAllAsRead(accountId: string): Promise<{ count: number }> {
-    const result = await this.prisma.notification.updateMany({
-      where: {
-        accountId,
-        is_read: false,
-      },
-      data: {
-        is_read: true,
-        read_at: new Date(),
-      },
-    });
-
-    return { count: result.count };
-  }
-
   async getUnreadCount(accountId: string): Promise<{ count: number }> {
     const count = await this.prisma.notification.count({
       where: {
@@ -276,14 +245,6 @@ export class NotificationService {
     });
 
     return { count };
-  }
-
-  async deleteNotification(id: string, accountId: string): Promise<void> {
-    await this.getNotificationById(id, accountId);
-
-    await this.prisma.notification.delete({
-      where: { id },
-    });
   }
 
   async updateNotification(
@@ -306,5 +267,86 @@ export class NotificationService {
     return plainToInstance(NotificationDTO, updated, {
       excludeExtraneousValues: true,
     });
+  }
+
+  async markAsRead(notificationId: string, accountId: string): Promise<NotificationDTO> {
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    if (notification.accountId !== accountId) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    if (notification.is_read) {
+      // Already read, just return
+      return plainToInstance(NotificationDTO, notification, {
+        excludeExtraneousValues: true,
+      });
+    }
+
+    const updated = await this.prisma.notification.update({
+      where: { id: notificationId },
+      data: {
+        is_read: true,
+        read_at: new Date(),
+      },
+    });
+
+    this.notificationGateway.emitNotificationRead(accountId, notificationId);
+
+    return plainToInstance(NotificationDTO, updated, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async markAllAsRead(accountId: string): Promise<{ count: number }> {
+    const result = await this.prisma.notification.updateMany({
+      where: {
+        accountId,
+        is_read: false,
+      },
+      data: {
+        is_read: true,
+        read_at: new Date(),
+      },
+    });
+
+    this.notificationGateway.emitAllNotificationsRead(accountId);
+
+    return { count: result.count };
+  }
+
+  async deleteNotification(notificationId: string, accountId: string): Promise<void> {
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    if (notification.accountId !== accountId) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    await this.prisma.notification.delete({
+      where: { id: notificationId },
+    });
+
+    // Emit real-time update via WebSocket
+    this.notificationGateway.emitNotificationDeleted(accountId, notificationId);
+  }
+
+  async deleteAllNotifications(accountId: string): Promise<{ count: number }> {
+    const result = await this.prisma.notification.deleteMany({
+      where: { accountId },
+    });
+
+    return { count: result.count };
   }
 }

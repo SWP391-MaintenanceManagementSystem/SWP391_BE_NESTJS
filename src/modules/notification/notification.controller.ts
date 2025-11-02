@@ -70,7 +70,6 @@ export class NotificationController {
   @Get(':id')
   @ApiOperation({
     summary: 'Get notification by ID',
-    description: 'Retrieves a specific notification (ownership checked)',
   })
   async findOne(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
     const data = await this.notificationService.getNotificationById(id, user.sub);
@@ -83,7 +82,6 @@ export class NotificationController {
   @Patch(':id/read')
   @ApiOperation({
     summary: 'Mark notification as read',
-    description: 'Marks a specific notification as read',
   })
   async markAsRead(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
     const data = await this.notificationService.markAsRead(id, user.sub);
@@ -96,7 +94,6 @@ export class NotificationController {
   @Patch('read-all')
   @ApiOperation({
     summary: 'Mark all notifications as read',
-    description: 'Marks all unread notifications as read for current user',
   })
   async markAllAsRead(@CurrentUser() user: JWT_Payload) {
     const data = await this.notificationService.markAllAsRead(user.sub);
@@ -107,14 +104,19 @@ export class NotificationController {
   }
 
   @Delete(':id')
-  @ApiOperation({
-    summary: 'Delete notification',
-    description: 'Deletes a specific notification (ownership checked)',
-  })
-  async remove(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
-    await this.notificationService.deleteNotification(id, user.sub);
+  async deleteNotification(
+    @Param('id') notificationId: string,
+    @CurrentUser() accountId: JWT_Payload
+  ) {
+    await this.notificationService.deleteNotification(notificationId, accountId.sub);
+  }
+
+  @Delete()
+  async deleteAllNotifications(@CurrentUser() accountId: JWT_Payload) {
+    const result = await this.notificationService.deleteAllNotifications(accountId.sub);
     return {
-      message: 'Notification deleted successfully',
+      message: `${result.count} notification(s) deleted`,
+      ...result,
     };
   }
 }
