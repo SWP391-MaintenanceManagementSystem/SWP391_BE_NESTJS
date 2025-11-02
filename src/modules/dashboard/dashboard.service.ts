@@ -13,76 +13,130 @@ export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
 
-  async getSummary(): Promise<DashboardSummaryDTO> {
-    const timeZone = 'Asia/Ho_Chi_Minh';
-    const nowVN = toZonedTime(new Date(), timeZone);
+ async getSummary(): Promise<DashboardSummaryDTO> {
+  const timeZone = 'Asia/Ho_Chi_Minh';
+  const nowVN = toZonedTime(new Date(), timeZone);
 
-    const startOfWeek = (date: Date) => {
-      const d = new Date(date);
-      const day = d.getDay() === 0 ? 7 : d.getDay();
-      d.setDate(d.getDate() - (day - 1));
-      d.setHours(0, 0, 0, 0);
-      return d;
-    };
+  const startOfWeek = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay() === 0 ? 7 : d.getDay(); // nếu CN thì tính là ngày 7
+    d.setDate(d.getDate() - (day - 1)); // về đầu tuần (thứ 2)
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
 
-    const endOfWeek = (date: Date) => {
-      const start = startOfWeek(date);
-      const end = new Date(start);
-      end.setDate(start.getDate() + 6);
-      end.setHours(23, 59, 59, 999);
-      return end;
-    };
+  const endOfWeek = (date: Date) => {
+    const start = startOfWeek(date);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  };
 
-    const startThisWeek = startOfWeek(nowVN);
-    const endThisWeek = endOfWeek(nowVN);
-    const startLastWeek = new Date(startThisWeek);
-    startLastWeek.setDate(startThisWeek.getDate() - 7);
-    const endLastWeek = new Date(endThisWeek);
-    endLastWeek.setDate(endThisWeek.getDate() - 7);
+  const startThisWeek = startOfWeek(nowVN);
+  const endThisWeek = endOfWeek(nowVN);
+  const startLastWeek = new Date(startThisWeek);
+  startLastWeek.setDate(startThisWeek.getDate() - 7);
+  const endLastWeek = new Date(endThisWeek);
+  endLastWeek.setDate(endThisWeek.getDate() - 7);
 
-    const [
-      totalRevenueAggregate,
-      revenueThisWeek,
-      revenueLastWeek,
-      customersThisWeek,
-      customersLastWeek,
-      employeesThisWeek,
-      employeesLastWeek,
-      totalCustomers,
-      totalEmployees,
-      totalCenters,
-    ] = await Promise.all([
-      this.prisma.transaction.aggregate({ _sum: { amount: true }, where: { status: 'SUCCESS' } }),
-      this.prisma.transaction.aggregate({
-        _sum: { amount: true },
-        where: { status: 'SUCCESS', createdAt: { gte: startThisWeek, lte: endThisWeek } },
-      }),
-      this.prisma.transaction.aggregate({
-        _sum: { amount: true },
-        where: { status: 'SUCCESS', createdAt: { gte: startLastWeek, lte: endLastWeek } },
-      }),
-      this.prisma.customer.count({ where: { createdAt: { gte: startThisWeek, lte: endThisWeek } } }),
-      this.prisma.customer.count({ where: { createdAt: { gte: startLastWeek, lte: endLastWeek } } }),
-      this.prisma.employee.count({ where: { createdAt: { gte: startThisWeek, lte: endThisWeek } } }),
-      this.prisma.employee.count({ where: { createdAt: { gte: startLastWeek, lte: endLastWeek } } }),
-      this.prisma.customer.count(),
-      this.prisma.employee.count(),
-      this.prisma.serviceCenter.count(),
-    ]);
+  const [
+    totalRevenueAggregate,
+    revenueThisWeek,
+    revenueLastWeek,
+    customersThisWeek,
+    customersLastWeek,
+    employeesThisWeek,
+    employeesLastWeek,
+    totalCustomers,
+    totalEmployees,
+    totalCenters,
+  ] = await Promise.all([
 
-    const calcGrowth = (curr: number, prev: number) =>
-      prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+    this.prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: { status: 'SUCCESS' },
+    }),
 
-    return {
-      totalRevenue: Number(totalRevenueAggregate._sum.amount ?? 0),
-      totalCustomers,
-      totalEmployees,
-      totalServiceCenters: totalCenters,
-      revenueGrowthRate: calcGrowth(Number(revenueThisWeek._sum.amount ?? 0), Number(revenueLastWeek._sum.amount ?? 0)),
-      customerGrowthRate: calcGrowth(customersThisWeek, customersLastWeek),
-      employeeGrowthRate: calcGrowth(employeesThisWeek, employeesLastWeek),
-    };
-  }
+
+    this.prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        status: 'SUCCESS',
+        createdAt: { gte: startThisWeek, lte: endThisWeek },
+      },
+    }),
+
+    this.prisma.transaction.aggregate({
+      _sum: { amount: true },
+      where: {
+        status: 'SUCCESS',
+        createdAt: { gte: startLastWeek, lte: endLastWeek },
+      },
+    }),
+
+
+    this.prisma.customer.count({
+      where: {
+        createdAt: { gte: startThisWeek, lte: endThisWeek },
+        account: { status: 'VERIFIED' },
+      },
+    }),
+
+
+    this.prisma.customer.count({
+      where: {
+        createdAt: { gte: startLastWeek, lte: endLastWeek },
+        account: { status: 'VERIFIED' },
+      },
+    }),
+
+
+    this.prisma.employee.count({
+      where: {
+        createdAt: { gte: startThisWeek, lte: endThisWeek },
+        account: { status: 'VERIFIED' },
+      },
+    }),
+
+
+    this.prisma.employee.count({
+      where: {
+        createdAt: { gte: startLastWeek, lte: endLastWeek },
+        account: { status: 'VERIFIED' },
+      },
+    }),
+
+
+    this.prisma.customer.count({
+      where: { account: { status: 'VERIFIED' } },
+    }),
+
+
+    this.prisma.employee.count({
+      where: { account: { status: 'VERIFIED' } },
+    }),
+
+
+    this.prisma.serviceCenter.count(),
+  ]);
+
+  const calcGrowth = (curr: number, prev: number) =>
+    prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
+
+  return {
+    totalRevenue: Number(totalRevenueAggregate._sum.amount ?? 0),
+    totalCustomers,
+    totalEmployees,
+    totalServiceCenters: totalCenters,
+    revenueGrowthRate: calcGrowth(
+      Number(revenueThisWeek._sum.amount ?? 0),
+      Number(revenueLastWeek._sum.amount ?? 0),
+    ),
+    customerGrowthRate: calcGrowth(customersThisWeek, customersLastWeek),
+    employeeGrowthRate: calcGrowth(employeesThisWeek, employeesLastWeek),
+  };
+}
 
 
   async getRevenueByDate(period?: string): Promise<RevenueStatsDTO> {
