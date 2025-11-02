@@ -171,24 +171,33 @@ export class DashboardService {
 
 
   async getTrendingPurchases(): Promise<TrendingSummaryDTO> {
-    const [services, packages, memberships] = await Promise.all([
-      this.getTrendingServices(),
-      this.getTrendingPackages(),
-      this.getTrendingMemberships(),
-    ]);
+  const [services, packages, memberships] = await Promise.all([
+    this.getTrendingServices(),
+    this.getTrendingPackages(),
+    this.getTrendingMemberships(),
+  ]);
 
-    return {
-      mostPopularService: services[0]?.name ?? null,
-      mostPopularPackage: packages[0]?.name ?? null,
-      mostPopularMembership: memberships[0]?.name ?? null,
-      services,
-      packages,
-      memberships,
-    };
+
+  const getTopNames = (items: { name: string; value: number }[]) => {
+    if (!items.length) return [];
+    const topValue = items[0].value;
+    return items.filter((i) => i.value === topValue).map((i) => i.name);
+  };
+
+  return {
+    mostPopularService: getTopNames(services),
+    mostPopularPackage: getTopNames(packages),
+    mostPopularMembership: getTopNames(memberships),
+    services,
+    packages,
+    memberships,
+  }
   }
 
   private async getTrendingServices() {
-    const all = await this.prisma.service.findMany();
+    const all = await this.prisma.service.findMany({
+      where: { status: 'ACTIVE' },
+    });
     const counts = await this.prisma.bookingDetail.groupBy({
       by: ['serviceId'],
       _count: { id: true },
@@ -201,7 +210,9 @@ export class DashboardService {
   }
 
   private async getTrendingPackages() {
-    const all = await this.prisma.package.findMany();
+    const all = await this.prisma.package.findMany({
+      where: { status: 'ACTIVE' },
+    });
     const counts = await this.prisma.bookingDetail.groupBy({
       by: ['packageId'],
       _count: { id: true },
@@ -214,7 +225,9 @@ export class DashboardService {
   }
 
   private async getTrendingMemberships() {
-    const all = await this.prisma.membership.findMany();
+    const all = await this.prisma.membership.findMany({
+      where: { status: 'ACTIVE' },
+    });
     const counts = await this.prisma.subscription.groupBy({
       by: ['membershipId'],
       _count: { id: true },

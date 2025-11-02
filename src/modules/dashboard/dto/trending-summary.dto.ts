@@ -3,17 +3,17 @@ import { Expose, Type } from 'class-transformer';
 import { TrendingItemDTO } from './trending-item.dto';
 
 export class TrendingSummaryDTO {
-  @ApiProperty()
+  @ApiProperty({type: [String]})
   @Expose()
-  mostPopularService: string;
+  mostPopularService: string[];
 
-  @ApiProperty()
+  @ApiProperty({type: [String]})
   @Expose()
-  mostPopularPackage: string;
+  mostPopularPackage: string[];
 
-  @ApiProperty()
+  @ApiProperty({type: [String]})
   @Expose()
-  mostPopularMembership: string;
+  mostPopularMembership: string[];
 
   @ApiProperty({ type: [TrendingItemDTO] })
   @Expose()
