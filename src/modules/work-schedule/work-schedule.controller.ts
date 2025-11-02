@@ -65,6 +65,17 @@ export class WorkScheduleController {
     };
   }
 
+  @Get('employee/:employeeId')
+  @UseGuards()
+  async getWorkSchedulesByEmployeeId(@Param('employeeId', ParseUUIDPipe) employeeId: string) {
+    const data = await this.workScheduleService.getWorkSchedulesByEmployeeId(employeeId);
+
+    return {
+      message: 'Work schedules retrieved successfully',
+      data,
+    };
+  }
+
   @Patch(':id')
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: UpdateWorkScheduleDTO })
