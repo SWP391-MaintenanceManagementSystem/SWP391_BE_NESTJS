@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { Prisma, AccountRole } from '@prisma/client';
+import { Prisma, AccountRole, CenterStatus } from '@prisma/client';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from './dto/employee-query.dto';
 import { EmployeeWithCenterDTO } from './dto/employee-with-center.dto';
@@ -11,9 +11,11 @@ import { UpdateStaffDTO } from './staff/dto/update-staff.dto';
 import { BadRequestException, NotFoundException } from '@nestjs/common/exceptions';
 import { AccountStatus } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
-import { hashPassword, parseDate, vnToUtcDate } from 'src/utils';
+import { hashPassword, parseDate, vnToUtcDate, utcToVNDate, timeStringToDate } from 'src/utils';
+import { isSameDay } from 'date-fns';
 import { CreateTechnicianDTO } from './technician/dto/create-technician.dto';
 import { CreateStaffDTO } from './staff/dto/create-staff.dto';
+import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
 
 @Injectable()
 export class EmployeeService {
@@ -195,6 +197,8 @@ export class EmployeeService {
         : {
             id: null,
             name: 'Not assigned',
+            startDate: null,
+            endDate: null,
           },
     }));
 
@@ -209,6 +213,87 @@ export class EmployeeService {
     };
   }
 
+  private validateWorkCenter(
+    workCenter: UpdateEmployeeWithCenterDTO,
+    errors: Record<string, string>
+  ): void {
+    const { centerId, startDate, endDate } = workCenter;
+
+    // Validate centerId
+    if (centerId !== undefined && centerId.trim() !== '') {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(centerId)) {
+        errors['workCenter.centerId'] = 'Service Center ID must be a valid UUID';
+      }
+    }
+
+    // Validate startDate
+    if (startDate !== undefined && startDate.trim() !== '') {
+      const parsed = parseDate(startDate);
+      if (!parsed) {
+        errors['workCenter.startDate'] = 'Start date must be a valid date (YYYY-MM-DD)';
+      }
+    }
+
+    // Validate endDate
+    if (endDate !== undefined && endDate.trim() !== '') {
+      const parsed = parseDate(endDate);
+      if (!parsed) {
+        errors['workCenter.endDate'] = 'End date must be a valid date (YYYY-MM-DD)';
+      }
+    }
+
+    // Validate date range
+    if (startDate && startDate.trim() !== '' && endDate && endDate.trim() !== '') {
+      const parsedStart = parseDate(startDate);
+      const parsedEnd = parseDate(endDate);
+
+      if (parsedStart && parsedEnd && parsedStart >= parsedEnd) {
+        errors['workCenter.dateRange'] = 'Start date must be before end date';
+      }
+    }
+  }
+
+  async checkEmployeeHasActiveShifts(employeeId: string): Promise<boolean> {
+    const vnNow = utcToVNDate(new Date());
+    const vnToday = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate());
+    const vnTodayUtc = vnToUtcDate(vnToday);
+
+    const activeSchedule = await this.prisma.workSchedule.findFirst({
+      where: {
+        employeeId,
+        date: { gte: vnTodayUtc },
+      },
+      include: { shift: true },
+    });
+
+    if (!activeSchedule) return false;
+
+    const scheduleVNDate = utcToVNDate(activeSchedule.date);
+
+    // Future schedule
+    if (!isSameDay(scheduleVNDate, vnNow)) return true;
+
+    // Today's schedule - check if shift has ended
+    if (activeSchedule.shift?.endTime) {
+      const endTimeStr = String(activeSchedule.shift.endTime);
+      const [endHour, endMinute] = endTimeStr.split(':').map(Number);
+
+      const shiftEndToday = new Date(
+        scheduleVNDate.getFullYear(),
+        scheduleVNDate.getMonth(),
+        scheduleVNDate.getDate(),
+        endHour,
+        endMinute,
+        0
+      );
+
+      return vnNow < shiftEndToday;
+    }
+
+    return false;
+  }
+
   async assignEmployeeToServiceCenter(
     employeeId: string,
     workCenterData: UpdateEmployeeWithCenterDTO
@@ -221,14 +306,14 @@ export class EmployeeService {
     if (!parsedStartDate) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: { startDate: 'Invalid start date' },
+        errors: { startDate: 'Invalid start date format (expected: YYYY-MM-DD)' },
       });
     }
 
     if (endDate && !parsedEndDate) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: { endDate: 'Invalid end date' },
+        errors: { endDate: 'Invalid end date format (expected: YYYY-MM-DD)' },
       });
     }
 
@@ -238,6 +323,7 @@ export class EmployeeService {
     const employee = await this.prisma.employee.findUnique({
       where: { accountId: employeeId },
       include: {
+        account: { select: { role: true } },
         workCenters: {
           where: {
             OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
@@ -248,22 +334,23 @@ export class EmployeeService {
     });
 
     if (!employee) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: {
-          employee: 'Employee not found',
-        },
-      });
+      throw new NotFoundException('Employee not found');
     }
 
     const currentAssignment = employee.workCenters[0];
 
-    if (!centerId) {
+    if (!centerId || centerId.trim() === '') {
       if (!currentAssignment) {
         return {
           employeeId,
           workCenter: { id: null, name: 'Not assigned' },
         };
+      }
+      const hasActiveShifts = await this.checkEmployeeHasActiveShifts(employeeId);
+      if (hasActiveShifts) {
+        throw new ConflictException(
+          'Cannot remove service center assignment: Employee has active/upcoming shifts. Please complete or cancel shifts first.'
+        );
       }
 
       await this.prisma.workCenter.update({
@@ -282,47 +369,48 @@ export class EmployeeService {
     });
 
     if (!serviceCenter) {
-      throw new BadRequestException({
-        message: 'Validation failed',
-        errors: {
-          'workCenter.centerId': 'Service center not found',
-        },
-      });
+      throw new NotFoundException(`Service center with ID ${centerId} not found`);
     }
 
-    if (currentAssignment) {
-      if (currentAssignment.centerId === centerId) {
-        const updatedAssignment = await this.prisma.workCenter.update({
-          where: { id: currentAssignment.id },
-          data: {
-            startDate: start,
-            endDate: end,
-          },
-          include: {
-            serviceCenter: {
-              select: {
-                id: true,
-                name: true,
-                address: true,
-                status: true,
-              },
+    if (serviceCenter.status === CenterStatus.CLOSED) {
+      throw new BadRequestException('Cannot assign employee to a closed service center');
+    }
+
+    if (currentAssignment?.centerId === centerId) {
+      const updatedAssignment = await this.prisma.workCenter.update({
+        where: { id: currentAssignment.id },
+        data: { startDate: start, endDate: end },
+        include: {
+          serviceCenter: {
+            select: {
+              id: true,
+              name: true,
+              address: true,
+              status: true,
             },
           },
-        });
-        return {
-          employeeId,
-          workCenter: updatedAssignment.serviceCenter,
-        };
-      }
+        },
+      });
+
+      return {
+        employeeId,
+        workCenter: updatedAssignment.serviceCenter,
+      };
     }
 
     if (currentAssignment && currentAssignment.centerId !== centerId) {
+      const hasActiveShifts = await this.checkEmployeeHasActiveShifts(employeeId);
+      if (hasActiveShifts) {
+        throw new ConflictException(
+          'Cannot change service center: Employee has active/upcoming shifts. Please complete or cancel shifts first.'
+        );
+      }
+
       await this.prisma.workCenter.update({
         where: { id: currentAssignment.id },
         data: { endDate: new Date() },
       });
     }
-
     const newAssignment = await this.prisma.workCenter.create({
       data: {
         employeeId,
@@ -354,17 +442,36 @@ export class EmployeeService {
   ): Promise<EmployeeWithCenterDTO> {
     const { firstName, lastName, phone, status, workCenter } = updateData;
 
+    if (!employeeId) {
+      throw new BadRequestException('Employee ID is required');
+    }
+
+    if (!updateData || Object.keys(updateData).length === 0) {
+      throw new BadRequestException('No update data provided');
+    }
+
     const existing = await this.prisma.account.findUnique({
       where: { id: employeeId },
-      include: { employee: true },
+      include: {
+        employee: {
+          include: {
+            workCenters: {
+              where: {
+                OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+              },
+            },
+          },
+        },
+      },
     });
 
-    if (!employeeId) throw new BadRequestException('Employee ID is required');
-    if (!updateData || Object.keys(updateData).length === 0)
-      throw new BadRequestException('No update data provided');
+    if (!existing) {
+      throw new NotFoundException('Account not found');
+    }
 
-    if (!existing) throw new NotFoundException('Account not found');
-    if (!existing.employee) throw new NotFoundException('Employee not found');
+    if (!existing.employee) {
+      throw new NotFoundException('Employee not found');
+    }
 
     const errors: Record<string, string> = {};
 
@@ -391,6 +498,7 @@ export class EmployeeService {
         }
       }
     }
+
     if (phone !== undefined) {
       if (!phone || phone.trim() === '') {
         errors.phone = 'Phone is required and cannot be empty';
@@ -403,67 +511,32 @@ export class EmployeeService {
     }
 
     if (status !== undefined) {
-      // Check if status is empty or just whitespace
       if (!status || (typeof status === 'string' && status.trim() === '')) {
         errors.status = 'Status is required and cannot be empty';
       } else {
         const validStatuses = Object.values(AccountStatus);
         if (!validStatuses.includes(status)) {
-          errors.status = `Status must be one of the following values: ${validStatuses.join(', ')}`;
+          errors.status = `Status must be one of: ${validStatuses.join(', ')}`;
         }
       }
     }
 
     if (workCenter !== undefined) {
-      const { centerId, startDate, endDate } = workCenter;
+      const { centerId } = workCenter;
+      const currentAssignment = existing.employee.workCenters[0];
 
-      const allEmpty =
-        (!centerId || centerId.trim() === '') &&
-        (!startDate || startDate.trim() === '') &&
-        (!endDate || endDate.trim() === '');
+      this.validateWorkCenter(workCenter, errors);
 
-      if (allEmpty) {
-      } else {
-        // centerId validation
-        if (centerId !== undefined) {
-          if (!centerId || centerId.trim() === '') {
-            errors['workCenter.centerId'] = 'Service Center ID is required and cannot be empty';
-          } else {
-            const uuidRegex =
-              /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-            if (!uuidRegex.test(centerId)) {
-              errors['workCenter.centerId'] = 'Service Center ID must be a valid UUID';
-            }
+      if (centerId !== undefined) {
+        const isRemoving = !centerId || centerId.trim() === '';
+        const isChanging = currentAssignment && centerId && currentAssignment.centerId !== centerId;
+
+        if (isRemoving || isChanging) {
+          const hasActiveShifts = await this.checkEmployeeHasActiveShifts(employeeId);
+          if (hasActiveShifts) {
+            errors['workCenter.centerId'] =
+              'Cannot change or remove service center: Employee has active/upcoming shifts. Please complete or cancel shifts first.';
           }
-        }
-
-        // startDate validation
-        if (startDate !== undefined) {
-          if (!startDate || startDate.trim() === '') {
-            errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
-          } else if (isNaN(Date.parse(startDate))) {
-            errors['workCenter.startDate'] = 'Start date must be a valid ISO date string';
-          }
-        }
-
-        // endDate validation (optional)
-        if (endDate !== undefined && endDate !== '') {
-          if (isNaN(Date.parse(endDate))) {
-            errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
-          }
-        }
-
-        // Date range validation
-        if (
-          startDate &&
-          startDate.trim() !== '' &&
-          endDate &&
-          endDate.trim() !== '' &&
-          !isNaN(Date.parse(startDate)) &&
-          !isNaN(Date.parse(endDate)) &&
-          new Date(startDate) >= new Date(endDate)
-        ) {
-          errors['workCenter.dateRange'] = 'Start date must be before end date';
         }
       }
     }
@@ -471,28 +544,36 @@ export class EmployeeService {
     if (Object.keys(errors).length > 0) {
       throw new BadRequestException({
         message: 'Validation failed',
-        errors: errors,
+        errors,
       });
     }
 
-    // Update account if changed
-    const accountData: Record<string, any> = {};
+    const accountData: Partial<Prisma.AccountUpdateInput> = {};
     if (phone !== undefined) accountData.phone = phone;
     if (status !== undefined) accountData.status = status;
-    if (Object.keys(accountData).length > 0)
-      await this.prisma.account.update({ where: { id: employeeId }, data: accountData });
 
-    // Update employee if changed
-    const employeeData: Record<string, any> = {};
+    if (Object.keys(accountData).length > 0) {
+      await this.prisma.account.update({
+        where: { id: employeeId },
+        data: accountData,
+      });
+    }
+
+    const employeeData: Partial<Prisma.EmployeeUpdateInput> = {};
     if (firstName !== undefined) employeeData.firstName = firstName;
     if (lastName !== undefined) employeeData.lastName = lastName;
-    if (Object.keys(employeeData).length > 0)
-      await this.prisma.employee.update({ where: { accountId: employeeId }, data: employeeData });
 
-    // Update work center assignment if provided
-    if (workCenter) await this.assignEmployeeToServiceCenter(employeeId, workCenter);
+    if (Object.keys(employeeData).length > 0) {
+      await this.prisma.employee.update({
+        where: { accountId: employeeId },
+        data: employeeData,
+      });
+    }
 
-    // Fetch latest data
+    if (workCenter) {
+      await this.assignEmployeeToServiceCenter(employeeId, workCenter);
+    }
+
     const updated = await this.prisma.account.findUnique({
       where: { id: employeeId },
       select: {
@@ -532,7 +613,9 @@ export class EmployeeService {
       },
     });
 
-    if (!updated?.employee) throw new Error('Failed to retrieve updated employee data');
+    if (!updated?.employee) {
+      throw new Error('Failed to retrieve updated employee data');
+    }
 
     const transformed = {
       id: updated.id,
@@ -630,7 +713,6 @@ export class EmployeeService {
     if (workCenter !== undefined) {
       const { centerId, startDate, endDate } = workCenter;
 
-      // centerId validation
       if (centerId !== undefined) {
         if (!centerId || centerId.trim() === '') {
           errors['workCenter.centerId'] = 'Service Center ID is required and cannot be empty';
@@ -643,7 +725,6 @@ export class EmployeeService {
         }
       }
 
-      // startDate validation
       if (startDate !== undefined) {
         if (!startDate || startDate.trim() === '') {
           errors['workCenter.startDate'] = 'Start date is required and cannot be empty';
@@ -652,14 +733,12 @@ export class EmployeeService {
         }
       }
 
-      // endDate validation (optional)
       if (endDate !== undefined && endDate !== '') {
         if (isNaN(Date.parse(endDate))) {
           errors['workCenter.endDate'] = 'End date must be a valid ISO date string';
         }
       }
 
-      // Date range validation
       if (
         startDate &&
         startDate.trim() !== '' &&
@@ -827,6 +906,8 @@ export class EmployeeService {
         : {
             id: null,
             name: 'Not assigned',
+            startDate: null,
+            endDate: null,
           },
     };
 
@@ -1004,6 +1085,8 @@ export class EmployeeService {
         : {
             id: null,
             name: 'Not assigned',
+            startDate: null,
+            endDate: null,
           },
     }));
 
