@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
 import { CreateStaffDTO } from './dto/create-staff.dto';
@@ -62,6 +62,14 @@ export class StaffService {
     });
     if (!staff || staff.role !== AccountRole.STAFF) {
       throw new NotFoundException(`Staff with ID ${accountId} not found`);
+    }
+
+    if (staff.status === AccountStatus.DISABLED) {
+      throw new BadRequestException('Staff is already disabled');
+    }
+
+    if (await this.employeeService.checkEmployeeHasActiveShifts(accountId)) {
+      throw new BadRequestException('Cannot disable staff with active shifts');
     }
 
     await this.prisma.account.update({

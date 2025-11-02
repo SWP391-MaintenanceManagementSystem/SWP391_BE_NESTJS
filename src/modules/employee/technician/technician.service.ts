@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateTechnicianDTO } from './dto/create-technician.dto';
 import { UpdateTechnicianDTO } from './dto/update-technician.dto';
@@ -65,6 +65,14 @@ export class TechnicianService {
 
     if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
       throw new NotFoundException(`Technician with ID ${accountId} not found`);
+    }
+
+    if (existingTechnician.status === AccountStatus.DISABLED) {
+      throw new BadRequestException('Technician is already disabled');
+    }
+
+    if (await this.employeeService.checkEmployeeHasActiveShifts(accountId)) {
+      throw new BadRequestException('Cannot delete technician with active shifts');
     }
 
     await this.prisma.account.update({
