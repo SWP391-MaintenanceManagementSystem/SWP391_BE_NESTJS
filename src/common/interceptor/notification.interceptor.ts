@@ -1,3 +1,4 @@
+// src/common/interceptor/notification.interceptor.ts
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
@@ -30,55 +31,40 @@ export class NotificationInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(async responseData => {
         try {
-          console.log('=== Processing Notification ===');
-          console.log(`Response data: ${JSON.stringify(responseData, null, 2)}`);
-
           let targetUserIds: string[] = [];
 
           if (metadata.targetUserIdField) {
-            const value = this.extractNestedValue(responseData, metadata.targetUserIdField);
-            console.log(`Extracted value: ${JSON.stringify(value)}`);
-
-            if (Array.isArray(value)) {
-              targetUserIds = value
-                .map(item => {
-                  return item.employeeId || item.accountId || item.customerId || item.id;
-                })
-                .filter(id => typeof id === 'string');
-
-              console.log(`Extracted user IDs from array: ${targetUserIds}`);
-            } else if (typeof value === 'string') {
-              targetUserIds = [value];
-            } else if (value && typeof value === 'object') {
-              const userId = value.employeeId || value.accountId || value.customerId || value.id;
-              if (userId) targetUserIds = [userId];
-            }
+            const extracted = this.extractUserIds(responseData, metadata.targetUserIdField);
+            targetUserIds = extracted;
+            this.logger.debug(`Extracted user IDs: ${JSON.stringify(targetUserIds)}`);
           } else {
+            // No field specified = send to current user
             if (user?.sub) {
               targetUserIds = [user.sub];
+              this.logger.debug(`Using current user ID: ${user.sub}`);
             }
           }
 
           if (targetUserIds.length === 0) {
-            this.logger.warn('Cannot determine target user IDs for notification');
+            this.logger.warn('No target user IDs found for notification');
             return;
           }
 
+          // Generate message (pass full response data)
+          const message =
+            typeof metadata.message === 'function'
+              ? metadata.message(responseData)
+              : metadata.message;
+
+          this.logger.debug(`Generated message: "${message}"`);
+
           // Send notification to each user
           for (const userId of targetUserIds) {
-            console.log(`Sending to user: ${userId}`);
-
-            // Generate message (pass full response data)
-            const message =
-              typeof metadata.message === 'function'
-                ? metadata.message(responseData)
-                : metadata.message;
-
-            this.logger.debug(`Generated message: ${message}`);
-
+            this.logger.debug(`Sending notification to user: ${userId}`);
             await this.notificationService.sendNotification(userId, message, metadata.type);
-            console.log(`Notification sent to user ${userId}`);
           }
+
+          this.logger.log(`Notifications sent to ${targetUserIds.length} user(s)`);
         } catch (error) {
           this.logger.error('Failed to send notification:', error.stack || error);
         }
@@ -86,34 +72,52 @@ export class NotificationInterceptor implements NestInterceptor {
     );
   }
 
-  private extractNestedValue(obj: any, path: string): any {
-    if (!obj || !path) return undefined;
+  private extractUserIds(obj: any, path: string): string[] {
+    if (!obj || !path) return [];
 
-    const segments = path.split('.');
-    let current: any[] = [obj];
+    this.logger.debug(`Extracting from path: "${path}"`);
 
-    for (const segment of segments) {
-      const isArray = segment.endsWith('[]');
-      const key = isArray ? segment.slice(0, -2) : segment;
+    const arrayMatch = path.match(/^(.+?)\[\]\.(.+)$/);
+    if (arrayMatch) {
+      const [, arrayPath, fieldName] = arrayMatch;
+      const array = this.getNestedValue(obj, arrayPath);
 
-      const next: any[] = [];
+      if (Array.isArray(array)) {
+        const ids = array
+          .map(item => this.getNestedValue(item, fieldName))
+          .filter(id => typeof id === 'string' && id.trim() !== '');
 
-      for (const item of current) {
-        const value = item?.[key];
-
-        if (Array.isArray(value)) {
-          if (isArray) next.push(...value);
-          else next.push(value);
-        } else if (value !== undefined) {
-          next.push(value);
-        }
+        this.logger.debug(`Extracted from array: ${JSON.stringify(ids)}`);
+        return ids;
       }
+    }
+    const value = this.getNestedValue(obj, path);
 
-      if (next.length === 0) return undefined;
-
-      current = next;
+    if (typeof value === 'string' && value.trim() !== '') {
+      return [value];
     }
 
-    return current.length === 1 ? current[0] : current;
+    if (Array.isArray(value)) {
+      return value.filter(id => typeof id === 'string' && id.trim() !== '');
+    }
+
+    this.logger.warn(`Could not extract user ID from path: ${path}`);
+    return [];
+  }
+
+  private getNestedValue(obj: any, path: string): any {
+    if (!obj || !path) return undefined;
+
+    const keys = path.split('.');
+    let current = obj;
+
+    for (const key of keys) {
+      if (current === null || current === undefined) {
+        return undefined;
+      }
+      current = current[key];
+    }
+
+    return current;
   }
 }

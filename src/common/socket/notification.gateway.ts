@@ -50,4 +50,19 @@ export class NotificationGateway implements OnGatewayConnection, OnGatewayDiscon
     });
     this.logger.log(`Sent notification with data to user:${userId}`);
   }
+
+  emitNotificationRead(userId: string, notificationId: string) {
+    this.server.to(`user:${userId}`).emit('notification:read', { notificationId });
+    this.logger.debug(`Notification ${notificationId} marked as read for user ${userId}`);
+  }
+
+  emitAllNotificationsRead(userId: string) {
+    this.server.to(`user:${userId}`).emit('notification:read-all');
+    this.logger.debug(`All notifications marked as read for user ${userId}`);
+  }
+
+  emitNotificationDeleted(userId: string, notificationId: string) {
+    this.server.to(`user:${userId}`).emit('notification:deleted', { notificationId });
+    this.logger.debug(`Notification ${notificationId} deleted for user ${userId}`);
+  }
 }
