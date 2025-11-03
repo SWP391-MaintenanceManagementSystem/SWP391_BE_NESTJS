@@ -16,6 +16,7 @@ import { isSameDay } from 'date-fns';
 import { CreateTechnicianDTO } from './technician/dto/create-technician.dto';
 import { CreateStaffDTO } from './staff/dto/create-staff.dto';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
+import { start } from 'repl';
 
 @Injectable()
 export class EmployeeService {
@@ -254,6 +255,80 @@ export class EmployeeService {
     }
   }
 
+  async checkTechnicianHasAssigned(accountId: string): Promise<boolean> {
+    const account = await this.prisma.account.findUnique({
+      where: { id: accountId },
+      select: { role: true },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Employee not found');
+    }
+
+    if (account.role !== AccountRole.TECHNICIAN) {
+      return false;
+    }
+
+    const activeCount = await this.prisma.bookingAssignment.count({
+      where: {
+        employeeId: accountId,
+        booking: {
+          status: { in: ['ASSIGNED', 'IN_PROGRESS', 'CHECKED_IN', 'CHECKED_OUT'] },
+        },
+      },
+    });
+
+    return activeCount > 0;
+  }
+
+  async getTechnicianActiveBookings(employeeId: string) {
+    const account = await this.prisma.account.findUnique({
+      where: { id: employeeId },
+      select: { role: true },
+    });
+
+    if (!account || account.role !== AccountRole.TECHNICIAN) {
+      return [];
+    }
+
+    const activeAssignments = await this.prisma.bookingAssignment.findMany({
+      where: {
+        employeeId,
+        booking: {
+          status: {
+            in: ['ASSIGNED', 'CHECKED_IN', 'IN_PROGRESS', 'CHECKED_OUT'],
+          },
+        },
+      },
+      select: {
+        id: true,
+        booking: {
+          select: {
+            id: true,
+            status: true,
+            bookingDate: true,
+            customer: {
+              select: { account: { select: { email: true } } },
+            },
+          },
+        },
+      },
+      orderBy: {
+        booking: {
+          bookingDate: 'asc',
+        },
+      },
+    });
+
+    return activeAssignments.map(assignment => ({
+      assignmentId: assignment.id,
+      bookingId: assignment.booking.id,
+      bookingDate: assignment.booking.bookingDate,
+      status: assignment.booking.status,
+      customerEmail: assignment.booking.customer?.account?.email,
+    }));
+  }
+
   async checkEmployeeHasActiveShifts(employeeId: string): Promise<boolean> {
     const vnNow = utcToVNDate(new Date());
     const vnToday = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate());
@@ -472,6 +547,34 @@ export class EmployeeService {
     if (!existing.employee) {
       throw new NotFoundException('Employee not found');
     }
+    const isTechnician = existing.role === AccountRole.TECHNICIAN;
+    if (isTechnician) {
+      const hasActiveBookings = await this.checkTechnicianHasAssigned(employeeId);
+
+      if (hasActiveBookings) {
+        const bookingCount = (await this.getTechnicianActiveBookings(employeeId)).length;
+
+        if (status && ['DISABLED', 'BANNED'].includes(status)) {
+          throw new ConflictException(
+            `Cannot change technician status while ${bookingCount} booking(s) are still active`
+          );
+        }
+
+        if (workCenter) {
+          const { centerId } = workCenter;
+          const currentAssignment = existing.employee.workCenters[0];
+          const isRemoving = !centerId || centerId.trim() === '';
+          const isChanging =
+            currentAssignment && centerId && currentAssignment.centerId !== centerId;
+
+          if (isRemoving || isChanging) {
+            throw new ConflictException(
+              `Cannot modify service center while ${bookingCount} booking(s) are still active`
+            );
+          }
+        }
+      }
+    }
 
     const errors: Record<string, string> = {};
 
@@ -643,6 +746,8 @@ export class EmployeeService {
             name: updated.employee.workCenters[0].serviceCenter.name,
             address: updated.employee.workCenters[0].serviceCenter.address,
             status: updated.employee.workCenters[0].serviceCenter.status,
+            startDate: updated.employee.workCenters[0].startDate,
+            endDate: updated.employee.workCenters[0].endDate,
           }
         : { id: null, name: 'Not assigned' },
     };
@@ -900,6 +1005,8 @@ export class EmployeeService {
         ? {
             id: createdEmployee.employee.workCenters[0].serviceCenter.id,
             name: createdEmployee.employee.workCenters[0].serviceCenter.name,
+            address: createdEmployee.employee.workCenters[0].serviceCenter.address,
+            status: createdEmployee.employee.workCenters[0].serviceCenter.status,
             startDate: createdEmployee.employee.workCenters[0].startDate,
             endDate: createdEmployee.employee.workCenters[0].endDate,
           }
