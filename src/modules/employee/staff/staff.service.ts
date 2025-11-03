@@ -148,7 +148,7 @@ export class StaffService {
     };
   }
 
-  async getStaffDashboard(accountId: string): Promise<{
+ async getStaffDashboard(accountId: string): Promise<{
   totalCustomers: number;
   newTickets: number;
   bookingOverview: {
@@ -156,7 +156,6 @@ export class StaffService {
     bookingStatistics: Array<{ name: string; value: number }>;
   };
 }> {
-
   const employee = await this.prisma.employee.findUnique({
     where: { accountId },
     include: {
@@ -184,6 +183,7 @@ export class StaffService {
     ],
   };
 
+
   const statusGroups = await this.prisma.booking.groupBy({
     by: ['status'],
     where: bookingWhere,
@@ -193,13 +193,17 @@ export class StaffService {
   const bookingStatusMap = new Map<string, number>();
   statusGroups.forEach(g => bookingStatusMap.set(g.status, g._count.status));
 
-  const [totalBookings, customerGroups, newTickets] = await Promise.all([
-    this.prisma.booking.count({ where: bookingWhere }),
-    this.prisma.booking.groupBy({ by: ['customerId'], where: bookingWhere }),
-    this.prisma.conversation.count({
-      where: {
-        staffId: null,
 
+  const [totalBookings, newTickets, totalCustomers] = await Promise.all([
+    this.prisma.booking.count({ where: bookingWhere }),
+    this.prisma.conversation.count({
+      where: { staffId: null },
+    }),
+
+    this.prisma.account.count({
+      where: {
+        role: AccountRole.CUSTOMER,
+        status: AccountStatus.VERIFIED,
       },
     }),
   ]);
@@ -222,7 +226,7 @@ export class StaffService {
 
 
   return {
-    totalCustomers: customerGroups.length,
+    totalCustomers,
     newTickets,
     bookingOverview: {
       total: totalBookings,
