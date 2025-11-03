@@ -16,7 +16,6 @@ import { isSameDay } from 'date-fns';
 import { CreateTechnicianDTO } from './technician/dto/create-technician.dto';
 import { CreateStaffDTO } from './staff/dto/create-staff.dto';
 import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
-import { start } from 'repl';
 
 @Injectable()
 export class EmployeeService {
@@ -334,36 +333,41 @@ export class EmployeeService {
     const vnToday = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate());
     const vnTodayUtc = vnToUtcDate(vnToday);
 
-    const activeSchedule = await this.prisma.workSchedule.findFirst({
-      where: {
-        employeeId,
-        date: { gte: vnTodayUtc },
-      },
+    const schedules = await this.prisma.workSchedule.findMany({
+      where: { employeeId, date: { gte: vnTodayUtc } },
       include: { shift: true },
+      orderBy: { date: 'asc' },
     });
 
-    if (!activeSchedule) return false;
+    if (!schedules.length) return false;
 
-    const scheduleVNDate = utcToVNDate(activeSchedule.date);
+    for (const schedule of schedules) {
+      const scheduleVNDate = utcToVNDate(schedule.date);
 
-    // Future schedule
-    if (!isSameDay(scheduleVNDate, vnNow)) return true;
+      if (scheduleVNDate > vnNow) return true;
 
-    // Today's schedule - check if shift has ended
-    if (activeSchedule.shift?.endTime) {
-      const endTimeStr = String(activeSchedule.shift.endTime);
-      const [endHour, endMinute] = endTimeStr.split(':').map(Number);
+      if (isSameDay(scheduleVNDate, vnNow) && schedule.shift?.endTime) {
+        let endHour: number, endMinute: number;
 
-      const shiftEndToday = new Date(
-        scheduleVNDate.getFullYear(),
-        scheduleVNDate.getMonth(),
-        scheduleVNDate.getDate(),
-        endHour,
-        endMinute,
-        0
-      );
+        if (schedule.shift.endTime instanceof Date) {
+          const endDate = utcToVNDate(schedule.shift.endTime);
+          endHour = endDate.getHours();
+          endMinute = endDate.getMinutes();
+        } else {
+          [endHour, endMinute] = (schedule.shift.endTime as string).split(':').map(Number);
+        }
 
-      return vnNow < shiftEndToday;
+        const shiftEndToday = new Date(
+          scheduleVNDate.getFullYear(),
+          scheduleVNDate.getMonth(),
+          scheduleVNDate.getDate(),
+          endHour,
+          endMinute,
+          0
+        );
+
+        if (vnNow < shiftEndToday) return true;
+      }
     }
 
     return false;
@@ -421,12 +425,6 @@ export class EmployeeService {
           workCenter: { id: null, name: 'Not assigned' },
         };
       }
-      const hasActiveShifts = await this.checkEmployeeHasActiveShifts(employeeId);
-      if (hasActiveShifts) {
-        throw new ConflictException(
-          'Cannot remove service center assignment: Employee has active/upcoming shifts. Please complete or cancel shifts first.'
-        );
-      }
 
       await this.prisma.workCenter.update({
         where: { id: currentAssignment.id },
@@ -474,16 +472,31 @@ export class EmployeeService {
     }
 
     if (currentAssignment && currentAssignment.centerId !== centerId) {
-      const hasActiveShifts = await this.checkEmployeeHasActiveShifts(employeeId);
-      if (hasActiveShifts) {
-        throw new ConflictException(
-          'Cannot change service center: Employee has active/upcoming shifts. Please complete or cancel shifts first.'
-        );
+      const currentStart = utcToVNDate(currentAssignment.startDate);
+      const currentEnd = currentAssignment.endDate ? utcToVNDate(currentAssignment.endDate) : null;
+
+      // Check startDate falls within current assignment period
+      if (parsedStartDate >= currentStart) {
+        if (!currentEnd || parsedStartDate <= currentEnd) {
+          const currentEndStr = currentEnd ? currentEnd.toLocaleDateString('vi-VN') : 'present';
+
+          throw new BadRequestException({
+            message: 'Validation failed',
+            errors: {
+              'workCenter.startDate':
+                `Start date (${parsedStartDate.toLocaleDateString('vi-VN')}) cannot overlap with current work center assignment period (${currentStart.toLocaleDateString('vi-VN')} - ${currentEndStr}). ` +
+                `Please set start date after ${currentEndStr === 'present' ? 'ending current assignment' : currentEndStr}.`,
+            },
+          });
+        }
       }
+
+      // Auto-set endDate for current assignment if not set
+      const currentAssignmentEndDate = currentAssignment.endDate || new Date();
 
       await this.prisma.workCenter.update({
         where: { id: currentAssignment.id },
-        data: { endDate: new Date() },
+        data: { endDate: currentAssignmentEndDate },
       });
     }
     const newAssignment = await this.prisma.workCenter.create({
@@ -625,7 +638,7 @@ export class EmployeeService {
     }
 
     if (workCenter !== undefined) {
-      const { centerId } = workCenter;
+      const { centerId, startDate: newStartDate } = workCenter;
       const currentAssignment = existing.employee.workCenters[0];
 
       this.validateWorkCenter(workCenter, errors);
@@ -639,6 +652,30 @@ export class EmployeeService {
           if (hasActiveShifts) {
             errors['workCenter.centerId'] =
               'Cannot change or remove service center: Employee has active/upcoming shifts. Please complete or cancel shifts first.';
+          }
+
+          if (isChanging && newStartDate && currentAssignment) {
+            const parsedNewStart = parseDate(newStartDate);
+
+            if (parsedNewStart) {
+              const currentStart = utcToVNDate(currentAssignment.startDate);
+              const currentEnd = currentAssignment.endDate
+                ? utcToVNDate(currentAssignment.endDate)
+                : null;
+
+              // Check if new startDate falls within current assignment period
+              if (parsedNewStart >= currentStart) {
+                if (!currentEnd || parsedNewStart <= currentEnd) {
+                  const currentEndStr = currentEnd
+                    ? currentEnd.toLocaleDateString('vi-VN')
+                    : 'present';
+
+                  errors['workCenter.startDate'] =
+                    `Start date (${parsedNewStart.toLocaleDateString('vi-VN')}) cannot overlap with current work center assignment period (${currentStart.toLocaleDateString('vi-VN')} - ${currentEndStr}). ` +
+                    `Please set start date after ${currentEndStr === 'present' ? 'ending current assignment' : currentEndStr}.`;
+                }
+              }
+            }
           }
         }
       }
