@@ -147,4 +147,110 @@ export class StaffService {
       data,
     };
   }
+
+  async getStaffDashboard(accountId: string): Promise<{
+  data: {
+    totalCustomers: number;
+    newTickets: number;
+    bookingOverview: {
+      total: number;
+      bookingStatistics: Array<{ name: string; value: number }>;
+    };
+  };
+}> {
+
+  const employee = await this.prisma.employee.findUnique({
+    where: { accountId },
+    include: {
+      workCenters: {
+        where: {
+          OR: [
+            { endDate: null },
+            { endDate: { gt: new Date() } },
+          ],
+        },
+        include: {
+          serviceCenter: true,
+        },
+        orderBy: {
+          startDate: 'desc',
+        },
+        take: 1,
+      },
+    },
+  });
+
+  if (!employee) {
+    throw new BadRequestException('Staff not found');
+  }
+
+
+  const currentServiceCenterId = employee.workCenters[0]?.serviceCenter?.id;
+
+
+  const bookingWhere = {
+    OR: [
+      { bookingAssignments: { some: { employeeId: employee.accountId } } },
+      { bookingAssignments: { some: { assignedBy: employee.accountId } } },
+      ...(currentServiceCenterId ? [{ centerId: currentServiceCenterId }] : []),
+    ],
+  };
+
+
+  const statusGroups = await this.prisma.booking.groupBy({
+    by: ['status'],
+    where: bookingWhere,
+    _count: { status: true },
+  });
+
+  const bookingStatusMap = new Map<string, number>();
+  statusGroups.forEach((g) => {
+    bookingStatusMap.set(g.status, g._count.status);
+  });
+
+
+  const [totalBookings, customerGroups, newTickets] = await Promise.all([
+    this.prisma.booking.count({ where: bookingWhere }),
+    this.prisma.booking.groupBy({
+      by: ['customerId'],
+      where: bookingWhere,
+    }),
+    this.prisma.conversation.count({
+      where: {
+        staffId: null,
+        ...(currentServiceCenterId && {
+
+        }),
+      },
+    }),
+  ]);
+
+
+  const allStatuses = [
+    { key: 'PENDING', label: 'Pending' },
+    { key: 'ASSIGNED', label: 'Assigned' },
+    { key: 'IN_PROGRESS', label: 'In Progress' },
+    { key: 'CANCELLED', label: 'Cancelled' },
+    { key: 'CHECKED_IN', label: 'Checked In' },
+    { key: 'CHECKED_OUT', label: 'Checked Out' },
+    { key: 'COMPLETED', label: 'Completed' },
+  ];
+
+  const bookingStatistics = allStatuses.map(({ key, label }) => ({
+    name: label,
+    value: bookingStatusMap.get(key) || 0,
+  }));
+
+
+  return {
+    data: {
+      totalCustomers: customerGroups.length,
+      newTickets,
+      bookingOverview: {
+        total: totalBookings,
+        bookingStatistics,
+      },
+    },
+  };
+}
 }
