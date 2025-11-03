@@ -62,7 +62,6 @@ export class TechnicianService {
     const existingTechnician = await this.prisma.account.findUnique({
       where: { id: accountId },
     });
-
     if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
       throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
@@ -72,12 +71,16 @@ export class TechnicianService {
     }
 
     if (await this.employeeService.checkEmployeeHasActiveShifts(accountId)) {
-      throw new BadRequestException('Cannot delete technician with active shifts');
+      throw new BadRequestException('Cannot delete technician with active or upcoming shifts');
+    }
+
+    if (await this.employeeService.checkTechnicianHasAssigned(accountId)) {
+      throw new BadRequestException('Cannot delete technician with active booking assignments');
     }
 
     await this.prisma.account.update({
       where: { id: accountId },
-      data: { status: 'DISABLED' },
+      data: { status: AccountStatus.DISABLED },
     });
   }
 
