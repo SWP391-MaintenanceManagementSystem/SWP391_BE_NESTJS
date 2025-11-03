@@ -107,7 +107,10 @@ export class BookingAssignmentService {
     });
     await this.prismaService.booking.update({
       where: { id: bookingId },
-      data: { status: BookingStatus.ASSIGNED },
+      data: {
+        status:
+          booking.status !== BookingStatus.CHECKED_IN ? BookingStatus.ASSIGNED : booking.status,
+      },
     });
 
     return plainToInstance(BookingAssignmentsDTO, assignments);
