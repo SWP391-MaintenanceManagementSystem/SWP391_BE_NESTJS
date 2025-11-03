@@ -56,12 +56,7 @@ export class StaffController {
   @ApiBearerAuth('jwt-auth')
   async getMyDashboard(@CurrentUser() user: JWT_Payload) {
   const staffId = user.sub;
-  const data = await this.staffService.getStaffDashboard(staffId);
-
-  return {
-    message: 'Your dashboard retrieved successfully',
-    data,
-  };
+    return this.staffService.getStaffDashboard(staffId);
 }
 
   @Post('/')
