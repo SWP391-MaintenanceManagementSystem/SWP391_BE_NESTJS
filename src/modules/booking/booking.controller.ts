@@ -12,6 +12,8 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 import { TechnicianBookingService } from './technician-booking.service';
 import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationTemplateService } from '../notification/notification-template.service';
 
 @Controller('api/bookings')
 @ApiTags('Bookings')
@@ -65,6 +67,7 @@ export class BookingController {
   }
 
   @Post('/')
+  @EmitNotification(NotificationTemplateService.bookingCreated())
   async createBooking(@Body() bookingData: CreateBookingDTO, @CurrentUser() user: JWT_Payload) {
     const { booking, warning } = await this.bookingService.createBooking(bookingData, user.sub);
     return {
@@ -76,6 +79,7 @@ export class BookingController {
 
   @Patch('admin/:id')
   @Roles(AccountRole.ADMIN)
+  @EmitNotification(NotificationTemplateService.bookingStatusUpdate())
   async adminUpdateBooking(
     @Param('id') id: string,
     @Body() body: AdminUpdateBookingDTO,
@@ -90,6 +94,7 @@ export class BookingController {
 
   @Patch('customer/:id')
   @Roles(AccountRole.CUSTOMER)
+  @EmitNotification(NotificationTemplateService.bookingStatusUpdate())
   async customerUpdateBooking(
     @Param('id') id: string,
     @Body() body: CustomerUpdateBookingDTO,
@@ -104,6 +109,7 @@ export class BookingController {
 
   @Patch('staff/:id')
   @Roles(AccountRole.STAFF)
+  @EmitNotification(NotificationTemplateService.bookingStatusUpdate())
   async staffUpdateBooking(
     @Param('id') id: string,
     @Body() body: StaffUpdateBookingDTO,
@@ -117,6 +123,7 @@ export class BookingController {
   }
 
   @Delete(':id')
+  @EmitNotification(NotificationTemplateService.bookingCancelled())
   async cancelBooking(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
     const data = await this.bookingService.cancelBooking(id, user);
     return {

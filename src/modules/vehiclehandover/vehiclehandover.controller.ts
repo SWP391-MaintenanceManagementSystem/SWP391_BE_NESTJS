@@ -25,6 +25,8 @@ import { AccountRole } from '@prisma/client';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RoleGuard } from 'src/common/guard/role.guard';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationTemplateService } from '../notification/notification-template.service';
 
 @ApiTags('Vehicle Handover')
 @ApiBearerAuth('jwt-auth')
@@ -49,6 +51,7 @@ export class VehicleHandoverController {
       },
     },
   })
+  @EmitNotification(NotificationTemplateService.vehicleHandoverCreated())
   async create(
     @Body() createDto: CreateVehicleHandoverDTO,
     @CurrentUser() user: JWT_Payload,

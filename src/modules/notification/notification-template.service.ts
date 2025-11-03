@@ -1,15 +1,10 @@
-// src/modules/notification/notification-template.service.ts
 import { Injectable } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
 import { NotificationMetadata } from 'src/common/decorator/emit-notification.decorator';
 
 @Injectable()
 export class NotificationTemplateService {
-  /**
-   * ========================================
-   * BOOKING NOTIFICATIONS (for Customer)
-   * ========================================
-   */
+  // Booking Notification for Customer
   static bookingCreated(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
@@ -18,7 +13,7 @@ export class NotificationTemplateService {
         const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
         return `Your booking #${booking.id.slice(0, 8)} for ${date} has been created successfully.`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer receives notification
+      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -29,7 +24,7 @@ export class NotificationTemplateService {
         const booking = data.data;
         return `Your booking #${booking.id.slice(0, 8)} has been assigned to a technician.`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -40,7 +35,7 @@ export class NotificationTemplateService {
         const booking = data.data;
         return `Your booking #${booking.id.slice(0, 8)} has been completed. Thank you for using our service!`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -51,7 +46,7 @@ export class NotificationTemplateService {
         const booking = data.data;
         return `Your booking #${booking.id.slice(0, 8)} has been cancelled.`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -72,15 +67,11 @@ export class NotificationTemplateService {
         const statusText = statusMap[booking.status as keyof typeof statusMap] || booking.status;
         return `Your booking #${booking.id.slice(0, 8)} ${statusText}.`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
-  /**
-   * ========================================
-   * PAYMENT NOTIFICATIONS (for Customer)
-   * ========================================
-   */
+  // Payment Notifications for Customer
   static paymentSuccess(): NotificationMetadata {
     return {
       type: NotificationType.PAYMENT,
@@ -88,7 +79,7 @@ export class NotificationTemplateService {
         const transaction = data.data;
         return `Your payment of ${transaction.amount.toLocaleString('vi-VN')} VND has been processed successfully.`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -99,15 +90,11 @@ export class NotificationTemplateService {
         const transaction = data.data;
         return `Your payment of ${transaction.amount.toLocaleString('vi-VN')} VND has failed. Please try again.`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
-  /**
-   * ========================================
-   * WORK SCHEDULE NOTIFICATIONS (for Employee - Technician/Staff)
-   * ========================================
-   */
+  // Shift Schedule Notifications (for Employee)
   static shiftAssigned(): NotificationMetadata {
     return {
       type: NotificationType.SHIFT,
@@ -121,7 +108,7 @@ export class NotificationTemplateService {
         }
         return 'You have been assigned a new work schedule.';
       },
-      targetUserIdField: 'data[].employeeId', // ✅ Multiple employees (array)
+      targetUserIdField: 'data[].employeeId', // Multi-employee
     };
   }
 
@@ -134,7 +121,7 @@ export class NotificationTemplateService {
         const shiftName = schedule.shift?.name || 'a shift';
         return `Your shift assignment has been updated: ${shiftName} on ${date}.`;
       },
-      targetUserIdField: 'data.employeeId', // ✅ Single employee
+      targetUserIdField: 'data.employeeId', // Single employee
     };
   }
 
@@ -146,15 +133,11 @@ export class NotificationTemplateService {
         const date = new Date(schedule.date).toLocaleDateString('vi-VN');
         return `Your shift on ${date} has been cancelled.`;
       },
-      targetUserIdField: 'data.employeeId', // ✅ Single employee
+      targetUserIdField: 'data.employeeId',
     };
   }
 
-  /**
-   * ========================================
-   * BOOKING ASSIGNMENT NOTIFICATIONS (for Technician)
-   * ========================================
-   */
+  // Booking assignment notification (technician receive)
   static technicianAssignedToBooking(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
@@ -163,7 +146,7 @@ export class NotificationTemplateService {
         const bookingId = assignment.booking?.id || assignment.bookingId || 'N/A';
         return `You have been assigned to booking #${bookingId.slice(0, 8)}.`;
       },
-      targetUserIdField: 'data.employeeId', // ✅ Technician receives notification
+      targetUserIdField: 'data.employeeId',
     };
   }
 
@@ -175,31 +158,22 @@ export class NotificationTemplateService {
         const bookingId = assignment.booking?.id || assignment.bookingId || 'N/A';
         return `You have been unassigned from booking #${bookingId.slice(0, 8)}.`;
       },
-      targetUserIdField: 'data.employeeId', // ✅ Technician
+      targetUserIdField: 'data.employeeId',
     };
   }
 
-  /**
-   * ========================================
-   * VEHICLE HANDOVER NOTIFICATIONS (for Customer)
-   * ========================================
-   */
+  // Check-in form notification (Customer)
   static vehicleHandoverCreated(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
-      message: data => {
-        const handover = data.data;
-        return `Vehicle handover completed. Odometer: ${handover.odometer} km. Check your booking for details.`;
+      message: () => {
+        return `Vehicle handover completed. Check your booking for details.`;
       },
-      targetUserIdField: 'data.booking.customerId', // ✅ Customer (nested field)
+      targetUserIdField: 'data.booking.customerId', // Customer (nested field)
     };
   }
 
-  /**
-   * ========================================
-   * MEMBERSHIP NOTIFICATIONS (for Customer)
-   * ========================================
-   */
+  // membership notifications (Customer)
   static membershipActivated(): NotificationMetadata {
     return {
       type: NotificationType.MEMBERSHIP,
@@ -208,7 +182,7 @@ export class NotificationTemplateService {
         const endDate = new Date(subscription.endDate).toLocaleDateString('vi-VN');
         return `Your premium membership has been activated! Valid until ${endDate}.`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -220,7 +194,7 @@ export class NotificationTemplateService {
         const endDate = new Date(subscription.endDate).toLocaleDateString('vi-VN');
         return `Your premium membership will expire on ${endDate}. Renew now to continue enjoying benefits!`;
       },
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -228,15 +202,11 @@ export class NotificationTemplateService {
     return {
       type: NotificationType.MEMBERSHIP,
       message: () => 'Your premium membership has expired. Renew now to restore your benefits!',
-      targetUserIdField: 'data.customerId', // ✅ Customer
+      targetUserIdField: 'data.customerId',
     };
   }
 
-  /**
-   * ========================================
-   * EMPLOYEE WORK CENTER NOTIFICATIONS (for Employee - Technician/Staff)
-   * ========================================
-   */
+  // employee assign center notifications (Employee)
   static employeeAssignedToCenter(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
@@ -245,7 +215,7 @@ export class NotificationTemplateService {
         const centerName = result.workCenter?.name || 'a service center';
         return `You have been assigned to ${centerName}.`;
       },
-      targetUserIdField: 'data.employeeId', // ✅ Employee (technician/staff)
+      targetUserIdField: 'data.employeeId',
     };
   }
 
@@ -253,7 +223,7 @@ export class NotificationTemplateService {
     return {
       type: NotificationType.SYSTEM,
       message: () => 'You have been removed from your current service center assignment.',
-      targetUserIdField: 'data.employeeId', // ✅ Employee
+      targetUserIdField: 'data.employeeId',
     };
   }
 
@@ -261,28 +231,20 @@ export class NotificationTemplateService {
     return {
       type: NotificationType.SYSTEM,
       message: () => 'Your profile has been updated by an administrator.',
-      targetUserIdField: 'data.id', // ✅ Employee account ID
+      targetUserIdField: 'data.id',
     };
   }
 
-  /**
-   * ========================================
-   * CUSTOMER PROFILE NOTIFICATIONS (for Customer)
-   * ========================================
-   */
+  // customer profile updated notification
   static customerProfileUpdated(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
       message: () => 'Your profile has been updated successfully.',
-      targetUserIdField: 'data.id', // ✅ Customer account ID
+      targetUserIdField: 'data.id',
     };
   }
 
-  /**
-   * ========================================
-   * SYSTEM NOTIFICATIONS
-   * ========================================
-   */
+  // System Maintenance Notification (All Users)
   static systemMaintenance(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,

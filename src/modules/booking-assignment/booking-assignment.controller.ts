@@ -6,6 +6,8 @@ import { JWT_Payload } from 'src/common/types';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
+import { NotificationTemplateService } from '../notification/notification-template.service';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
 
 @Controller('api/booking-assignments')
 @ApiTags('Booking Assignments')
@@ -15,6 +17,7 @@ export class BookingAssignmentController {
 
   @Post('/')
   @Roles(AccountRole.STAFF)
+  @EmitNotification(NotificationTemplateService.technicianAssignedToBooking())
   async assignTechnicians(
     @Body() body: CreateBookingAssignmentsDTO,
     @CurrentUser() user: JWT_Payload
@@ -60,6 +63,7 @@ export class BookingAssignmentController {
   }
 
   @Delete('/:assignmentId')
+  @EmitNotification(NotificationTemplateService.technicianUnassignedFromBooking())
   async removeAssignmentsForBooking(
     @Param('assignmentId') assignmentId: string,
     @CurrentUser() user: JWT_Payload
