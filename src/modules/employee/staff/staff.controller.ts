@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { StaffService } from './staff.service';
 import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 import { CreateStaffDTO } from './dto/create-staff.dto';
@@ -8,6 +8,8 @@ import { AccountRole } from '@prisma/client';
 import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { JWT_Payload } from 'src/common/types';
 
 @ApiTags('Staffs')
 @Controller('api/staffs')
@@ -48,6 +50,19 @@ export class StaffController {
   async getStaffById(@Param('id') id: string) {
     return this.staffService.getStaffById(id);
   }
+
+  @Get('/me/dashboard')
+  @Roles(AccountRole.STAFF)
+  @ApiBearerAuth('jwt-auth')
+  async getMyDashboard(@CurrentUser() user: JWT_Payload) {
+  const staffId = user.sub;
+  const data = await this.staffService.getStaffDashboard(staffId);
+
+  return {
+    message: 'Your dashboard retrieved successfully',
+    data,
+  };
+}
 
   @Post('/')
   @Roles(AccountRole.ADMIN)
