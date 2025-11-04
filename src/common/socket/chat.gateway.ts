@@ -20,12 +20,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   constructor(private readonly chatService: ChatService) {}
 
-  // Handle new socket connection
+  // 🔌 Handle new socket connection
   handleConnection(client: Socket) {
     this.logger.log(`[CONNECTED] ${client.id}`);
   }
 
-  // Handle disconnection
+  // ❌ Handle disconnection
   handleDisconnect(client: Socket) {
     const userId = [...this.onlineUsers.entries()].find(
       ([, socketId]) => socketId === client.id
@@ -101,7 +101,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // Get user's conversations
+  // 🧾 Get user's conversations
   @SubscribeMessage('get_conversations')
   async getConversations(client: Socket) {
     const user = client.data.user as JWT_Payload;
@@ -114,7 +114,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('conversations', conversations);
   }
 
-  // Get messages for a conversation
+  // 📋 Get messages for a conversation
   @SubscribeMessage('get_messages')
   async getMessages(client: Socket, conversationId: string) {
     const user = client.data.user as JWT_Payload;
@@ -127,7 +127,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.emit('messages', messages);
   }
 
-  // Staff claims a ticket
+  // 🧑‍🔧 Staff claims a ticket
   @SubscribeMessage('claim_ticket')
   async claimTicket(client: Socket, conversationId: string) {
     const staffId = [...this.onlineUsers.entries()].find(
@@ -153,7 +153,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // Staff closes a ticket
+  // 🔒 Staff closes a ticket
   @SubscribeMessage('close_ticket')
   async closeTicket(client: Socket, conversationId: string) {
     const staffId = [...this.onlineUsers.entries()].find(

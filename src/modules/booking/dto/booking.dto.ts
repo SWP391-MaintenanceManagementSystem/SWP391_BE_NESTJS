@@ -21,6 +21,13 @@ export class BookingDTO {
     return format(localDate, VN_DATE_TIME_FORMAT);
   })
   bookingDate: string;
+
+  @Expose()
+  feedback?: string;
+
+  @Expose()
+  rating?: number;
+
   @Expose()
   status: string;
   @Expose()
