@@ -62,6 +62,8 @@ class ShiftInfo {
 
 class TechnicianInfo {
   @Expose()
+  email: string;
+  @Expose()
   firstName: string;
   @Expose()
   lastName: string;
@@ -177,6 +179,7 @@ export class CustomerBookingDetailDTO {
   @Transform(
     ({ obj }) =>
       obj.bookingAssignments?.map((ba: any) => ({
+        email: ba.employee?.account?.email,
         firstName: ba.employee?.firstName,
         lastName: ba.employee?.lastName,
       })) || []
