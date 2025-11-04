@@ -254,6 +254,8 @@ model Booking {
   note        String?
   bookingDate DateTime      @map("booking_date") @db.Timestamptz
   handoverId  String?       @unique @map("handover_id")
+  rating      Int?
+  feedback    String?
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 

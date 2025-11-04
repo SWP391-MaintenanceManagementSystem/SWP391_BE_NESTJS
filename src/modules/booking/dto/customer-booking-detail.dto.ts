@@ -224,6 +224,12 @@ export class CustomerBookingDetailDTO {
   bookingDetails: BookingDetails;
 
   @Expose()
+  feedback?: string;
+
+  @Expose()
+  rating?: number;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()

@@ -10,8 +10,9 @@ import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
 import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
-import { TechnicianBookingService } from './technician-booking.service';
 import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
+import { CustomerBookingService } from './customer-booking.service';
+import { CreateFeedbackDTO } from './dto/create-feedback.dto';
 
 @Controller('api/bookings')
 @ApiTags('Bookings')
@@ -19,7 +20,7 @@ import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
 export class BookingController {
   constructor(
     private readonly bookingService: BookingService,
-    private readonly technicianBookingService: TechnicianBookingService
+    private readonly customerBookingService: CustomerBookingService
   ) {}
 
   @Get('/')
@@ -122,6 +123,16 @@ export class BookingController {
     return {
       data,
       message: 'Booking cancelled successfully',
+    };
+  }
+
+  @Post('/feedback')
+  @Roles(AccountRole.CUSTOMER)
+  async feedbackBooking(@Body() body: CreateFeedbackDTO, @CurrentUser() user: JWT_Payload) {
+    const data = await this.customerBookingService.feedbackBooking(body, user.sub);
+    return {
+      data,
+      message: 'Booking feedback submitted successfully',
     };
   }
 }
