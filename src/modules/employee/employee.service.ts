@@ -196,7 +196,7 @@ export class EmployeeService {
           ? utcToVNDate(currentAssignment.endDate)
           : null;
 
-        if (parsedNewStart >= currentStart && (!currentEnd || parsedNewStart <= currentEnd)) {
+        if (parsedNewStart > currentStart && (!currentEnd || parsedNewStart < currentEnd)) {
           const endStr = currentEnd ? currentEnd.toLocaleDateString('vi-VN') : 'present';
           errors['workCenter.startDate'] =
             `Start date (${parsedNewStart.toLocaleDateString('vi-VN')}) cannot overlap with current assignment (${currentStart.toLocaleDateString('vi-VN')} - ${endStr}).`;
@@ -538,15 +538,24 @@ export class EmployeeService {
     if (current) {
       const hasShifts = await this.checkEmployeeHasActiveShifts(employeeId);
       if (hasShifts) throw new ConflictException('Cannot change center: active shifts');
-      if (
-        parsedStart >= utcToVNDate(current.startDate) &&
-        (!current.endDate || parsedStart <= utcToVNDate(current.endDate))
-      ) {
-        throw new BadRequestException({ message: 'Start date overlaps current assignment' });
+
+      const vnNow = utcToVNDate(new Date());
+      const vnTodayStart = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate());
+      const todayStartUtc = vnToUtcDate(vnTodayStart);
+
+      // Check overlap: new start must not be within current assignment period (exclusive of boundaries)
+      const currentStart = utcToVNDate(current.startDate);
+      const currentEnd = current.endDate ? utcToVNDate(current.endDate) : null;
+
+      if (parsedStart > currentStart && (!currentEnd || parsedStart < currentEnd)) {
+        throw new BadRequestException({
+          message: 'Start date cannot be within current assignment period',
+        });
       }
+
       await this.prisma.workCenter.update({
         where: { id: current.id },
-        data: { endDate: new Date() },
+        data: { endDate: todayStartUtc },
       });
     }
 
@@ -589,7 +598,9 @@ export class EmployeeService {
         (!workCenter.centerId?.trim() ||
           existing.employee.workCenters[0]?.centerId !== workCenter.centerId?.trim())
       ) {
-        throw new ConflictException(`Cannot change center: ${bookings.length} active booking(s)`);
+        throw new ConflictException(
+          `Cannot change service center while employee still has active bookings at the current center.`
+        );
       }
     }
 
