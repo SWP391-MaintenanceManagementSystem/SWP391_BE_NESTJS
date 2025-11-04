@@ -12,132 +12,121 @@ import { TrendingSummaryDTO } from './dto/trending-summary.dto';
 export class DashboardService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async getSummary(): Promise<DashboardSummaryDTO> {
+    const timeZone = 'Asia/Ho_Chi_Minh';
+    const nowVN = toZonedTime(new Date(), timeZone);
 
- async getSummary(): Promise<DashboardSummaryDTO> {
-  const timeZone = 'Asia/Ho_Chi_Minh';
-  const nowVN = toZonedTime(new Date(), timeZone);
+    const startOfWeek = (date: Date) => {
+      const d = new Date(date);
+      const day = d.getDay() === 0 ? 7 : d.getDay(); // nếu CN thì tính là ngày 7
+      d.setDate(d.getDate() - (day - 1)); // về đầu tuần (thứ 2)
+      d.setHours(0, 0, 0, 0);
+      return d;
+    };
 
-  const startOfWeek = (date: Date) => {
-    const d = new Date(date);
-    const day = d.getDay() === 0 ? 7 : d.getDay(); // nếu CN thì tính là ngày 7
-    d.setDate(d.getDate() - (day - 1)); // về đầu tuần (thứ 2)
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
+    const endOfWeek = (date: Date) => {
+      const start = startOfWeek(date);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+      return end;
+    };
 
-  const endOfWeek = (date: Date) => {
-    const start = startOfWeek(date);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    end.setHours(23, 59, 59, 999);
-    return end;
-  };
+    const startThisWeek = startOfWeek(nowVN);
+    const endThisWeek = endOfWeek(nowVN);
+    const startLastWeek = new Date(startThisWeek);
+    startLastWeek.setDate(startThisWeek.getDate() - 7);
+    const endLastWeek = new Date(endThisWeek);
+    endLastWeek.setDate(endThisWeek.getDate() - 7);
 
-  const startThisWeek = startOfWeek(nowVN);
-  const endThisWeek = endOfWeek(nowVN);
-  const startLastWeek = new Date(startThisWeek);
-  startLastWeek.setDate(startThisWeek.getDate() - 7);
-  const endLastWeek = new Date(endThisWeek);
-  endLastWeek.setDate(endThisWeek.getDate() - 7);
+    const [
+      totalRevenueAggregate,
+      revenueThisWeek,
+      revenueLastWeek,
+      customersThisWeek,
+      customersLastWeek,
+      employeesThisWeek,
+      employeesLastWeek,
+      totalCustomers,
+      totalEmployees,
+      totalCenters,
+    ] = await Promise.all([
+      this.prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: { status: 'SUCCESS' },
+      }),
 
-  const [
-    totalRevenueAggregate,
-    revenueThisWeek,
-    revenueLastWeek,
-    customersThisWeek,
-    customersLastWeek,
-    employeesThisWeek,
-    employeesLastWeek,
-    totalCustomers,
-    totalEmployees,
-    totalCenters,
-  ] = await Promise.all([
+      this.prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          status: 'SUCCESS',
+          createdAt: { gte: startThisWeek, lte: endThisWeek },
+        },
+      }),
 
-    this.prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: { status: 'SUCCESS' },
-    }),
+      this.prisma.transaction.aggregate({
+        _sum: { amount: true },
+        where: {
+          status: 'SUCCESS',
+          createdAt: { gte: startLastWeek, lte: endLastWeek },
+        },
+      }),
 
+      this.prisma.customer.count({
+        where: {
+          createdAt: { gte: startThisWeek, lte: endThisWeek },
+          account: { status: 'VERIFIED' },
+        },
+      }),
 
-    this.prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: {
-        status: 'SUCCESS',
-        createdAt: { gte: startThisWeek, lte: endThisWeek },
-      },
-    }),
+      this.prisma.customer.count({
+        where: {
+          createdAt: { gte: startLastWeek, lte: endLastWeek },
+          account: { status: 'VERIFIED' },
+        },
+      }),
 
-    this.prisma.transaction.aggregate({
-      _sum: { amount: true },
-      where: {
-        status: 'SUCCESS',
-        createdAt: { gte: startLastWeek, lte: endLastWeek },
-      },
-    }),
+      this.prisma.employee.count({
+        where: {
+          createdAt: { gte: startThisWeek, lte: endThisWeek },
+          account: { status: 'VERIFIED' },
+        },
+      }),
 
+      this.prisma.employee.count({
+        where: {
+          createdAt: { gte: startLastWeek, lte: endLastWeek },
+          account: { status: 'VERIFIED' },
+        },
+      }),
 
-    this.prisma.customer.count({
-      where: {
-        createdAt: { gte: startThisWeek, lte: endThisWeek },
-        account: { status: 'VERIFIED' },
-      },
-    }),
+      this.prisma.customer.count({
+        where: { account: { status: 'VERIFIED' } },
+      }),
 
+      this.prisma.employee.count({
+        where: { account: { status: 'VERIFIED' } },
+      }),
 
-    this.prisma.customer.count({
-      where: {
-        createdAt: { gte: startLastWeek, lte: endLastWeek },
-        account: { status: 'VERIFIED' },
-      },
-    }),
+      this.prisma.serviceCenter.count(),
+    ]);
 
+    const calcGrowth = (curr: number, prev: number) =>
+      prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
 
-    this.prisma.employee.count({
-      where: {
-        createdAt: { gte: startThisWeek, lte: endThisWeek },
-        account: { status: 'VERIFIED' },
-      },
-    }),
-
-
-    this.prisma.employee.count({
-      where: {
-        createdAt: { gte: startLastWeek, lte: endLastWeek },
-        account: { status: 'VERIFIED' },
-      },
-    }),
-
-
-    this.prisma.customer.count({
-      where: { account: { status: 'VERIFIED' } },
-    }),
-
-
-    this.prisma.employee.count({
-      where: { account: { status: 'VERIFIED' } },
-    }),
-
-
-    this.prisma.serviceCenter.count(),
-  ]);
-
-  const calcGrowth = (curr: number, prev: number) =>
-    prev === 0 ? (curr > 0 ? 100 : 0) : ((curr - prev) / prev) * 100;
-
-  return {
-    totalRevenue: Number(totalRevenueAggregate._sum.amount ?? 0),
-    totalCustomers,
-    totalEmployees,
-    totalServiceCenters: totalCenters,
-    revenueGrowthRate: calcGrowth(
-      Number(revenueThisWeek._sum.amount ?? 0),
-      Number(revenueLastWeek._sum.amount ?? 0),
-    ),
-    customerGrowthRate: calcGrowth(customersThisWeek, customersLastWeek),
-    employeeGrowthRate: calcGrowth(employeesThisWeek, employeesLastWeek),
-  };
-}
-
+    return {
+      totalRevenue: Number(totalRevenueAggregate._sum.amount ?? 0),
+      totalCustomers,
+      totalEmployees,
+      totalServiceCenters: totalCenters,
+      revenueGrowthRate: calcGrowth(
+        Number(revenueThisWeek._sum.amount ?? 0),
+        Number(revenueLastWeek._sum.amount ?? 0)
+      ),
+      customerGrowthRate: calcGrowth(customersThisWeek, customersLastWeek),
+      employeeGrowthRate: calcGrowth(employeesThisWeek, employeesLastWeek),
+    };
+  }
 
   async getRevenueByDate(period?: string): Promise<RevenueStatsDTO> {
     const timeZone = 'Asia/Ho_Chi_Minh';
@@ -173,7 +162,6 @@ export class DashboardService {
     return { range: period ?? '3m', data };
   }
 
-
   async getInventoryStatus(): Promise<InventoryStatusDTO> {
     const parts = await this.prisma.part.findMany({
       where: { status: { in: ['AVAILABLE', 'OUT_OF_STOCK', 'DISCONTINUED'] } },
@@ -205,47 +193,45 @@ export class DashboardService {
     return { inStock, lowStock, disStock, totalItems: parts.length, totalValue, lowStockItems };
   }
 
- async getBookingsByServiceCenter(): Promise<ServiceCenterStatsDTO[]> {
-  const centers = await this.prisma.serviceCenter.findMany({ select: { id: true, name: true } });
-  const grouped = await this.prisma.booking.groupBy({
-    by: ['centerId'],
-    _count: { id: true },
-    _sum: { totalCost: true },
-  });
+  async getBookingsByServiceCenter(): Promise<ServiceCenterStatsDTO[]> {
+    const centers = await this.prisma.serviceCenter.findMany({ select: { id: true, name: true } });
+    const grouped = await this.prisma.booking.groupBy({
+      by: ['centerId'],
+      _count: { id: true },
+      _sum: { totalCost: true },
+    });
 
-  return centers.map((center) => {
-    const match = grouped.find((g) => g.centerId === center.id);
-    return {
-      centerName: center.name,
-      bookings: match?._count.id ?? 0,
-      revenue: match?._sum.totalCost ?? 0,
-    };
-  });
-}
-
+    return centers.map(center => {
+      const match = grouped.find(g => g.centerId === center.id);
+      return {
+        centerName: center.name,
+        bookings: match?._count.id ?? 0,
+        revenue: match?._sum.totalCost ?? 0,
+      };
+    });
+  }
 
   async getTrendingPurchases(): Promise<TrendingSummaryDTO> {
-  const [services, packages, memberships] = await Promise.all([
-    this.getTrendingServices(),
-    this.getTrendingPackages(),
-    this.getTrendingMemberships(),
-  ]);
+    const [services, packages, memberships] = await Promise.all([
+      this.getTrendingServices(),
+      this.getTrendingPackages(),
+      this.getTrendingMemberships(),
+    ]);
 
+    const getTopNames = (items: { name: string; value: number }[]) => {
+      if (!items.length) return [];
+      const topValue = items[0].value;
+      return items.filter(i => i.value === topValue).map(i => i.name);
+    };
 
-  const getTopNames = (items: { name: string; value: number }[]) => {
-    if (!items.length) return [];
-    const topValue = items[0].value;
-    return items.filter((i) => i.value === topValue).map((i) => i.name);
-  };
-
-  return {
-    mostPopularService: getTopNames(services),
-    mostPopularPackage: getTopNames(packages),
-    mostPopularMembership: getTopNames(memberships),
-    services,
-    packages,
-    memberships,
-  }
+    return {
+      mostPopularService: getTopNames(services),
+      mostPopularPackage: getTopNames(packages),
+      mostPopularMembership: getTopNames(memberships),
+      services,
+      packages,
+      memberships,
+    };
   }
 
   private async getTrendingServices() {
@@ -259,7 +245,7 @@ export class DashboardService {
     });
 
     return all
-      .map((s) => ({ name: s.name, value: counts.find((c) => c.serviceId === s.id)?._count.id ?? 0 }))
+      .map(s => ({ name: s.name, value: counts.find(c => c.serviceId === s.id)?._count.id ?? 0 }))
       .sort((a, b) => b.value - a.value);
   }
 
@@ -274,7 +260,7 @@ export class DashboardService {
     });
 
     return all
-      .map((p) => ({ name: p.name, value: counts.find((c) => c.packageId === p.id)?._count.id ?? 0 }))
+      .map(p => ({ name: p.name, value: counts.find(c => c.packageId === p.id)?._count.id ?? 0 }))
       .sort((a, b) => b.value - a.value);
   }
 
@@ -288,7 +274,10 @@ export class DashboardService {
     });
 
     return all
-      .map((m) => ({ name: m.name, value: counts.find((c) => c.membershipId === m.id)?._count.id ?? 0 }))
+      .map(m => ({
+        name: m.name,
+        value: counts.find(c => c.membershipId === m.id)?._count.id ?? 0,
+      }))
       .sort((a, b) => b.value - a.value);
   }
 }
