@@ -11,6 +11,7 @@ export class NotificationTemplateService {
   static bookingCreated(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Booking Created Successful',
       message: data => {
         const booking = data.data;
         const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
@@ -24,6 +25,7 @@ export class NotificationTemplateService {
   static newBookingForStaff(): NotificationItem {
     return {
       type: NotificationType.BOOKING,
+      title: 'New Booking Assignament',
       message: data => {
         const booking = data.data; // ← dùng data.data để đồng nhất
         const bookingId = booking.id?.slice(0, 8) || 'N/A';
@@ -46,6 +48,7 @@ export class NotificationTemplateService {
     return {
       // Gửi cho customer
       type: NotificationType.BOOKING,
+      title: 'Booking Created Successful',
       message: data => {
         const booking = data.data;
         const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
@@ -69,6 +72,7 @@ export class NotificationTemplateService {
   static bookingAssigned(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Booking Assigned to Technician',
       message: data => {
         const booking = data.data;
         return `Your booking #${booking.id.slice(0, 8)} has been assigned to a technician.`;
@@ -81,6 +85,7 @@ export class NotificationTemplateService {
   static bookingAssignedWithTechnician(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Booking Assigned to Technician',
       message: data => {
         const bookingId = data.data.booking?.id || 'N/A';
         return `Your booking #${bookingId.slice(0, 8)} has been assigned to technicians.`;
@@ -93,6 +98,7 @@ export class NotificationTemplateService {
   static bookingCompleted(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Booking Completed',
       message: data => {
         const booking = data.data;
         return `Your booking #${booking.id.slice(0, 8)} has been completed. Please check the details and check-out.`;
@@ -105,6 +111,7 @@ export class NotificationTemplateService {
   static NotiBookingCompletedforStaff(): NotificationItem {
     return {
       type: NotificationType.BOOKING,
+      title: 'Booking Completed',
       message: data => {
         const booking = data.data;
         return `Booking #${booking.id.slice(0, 8)} has been marked as completed.`;
@@ -116,6 +123,7 @@ export class NotificationTemplateService {
   static bookingCancelled(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Booking Cancelled',
       message: data => {
         const booking = data.data;
         return `Your booking #${booking.id.slice(0, 8)} has been cancelled.`;
@@ -127,6 +135,7 @@ export class NotificationTemplateService {
   static bookingStatusUpdate(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Booking Status Updated',
       message: data => {
         const booking = data.data;
         const statusMap: Record<string, string> = {
@@ -149,6 +158,7 @@ export class NotificationTemplateService {
   static paymentSuccess(): NotificationMetadata {
     return {
       type: NotificationType.PAYMENT,
+      title: 'Payment Successful',
       message: data => {
         const transaction = data.data;
         return `Your payment of ${transaction.amount.toLocaleString('vi-VN')} has been processed successfully.`;
@@ -160,6 +170,7 @@ export class NotificationTemplateService {
   static paymentFailed(): NotificationMetadata {
     return {
       type: NotificationType.PAYMENT,
+      title: 'Payment Failed',
       message: data => {
         const transaction = data.data;
         return `Your payment of ${transaction.amount.toLocaleString('vi-VN')} VND has failed. Please try again.`;
@@ -172,6 +183,7 @@ export class NotificationTemplateService {
   static shiftAssigned(): NotificationMetadata {
     return {
       type: NotificationType.SHIFT,
+      title: 'New Shift Assigned',
       message: data => {
         const schedules = data.data;
         if (Array.isArray(schedules) && schedules.length > 0) {
@@ -189,6 +201,7 @@ export class NotificationTemplateService {
   static shiftUpdated(): NotificationMetadata {
     return {
       type: NotificationType.SHIFT,
+      title: 'Shift Updated',
       message: data => {
         const schedule = data.data;
         const date = new Date(schedule.date).toLocaleDateString('vi-VN');
@@ -202,6 +215,7 @@ export class NotificationTemplateService {
   static shiftCancelled(): NotificationMetadata {
     return {
       type: NotificationType.SHIFT,
+      title: 'Shift Cancelled',
       message: data => {
         const schedule = data.data;
         const date = new Date(schedule.date).toLocaleDateString('vi-VN');
@@ -215,6 +229,7 @@ export class NotificationTemplateService {
   static technicianAssignedToBooking(): NotificationItem {
     return {
       type: NotificationType.BOOKING,
+      title: 'Assigned to Booking',
       message: data => {
         const assignment = data.data.assignments[0];
         const bookingId = assignment.booking?.id || assignment.bookingId || 'N/A';
@@ -230,6 +245,7 @@ export class NotificationTemplateService {
   static technicianUnassignedFromBooking(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Unassigned from Booking',
       message: data => {
         const assignment = data.data;
         const bookingId = assignment.booking?.id || assignment.bookingId || 'N/A';
@@ -243,6 +259,7 @@ export class NotificationTemplateService {
   static vehicleHandoverCreated(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
+      title: 'Vehicle Check-In Completed',
       message: () => {
         return `Vehicle Check-In completed. Check your booking for details.`;
       },
@@ -254,6 +271,7 @@ export class NotificationTemplateService {
   static membershipActivated(): NotificationMetadata {
     return {
       type: NotificationType.MEMBERSHIP,
+      title: 'Membership Activated',
       message: data => {
         const subscription = data.data;
         const endDate = new Date(subscription.endDate).toLocaleDateString('vi-VN');
@@ -266,6 +284,7 @@ export class NotificationTemplateService {
   static membershipExpiringSoon(): NotificationMetadata {
     return {
       type: NotificationType.MEMBERSHIP,
+      title: 'Membership Expiring Soon',
       message: data => {
         const subscription = data.data;
         const endDate = new Date(subscription.endDate).toLocaleDateString('vi-VN');
@@ -278,6 +297,7 @@ export class NotificationTemplateService {
   static membershipExpired(): NotificationMetadata {
     return {
       type: NotificationType.MEMBERSHIP,
+      title: 'Membership Expired',
       message: () => 'Your premium membership has expired. Renew now to restore your benefits!',
       targetUserIdField: 'data.customerId',
     };
@@ -287,6 +307,7 @@ export class NotificationTemplateService {
   static employeeAssignedToCenter(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
+      title: 'Assigned to Service Center',
       message: data => {
         const result = data.data;
         const centerName = result.workCenter?.name || 'a service center';
@@ -299,6 +320,7 @@ export class NotificationTemplateService {
   static employeeRemovedFromCenter(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
+      title: 'Removed from Service Center',
       message: () => 'You have been removed from your current service center assignment.',
       targetUserIdField: 'data.employeeId',
     };
@@ -307,6 +329,7 @@ export class NotificationTemplateService {
   static employeeProfileUpdated(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
+      title: 'Profile Updated by Admin',
       message: () => 'Your profile has been updated by an administrator.',
       targetUserIdField: 'data.id',
     };
@@ -316,6 +339,7 @@ export class NotificationTemplateService {
   static customerProfileUpdated(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
+      title: 'Profile Updated Successfully',
       message: () => 'Your profile has been updated successfully.',
       targetUserIdField: 'data.id',
     };
@@ -325,6 +349,7 @@ export class NotificationTemplateService {
   static systemMaintenance(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
+      title: 'System Maintenance Notification',
       message: data => data.message || 'System maintenance scheduled. Please check for updates.',
       // No targetUserIdField = send to current user
     };
