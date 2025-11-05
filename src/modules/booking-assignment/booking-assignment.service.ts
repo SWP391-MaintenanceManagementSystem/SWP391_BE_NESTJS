@@ -11,7 +11,14 @@ import { JWT_Payload } from 'src/common/types';
 @Injectable()
 export class BookingAssignmentService {
   constructor(private readonly prismaService: PrismaService) {}
-  async assignTechniciansToBooking(body: CreateBookingAssignmentsDTO, staffId: string) {
+  async assignTechniciansToBooking(
+    body: CreateBookingAssignmentsDTO,
+    staffId: string
+  ): Promise<{
+    data: { booking: { id: string }; assignments: BookingAssignmentsDTO[] };
+    customerId: string;
+    employeeIds: string[];
+  }> {
     const { bookingId, employeeIds } = body;
 
     const booking = await this.prismaService.booking.findUnique({
@@ -113,7 +120,14 @@ export class BookingAssignmentService {
       },
     });
 
-    return plainToInstance(BookingAssignmentsDTO, assignments);
+    return {
+      data: {
+        booking: { id: bookingId },
+        assignments: plainToInstance(BookingAssignmentsDTO, assignments),
+      },
+      customerId: booking.customerId,
+      employeeIds,
+    };
   }
 
   async getBookingAssignments(bookingId: string) {

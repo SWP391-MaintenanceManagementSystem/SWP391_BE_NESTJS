@@ -8,7 +8,7 @@ import { TechnicianBookingQueryDTO } from './dto/technician-booking-query.dto';
 import { TechnicianBookingDTO } from './dto/technician-booking.dto';
 import { TechnicianBookingDetailDTO } from './dto/technician-booking-detail.dto';
 import { buildBookingOrderBy } from 'src/common/sort/sort.util';
-import { parseDate } from 'src/utils';
+import { parseDate, utcToVNDate } from 'src/utils';
 import { JWT_Payload } from 'src/common/types';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
 
@@ -198,13 +198,14 @@ export class TechnicianBookingService {
     bookingId: string,
     user: JWT_Payload,
     detailIds: string[]
-  ): Promise<void> {
+  ): Promise<{ data: any; customerId: string; staffIds: string[] }> {
     const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
       include: {
         bookingAssignments: {
           where: { employeeId: user.sub },
         },
+        customer: { select: { accountId: true } },
       },
     });
 
@@ -217,10 +218,51 @@ export class TechnicianBookingService {
     }
 
     await this.bookingDetailService.markCompleteDetails(bookingId, detailIds);
-    await this.prismaService.booking.update({
+    const updatedBooking = await this.prismaService.booking.update({
       where: { id: bookingId },
       data: { status: 'COMPLETED' },
     });
+
+    const vnBookingDate = utcToVNDate(updatedBooking.bookingDate);
+    const vnDateOnly = new Date(
+      vnBookingDate.getFullYear(),
+      vnBookingDate.getMonth(),
+      vnBookingDate.getDate()
+    );
+
+    const staffSchedules = await this.prismaService.workSchedule.findMany({
+      where: {
+        shiftId: updatedBooking.shiftId,
+        date: {
+          gte: dateFns.startOfDay(vnDateOnly),
+          lt: dateFns.endOfDay(vnDateOnly),
+        },
+        employee: {
+          account: {
+            role: 'STAFF',
+            status: 'VERIFIED',
+          },
+          workCenters: {
+            some: {
+              centerId: updatedBooking.centerId,
+              startDate: { lte: vnDateOnly },
+              OR: [{ endDate: null }, { endDate: { gte: vnDateOnly } }],
+            },
+          },
+        },
+      },
+      select: {
+        employeeId: true,
+      },
+    });
+
+    const staffIds = staffSchedules.map(s => s.employeeId);
+
+    return {
+      data: updatedBooking,
+      customerId: booking.customer.accountId,
+      staffIds,
+    };
   }
 
   async markInprogressTasks(bookingId: string, user: JWT_Payload): Promise<void> {

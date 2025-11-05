@@ -42,6 +42,8 @@ import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover
 import { ChatModule } from './modules/chat/chat.module';
 import { WebsocketModule } from './common/socket/socket.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { NotificationInterceptor } from './common/interceptor/notification.interceptor';
 
 @Module({
   imports: [
@@ -109,6 +111,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     ChatModule,
     WebsocketModule,
     DashboardModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [
@@ -128,6 +131,10 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: NotificationInterceptor,
     },
   ],
 })

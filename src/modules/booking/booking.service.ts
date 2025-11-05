@@ -22,7 +22,7 @@ import { JWT_Payload } from 'src/common/types';
 import { CustomerUpdateBookingDTO } from './dto/customer-update-booking.dto';
 import { StaffUpdateBookingDTO } from './dto/staff-update-booking.dto';
 import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
-import { localTimeToDate, parseDate } from 'src/utils';
+import { localTimeToDate, parseDate, vnToUtcDate, utcToVNDate } from 'src/utils';
 import { CustomerBookingService } from './customer-booking.service';
 import { AdminBookingService } from './admin-booking.service';
 import { StaffBookingService } from './staff-booking.service';
@@ -31,6 +31,7 @@ import { TechnicianBookingService } from './technician-booking.service';
 import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
 import { FREE_PACKAGE_ID } from 'src/common/constants';
 import { BookingHistoryDTO } from './dto/booking-history.dto';
+import { AccountStatus } from '@prisma/client';
 
 export const CAN_ADJUST: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.ASSIGNED];
 @Injectable()
@@ -296,11 +297,82 @@ export class BookingService {
       data: { totalCost },
     });
   }
+  private async getStaffIdsForBooking(
+    centerId: string,
+    shiftId: string,
+    bookingDate: Date
+  ): Promise<string[]> {
+    const bookingDateOnly = new Date(
+      bookingDate.getFullYear(),
+      bookingDate.getMonth(),
+      bookingDate.getDate()
+    );
+
+    // ✅ Debug logs
+    console.log('=== getStaffIdsForBooking DEBUG ===');
+    console.log('Original bookingDate:', bookingDate);
+    console.log('bookingDateOnly (local):', bookingDateOnly);
+    console.log('centerId:', centerId);
+    console.log('shiftId:', shiftId);
+
+    // ✅ Query with date range to handle timezone issues
+    const staffSchedules = await this.prismaService.workSchedule.findMany({
+      where: {
+        shiftId,
+        date: {
+          gte: dateFns.startOfDay(bookingDateOnly),
+          lt: dateFns.endOfDay(bookingDateOnly),
+        },
+        employee: {
+          account: {
+            role: AccountRole.STAFF,
+            status: AccountStatus.VERIFIED,
+          },
+          workCenters: {
+            some: {
+              centerId,
+              startDate: { lte: bookingDateOnly },
+              OR: [{ endDate: null }, { endDate: { gte: bookingDateOnly } }],
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        date: true,
+        shiftId: true,
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+            account: {
+              select: {
+                email: true,
+                role: true,
+                status: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // ✅ Debug logs
+    console.log('Found schedules:', staffSchedules.length);
+    console.log('Schedule details:', JSON.stringify(staffSchedules, null, 2));
+
+    const staffIds = staffSchedules.map(s => s.employeeId);
+    console.log('Staff IDs for notification:', staffIds);
+    console.log('=== END DEBUG ===\n');
+
+    return staffIds;
+  }
 
   async createBooking(
     bookingData: CreateBookingDTO,
     customerId: string
-  ): Promise<{ booking: BookingDTO; warning?: string }> {
+  ): Promise<{ booking: BookingDTO; warning?: string; staffIds: string[] }> {
     const {
       bookingDate,
       centerId,
@@ -344,12 +416,17 @@ export class BookingService {
     if (bookingDetailsData.length > 0) {
       await this.bookingDetailService.createManyBookingDetails(bookingDetailsData);
     }
-
+    const staffIds = await this.getStaffIdsForBooking(
+      centerId,
+      workSchedule.shiftId,
+      parsedBookingDate
+    );
     const updatedBooking = await this.updateTotalCost(createdBooking.id);
 
     return {
       booking: plainToInstance(BookingDTO, updatedBooking),
       warning: warning ?? undefined,
+      staffIds,
     };
   }
 
