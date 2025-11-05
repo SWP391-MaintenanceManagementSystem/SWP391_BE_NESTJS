@@ -36,5 +36,4 @@ export class DashboardOverviewDTO {
     packages: TrendingItemDTO[];
     memberships: TrendingItemDTO[];
   };
-
 }

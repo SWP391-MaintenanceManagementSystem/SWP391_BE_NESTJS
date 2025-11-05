@@ -405,6 +405,7 @@ export class BookingService {
       fromDate,
       toDate,
       isPremium,
+      isActive,
     } = filterOptions;
 
     // Convert string dates to Date objects for database comparison
@@ -425,7 +426,15 @@ export class BookingService {
     }
 
     let where: Prisma.BookingWhereInput = {
-      ...(status && { status }),
+      ...(status
+        ? { status }
+        : isActive !== undefined
+          ? {
+              status: isActive
+                ? { notIn: ['CANCELLED', 'CHECKED_OUT'] }
+                : { in: ['CANCELLED', 'CHECKED_OUT'] },
+            }
+          : {}),
       ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(centerId && { centerId }),
       ...(shiftId && { shiftId }),
@@ -559,7 +568,11 @@ export class BookingService {
     }
 
     let where: Prisma.BookingWhereInput = {
-      ...(status && { status }),
+      ...(status
+        ? { status }
+        : {
+            status: { in: ['CANCELLED', 'CHECKED_OUT'] },
+          }),
       ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(centerId && { centerId }),
       ...(shiftId && { shiftId }),
@@ -575,9 +588,6 @@ export class BookingService {
       ...buildBookingSearch(search),
     };
 
-    if (!status) {
-      where.status = { in: ['CANCELLED', 'CHECKED_OUT'] };
-    }
     switch (user.role) {
       case AccountRole.CUSTOMER:
         where = { ...where, customerId: user.sub };
