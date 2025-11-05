@@ -182,6 +182,7 @@ export class NotificationService {
       is_read,
       title,
       content,
+      search,
       notification_type,
       orderBy = 'desc',
       sortBy = 'sent_at',
@@ -195,6 +196,12 @@ export class NotificationService {
     if (notification_type) where.notification_type = notification_type;
     if (title) where.title = { contains: title, mode: 'insensitive' };
     if (content) where.content = { contains: content, mode: 'insensitive' };
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { content: { contains: search, mode: 'insensitive' } },
+      ];
+    }
 
     const total = await this.prisma.notification.count({ where });
 

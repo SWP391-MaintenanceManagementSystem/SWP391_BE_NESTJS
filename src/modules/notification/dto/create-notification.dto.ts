@@ -4,12 +4,15 @@ import { NotificationType } from '@prisma/client';
 
 export class CreateNotificationDTO {
   @ApiProperty({
-    example: '',
+    example: 'title-notification',
   })
   @IsString()
   @IsNotEmpty()
   title: string;
 
+  @ApiProperty({
+    example: 'content-notification',
+  })
   @IsString()
   @IsNotEmpty()
   content: string;
