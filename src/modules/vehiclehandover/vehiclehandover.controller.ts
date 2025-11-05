@@ -80,7 +80,7 @@ export class VehicleHandoverController {
   }
 
   @Get('booking/:bookingId')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.CUSTOMER)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.CUSTOMER, AccountRole.TECHNICIAN)
   @ApiOperation({ summary: 'Get vehicle handover by booking ID - ADMIN, STAFF, CUSTOMER' })
   async getByBookingId(
     @Param('bookingId', ParseUUIDPipe) bookingId: string
