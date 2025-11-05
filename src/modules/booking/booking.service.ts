@@ -405,6 +405,7 @@ export class BookingService {
       fromDate,
       toDate,
       isPremium,
+      isActive,
     } = filterOptions;
 
     // Convert string dates to Date objects for database comparison
@@ -429,6 +430,11 @@ export class BookingService {
       ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(centerId && { centerId }),
       ...(shiftId && { shiftId }),
+      ...(isActive !== undefined && {
+        status: isActive
+          ? { notIn: ['CANCELLED', 'CHECKED_OUT'] }
+          : { in: ['CANCELLED', 'CHECKED_OUT'] },
+      }),
       ...(parsedBookingDate && {
         bookingDate: {
           gte: dateFns.startOfDay(parsedBookingDate),

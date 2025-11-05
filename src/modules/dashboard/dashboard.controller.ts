@@ -8,13 +8,17 @@ import { RevenueStatsDTO } from './dto/revenue-stats.dto';
 import { InventoryStatusDTO } from './dto/inventory-status.dto';
 import { ServiceCenterStatsDTO } from './dto/service-center-stats.dto';
 import { TrendingSummaryDTO } from './dto/trending-summary.dto';
+import { CustomerDashboardService } from './customer-dashboard.service';
 
 @ApiTags('Statistics')
 @Controller('api/statistics')
 @Roles(AccountRole.ADMIN)
 @ApiBearerAuth('jwt-auth')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly customerDashboardService: CustomerDashboardService
+  ) {}
 
   @Get('overview')
   async getSummary(): Promise<DashboardSummaryDTO> {
