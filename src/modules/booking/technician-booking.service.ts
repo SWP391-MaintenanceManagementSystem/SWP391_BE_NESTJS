@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
+import { BookingStatus, Prisma } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import * as dateFns from 'date-fns';
@@ -220,6 +220,35 @@ export class TechnicianBookingService {
     await this.prismaService.booking.update({
       where: { id: bookingId },
       data: { status: 'COMPLETED' },
+    });
+  }
+
+  async markInprogressTasks(bookingId: string, user: JWT_Payload): Promise<void> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        bookingAssignments: {
+          where: { employeeId: user.sub },
+        },
+      },
+    });
+
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+
+    if (booking.bookingAssignments.length === 0) {
+      throw new BadRequestException('You are not assigned to this booking');
+    }
+
+    if (booking.status !== BookingStatus.CHECKED_IN) {
+      throw new BadRequestException('Can not start tasks for this booking now');
+    }
+
+    await this.bookingDetailService.markInprogressDetails(bookingId);
+    await this.prismaService.booking.update({
+      where: { id: bookingId },
+      data: { status: 'IN_PROGRESS' },
     });
   }
 }

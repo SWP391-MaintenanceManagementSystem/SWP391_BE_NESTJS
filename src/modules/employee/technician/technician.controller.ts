@@ -63,6 +63,13 @@ export class TechnicianController {
     return { message: 'Booking details marked as complete successfully' };
   }
 
+  @Patch('bookings/:bookingId/details/start')
+  @Roles(AccountRole.TECHNICIAN)
+  async startTasks(@Param('bookingId') bookingId: string, @CurrentUser() user: JWT_Payload) {
+    await this.technicianBookingService.markInprogressTasks(bookingId, user);
+    return { message: 'Booking details marked as in progress successfully' };
+  }
+
   @Get('/')
   @Roles(AccountRole.ADMIN)
   async getTechnicians(@Query() query: EmployeeQueryWithPaginationDTO) {
