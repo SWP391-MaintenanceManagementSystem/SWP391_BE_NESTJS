@@ -568,7 +568,11 @@ export class BookingService {
     }
 
     let where: Prisma.BookingWhereInput = {
-      ...(status && { status }),
+      ...(status
+        ? { status }
+        : {
+            status: { in: ['CANCELLED', 'CHECKED_OUT'] },
+          }),
       ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(centerId && { centerId }),
       ...(shiftId && { shiftId }),
@@ -584,9 +588,6 @@ export class BookingService {
       ...buildBookingSearch(search),
     };
 
-    if (!status) {
-      where.status = { in: ['CANCELLED', 'CHECKED_OUT'] };
-    }
     switch (user.role) {
       case AccountRole.CUSTOMER:
         where = { ...where, customerId: user.sub };

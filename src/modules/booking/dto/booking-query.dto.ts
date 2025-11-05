@@ -25,7 +25,6 @@ export class BookingQueryDTO {
   @ApiProperty({
     required: false,
     enum: BookingStatus,
-    example: BookingStatus.PENDING,
   })
   @IsOptional()
   @IsEnum(BookingStatus)
