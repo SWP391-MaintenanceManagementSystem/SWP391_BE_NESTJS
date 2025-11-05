@@ -187,22 +187,6 @@ export class EmployeeService {
           'Cannot change or remove service center: Employee has active/upcoming shifts.';
       }
     }
-
-    if (isChanging && newStartDate && currentAssignment) {
-      const parsedNewStart = parseDate(newStartDate);
-      if (parsedNewStart) {
-        const currentStart = utcToVNDate(currentAssignment.startDate);
-        const currentEnd = currentAssignment.endDate
-          ? utcToVNDate(currentAssignment.endDate)
-          : null;
-
-        if (parsedNewStart > currentStart && (!currentEnd || parsedNewStart < currentEnd)) {
-          const endStr = currentEnd ? currentEnd.toLocaleDateString('vi-VN') : 'present';
-          errors['workCenter.startDate'] =
-            `Start date (${parsedNewStart.toLocaleDateString('vi-VN')}) cannot overlap with current assignment (${currentStart.toLocaleDateString('vi-VN')} - ${endStr}).`;
-        }
-      }
-    }
   }
 
   // === GET: Pagination + Filters ===
@@ -543,14 +527,27 @@ export class EmployeeService {
       const vnTodayStart = new Date(vnNow.getFullYear(), vnNow.getMonth(), vnNow.getDate());
       const todayStartUtc = vnToUtcDate(vnTodayStart);
 
-      // Check overlap: new start must not be within current assignment period (exclusive of boundaries)
-      const currentStart = utcToVNDate(current.startDate);
-      const currentEnd = current.endDate ? utcToVNDate(current.endDate) : null;
+      // Check overlap, not allow startDate in range of current assignment
+      // End current assignment today = startDate new assignment = today
+      const currentStartVN = utcToVNDate(current.startDate);
+      const currentEndVN = current.endDate ? utcToVNDate(current.endDate) : null;
+      const isStrictlyInside =
+        parsedStart > currentStartVN && (!currentEndVN || parsedStart < currentEndVN);
 
-      if (parsedStart > currentStart && (!currentEnd || parsedStart < currentEnd)) {
-        throw new BadRequestException({
-          message: 'Start date cannot be within current assignment period',
-        });
+      if (isStrictlyInside) {
+        const isToday =
+          parsedStart.getFullYear() === vnTodayStart.getFullYear() &&
+          parsedStart.getMonth() === vnTodayStart.getMonth() &&
+          parsedStart.getDate() === vnTodayStart.getDate();
+
+        if (!isToday) {
+          const endStr = currentEndVN ? currentEndVN.toLocaleDateString('vi-VN') : 'present';
+          throw new ConflictException(
+            `Start date ${startDate} overlaps with current assignment (${currentStartVN.toLocaleDateString(
+              'vi-VN'
+            )} - ${endStr})`
+          );
+        }
       }
 
       await this.prisma.workCenter.update({
