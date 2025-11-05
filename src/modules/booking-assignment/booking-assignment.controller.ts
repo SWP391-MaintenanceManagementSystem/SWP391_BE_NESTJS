@@ -17,14 +17,17 @@ export class BookingAssignmentController {
 
   @Post('/')
   @Roles(AccountRole.STAFF)
-  @EmitNotification(NotificationTemplateService.technicianAssignedToBooking())
+  @EmitNotification(NotificationTemplateService.bookingAssignedWithTechnician())
   async assignTechnicians(
     @Body() body: CreateBookingAssignmentsDTO,
     @CurrentUser() user: JWT_Payload
   ) {
-    const data = await this.bookingAssignmentService.assignTechniciansToBooking(body, user.sub);
+    const { data, customerId, employeeIds } =
+      await this.bookingAssignmentService.assignTechniciansToBooking(body, user.sub);
     return {
       data,
+      customerId,
+      employeeIds,
       message: 'Technicians assigned successfully',
     };
   }

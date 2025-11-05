@@ -1,4 +1,3 @@
-// src/common/interceptor/notification.interceptor.ts
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
@@ -20,104 +19,116 @@ export class NotificationInterceptor implements NestInterceptor {
       NOTIFICATION_KEY,
       context.getHandler()
     );
-
-    if (!metadata) {
-      return next.handle();
-    }
+    if (!metadata) return next.handle();
 
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
     return next.handle().pipe(
-      tap(async responseData => {
-        try {
-          let targetUserIds: string[] = [];
-
-          if (metadata.targetUserIdField) {
-            const extracted = this.extractUserIds(responseData, metadata.targetUserIdField);
-            targetUserIds = extracted;
-            this.logger.debug(`Extracted user IDs: ${JSON.stringify(targetUserIds)}`);
-          } else {
-            // No field specified = send to current user
-            if (user?.sub) {
-              targetUserIds = [user.sub];
-              this.logger.debug(`Using current user ID: ${user.sub}`);
-            }
-          }
-
-          if (targetUserIds.length === 0) {
-            this.logger.warn('No target user IDs found for notification');
-            return;
-          }
-
-          // Generate message (pass full response data)
-          const message =
-            typeof metadata.message === 'function'
-              ? metadata.message(responseData)
-              : metadata.message;
-
-          this.logger.debug(`Generated message: "${message}"`);
-
-          // Send notification to each user
-          for (const userId of targetUserIds) {
-            this.logger.debug(`Sending notification to user: ${userId}`);
-            await this.notificationService.sendNotification(userId, message, metadata.type);
-          }
-
-          this.logger.log(`Notifications sent to ${targetUserIds.length} user(s)`);
-        } catch (error) {
+      tap(responseData => {
+        this.sendNotifications(responseData, metadata, user).catch(error => {
           this.logger.error('Failed to send notification:', error.stack || error);
-        }
+        });
       })
     );
+  }
+
+  private async sendNotifications(
+    responseData: any,
+    metadata: NotificationMetadata,
+    user: any
+  ): Promise<void> {
+    const tasks: Promise<void>[] = [];
+
+    this.logger.debug(`Response data structure: ${JSON.stringify(responseData, null, 2)}`);
+
+    if (metadata.targetUserIdField && metadata.message) {
+      const userIds = this.extractUserIds(responseData, metadata.targetUserIdField);
+
+      this.logger.debug(
+        `Primary notification - Field: "${metadata.targetUserIdField}", UserIDs: ${JSON.stringify(userIds)}`
+      );
+
+      if (userIds.length > 0) {
+        const message =
+          typeof metadata.message === 'function'
+            ? metadata.message(responseData)
+            : metadata.message;
+
+        for (const userId of userIds) {
+          tasks.push(this.notificationService.sendNotification(userId, message, metadata.type!));
+        }
+      }
+    } else if (!metadata.targetUserIdField && user?.sub && metadata.message) {
+      // current user
+      const message =
+        typeof metadata.message === 'function' ? metadata.message(responseData) : metadata.message;
+      tasks.push(this.notificationService.sendNotification(user.sub, message, metadata.type!));
+    }
+
+    // additional
+    if (metadata.additional?.length) {
+      for (const item of metadata.additional) {
+        const userIds = this.extractUserIds(responseData, item.targetUserIdField);
+
+        this.logger.debug(
+          `Additional notification - Field: "${item.targetUserIdField}", UserIDs: ${JSON.stringify(userIds)}`
+        );
+
+        if (userIds.length === 0) continue;
+
+        const message =
+          typeof item.message === 'function' ? item.message(responseData) : item.message;
+
+        for (const userId of userIds) {
+          tasks.push(this.notificationService.sendNotification(userId, message, item.type));
+        }
+      }
+    }
+    this.logger.debug(`Total notification tasks: ${tasks.length}`);
+
+    await Promise.all(tasks);
+
+    this.logger.log(`Successfully sent ${tasks.length} notification(s)`);
   }
 
   private extractUserIds(obj: any, path: string): string[] {
     if (!obj || !path) return [];
 
     this.logger.debug(`Extracting from path: "${path}"`);
+    const parts = path.split('.');
+    let current: any = obj;
 
-    const arrayMatch = path.match(/^(.+?)\[\]\.(.+)$/);
-    if (arrayMatch) {
-      const [, arrayPath, fieldName] = arrayMatch;
-      const array = this.getNestedValue(obj, arrayPath);
+    for (const part of parts) {
+      if (!current) return [];
 
-      if (Array.isArray(array)) {
-        const ids = array
-          .map(item => this.getNestedValue(item, fieldName))
-          .filter(id => typeof id === 'string' && id.trim() !== '');
+      const arrayMatch = part.match(/^(\w+)\[\]$/);
+      if (arrayMatch) {
+        const key = arrayMatch[1];
+        const arrayVal = current[key];
 
-        this.logger.debug(`Extracted from array: ${JSON.stringify(ids)}`);
-        return ids;
+        if (!Array.isArray(arrayVal)) {
+          this.logger.warn(`Expected array at "${key}", got ${typeof arrayVal}`);
+          return [];
+        }
+
+        const remainingPath = parts.slice(parts.indexOf(part) + 1).join('.');
+        const ids = arrayVal.flatMap(item => this.extractUserIds(item, remainingPath));
+        return ids.filter(id => id != null).map(String);
       }
-    }
-    const value = this.getNestedValue(obj, path);
 
-    if (typeof value === 'string' && value.trim() !== '') {
-      return [value];
+      current = current[part];
     }
 
-    if (Array.isArray(value)) {
-      return value.filter(id => typeof id === 'string' && id.trim() !== '');
+    if (Array.isArray(current)) {
+      return current.filter(id => id != null).map(id => String(id));
+    }
+
+    if (current != null) {
+      return [String(current)];
     }
 
     this.logger.warn(`Could not extract user ID from path: ${path}`);
     return [];
-  }
-
-  private getNestedValue(obj: any, path: string): any {
-    if (!obj || !path) return undefined;
-
-    const keys = path.split('.');
-    let current = obj;
-
-    for (const key of keys) {
-      if (current === null || current === undefined) {
-        return undefined;
-      }
-      current = current[key];
-    }
-
-    return current;
   }
 }

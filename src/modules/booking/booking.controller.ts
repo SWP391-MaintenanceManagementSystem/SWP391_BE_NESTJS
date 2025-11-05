@@ -13,6 +13,8 @@ import { AccountRole } from '@prisma/client';
 import { BookingHistoryQueryDTO } from './dto/booking-history-query.dto';
 import { CustomerBookingService } from './customer-booking.service';
 import { CreateFeedbackDTO } from './dto/create-feedback.dto';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationTemplateService } from 'src/modules/notification/notification-template.service';
 
 @Controller('api/bookings')
 @ApiTags('Bookings')
@@ -66,11 +68,16 @@ export class BookingController {
   }
 
   @Post('/')
-  @EmitNotification(NotificationTemplateService.bookingCreated())
+  @EmitNotification(NotificationTemplateService.bookingCreatedWithStaff())
   async createBooking(@Body() bookingData: CreateBookingDTO, @CurrentUser() user: JWT_Payload) {
-    const { booking, warning } = await this.bookingService.createBooking(bookingData, user.sub);
+    const { booking, warning, staffIds } = await this.bookingService.createBooking(
+      bookingData,
+      user.sub
+    );
     return {
       data: booking,
+      customerId: user.sub,
+      staffIds,
       warning,
       message: 'Booking created successfully',
     };

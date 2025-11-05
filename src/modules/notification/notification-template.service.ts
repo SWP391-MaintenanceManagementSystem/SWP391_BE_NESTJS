@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
-import { NotificationMetadata } from 'src/common/decorator/emit-notification.decorator';
+import {
+  NotificationMetadata,
+  NotificationItem,
+} from 'src/common/decorator/emit-notification.decorator';
 
 @Injectable()
 export class NotificationTemplateService {
@@ -17,6 +20,52 @@ export class NotificationTemplateService {
     };
   }
 
+  // 2. Chỉ gửi cho STAFF (dùng trong additional)
+  static newBookingForStaff(): NotificationItem {
+    return {
+      type: NotificationType.BOOKING,
+      message: data => {
+        const booking = data.data; // ← dùng data.data để đồng nhất
+        const bookingId = booking.id?.slice(0, 8) || 'N/A';
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        const time = new Date(booking.bookingDate).toLocaleTimeString('vi-VN', {
+          hour: '2-digit',
+          minute: '2-digit',
+        });
+        const centerName = booking.serviceCenter?.name || 'your center';
+        const shiftName = booking.shift?.name || 'your shift';
+
+        return `New booking #${bookingId} at ${centerName} for ${date}, ${shiftName} (${time}).`;
+      },
+      targetUserIdField: 'staffIds',
+    };
+  }
+
+  // 3. GỬI CẢ CUSTOMER + STAFF (1 decorator)
+  static bookingCreatedWithStaff(): NotificationMetadata {
+    return {
+      // Gửi cho customer
+      type: NotificationType.BOOKING,
+      message: data => {
+        const booking = data.data;
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        return `Your booking #${booking.id.slice(0, 8)} for ${date} has been created successfully.`;
+      },
+      targetUserIdField: 'customerId',
+
+      // Gửi cho staff
+      additional: [this.newBookingForStaff()], // ← reuse function
+    };
+  }
+
+  // 4. CHỈ GỬI CHO STAFF (không gửi customer)
+  static onlyStaffNewBooking(): NotificationMetadata {
+    return {
+      additional: [this.newBookingForStaff()],
+    };
+  }
+
+  // Booking Notification for Customer (customer receive)
   static bookingAssigned(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
@@ -28,14 +77,39 @@ export class NotificationTemplateService {
     };
   }
 
+  // Booking assignment notification (both customer and technician receive)
+  static bookingAssignedWithTechnician(): NotificationMetadata {
+    return {
+      type: NotificationType.BOOKING,
+      message: data => {
+        const bookingId = data.data.booking?.id || 'N/A';
+        return `Your booking #${bookingId.slice(0, 8)} has been assigned to technicians.`;
+      },
+      targetUserIdField: 'customerId',
+      additional: [this.technicianAssignedToBooking()],
+    };
+  }
+
   static bookingCompleted(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
       message: data => {
         const booking = data.data;
-        return `Your booking #${booking.id.slice(0, 8)} has been completed. Thank you for using our service!`;
+        return `Your booking #${booking.id.slice(0, 8)} has been completed. Please check the details and check-out.`;
       },
-      targetUserIdField: 'data.customerId',
+      targetUserIdField: 'customerId',
+      additional: [this.NotiBookingCompletedforStaff()],
+    };
+  }
+
+  static NotiBookingCompletedforStaff(): NotificationItem {
+    return {
+      type: NotificationType.BOOKING,
+      message: data => {
+        const booking = data.data;
+        return `Booking #${booking.id.slice(0, 8)} has been marked as completed.`;
+      },
+      targetUserIdField: 'staffIds',
     };
   }
 
@@ -77,7 +151,7 @@ export class NotificationTemplateService {
       type: NotificationType.PAYMENT,
       message: data => {
         const transaction = data.data;
-        return `Your payment of ${transaction.amount.toLocaleString('vi-VN')} VND has been processed successfully.`;
+        return `Your payment of ${transaction.amount.toLocaleString('vi-VN')} has been processed successfully.`;
       },
       targetUserIdField: 'data.customerId',
     };
@@ -138,15 +212,18 @@ export class NotificationTemplateService {
   }
 
   // Booking assignment notification (technician receive)
-  static technicianAssignedToBooking(): NotificationMetadata {
+  static technicianAssignedToBooking(): NotificationItem {
     return {
       type: NotificationType.BOOKING,
       message: data => {
-        const assignment = data.data;
+        const assignment = data.data.assignments[0];
         const bookingId = assignment.booking?.id || assignment.bookingId || 'N/A';
-        return `You have been assigned to booking #${bookingId.slice(0, 8)}.`;
+        const bookingDate = assignment.booking?.bookingDate
+          ? new Date(assignment.booking.bookingDate).toLocaleDateString('vi-VN')
+          : 'N/A';
+        return `You have been assigned to booking #${bookingId.slice(0, 8)} on ${bookingDate}.`;
       },
-      targetUserIdField: 'data.employeeId',
+      targetUserIdField: 'employeeIds', // ← response có employeeIds
     };
   }
 
@@ -167,7 +244,7 @@ export class NotificationTemplateService {
     return {
       type: NotificationType.BOOKING,
       message: () => {
-        return `Vehicle handover completed. Check your booking for details.`;
+        return `Vehicle Check-In completed. Check your booking for details.`;
       },
       targetUserIdField: 'data.booking.customerId', // Customer (nested field)
     };
