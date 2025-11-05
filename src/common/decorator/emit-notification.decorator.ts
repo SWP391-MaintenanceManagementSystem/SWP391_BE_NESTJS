@@ -3,12 +3,14 @@ import { NotificationType } from '@prisma/client';
 
 export interface NotificationItem {
   type: NotificationType;
+  title: string | ((data: any) => string);
   message: string | ((data: any) => string);
   targetUserIdField: string;
 }
 
 export interface NotificationMetadata {
   type?: NotificationType;
+  title?: string | ((data: any) => string);
   message?: string | ((data: any) => string);
   targetUserIdField?: string;
   additional?: NotificationItem[];

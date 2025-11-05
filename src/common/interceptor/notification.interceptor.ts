@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { NOTIFICATION_KEY, NotificationMetadata } from '../decorator/emit-notification.decorator';
+import { title } from 'process';
 
 @Injectable()
 export class NotificationInterceptor implements NestInterceptor {
@@ -54,16 +55,27 @@ export class NotificationInterceptor implements NestInterceptor {
           typeof metadata.message === 'function'
             ? metadata.message(responseData)
             : metadata.message;
-
+        const title =
+          typeof metadata.title === 'function'
+            ? metadata.title(responseData)
+            : metadata.title || 'Notification';
         for (const userId of userIds) {
-          tasks.push(this.notificationService.sendNotification(userId, message, metadata.type!));
+          tasks.push(
+            this.notificationService.sendNotification(userId, message, metadata.type!, title)
+          );
         }
       }
     } else if (!metadata.targetUserIdField && user?.sub && metadata.message) {
       // current user
       const message =
         typeof metadata.message === 'function' ? metadata.message(responseData) : metadata.message;
-      tasks.push(this.notificationService.sendNotification(user.sub, message, metadata.type!));
+      const title =
+        typeof metadata.title === 'function'
+          ? metadata.title(responseData)
+          : metadata.title || 'Notification';
+      tasks.push(
+        this.notificationService.sendNotification(user.sub, message, metadata.type!, title)
+      );
     }
 
     // additional
@@ -80,8 +92,10 @@ export class NotificationInterceptor implements NestInterceptor {
         const message =
           typeof item.message === 'function' ? item.message(responseData) : item.message;
 
+        const title = typeof item.title === 'function' ? item.title(responseData) : item.title;
+
         for (const userId of userIds) {
-          tasks.push(this.notificationService.sendNotification(userId, message, item.type));
+          tasks.push(this.notificationService.sendNotification(userId, message, item.type, title));
         }
       }
     }

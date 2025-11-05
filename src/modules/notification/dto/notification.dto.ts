@@ -12,6 +12,9 @@ export class NotificationDTO {
   accountId: string;
 
   @Expose()
+  title: string;
+
+  @Expose()
   content: string;
 
   @Expose()

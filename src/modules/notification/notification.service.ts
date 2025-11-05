@@ -29,7 +29,8 @@ export class NotificationService {
   async sendNotification(
     accountId: string,
     content: string,
-    type: NotificationType
+    type: NotificationType,
+    title: string
   ): Promise<void> {
     console.log('=== sendNotification ===');
     console.log(`accountId: ${accountId} (type: ${typeof accountId})`);
@@ -54,6 +55,7 @@ export class NotificationService {
       const notification = await this.prisma.notification.create({
         data: {
           accountId,
+          title,
           content,
           notification_type: type,
           is_read: false,
@@ -65,6 +67,7 @@ export class NotificationService {
       console.log('Sending via WebSocket...');
       this.notificationGateway.sendNotificationWithData(accountId, {
         id: notification.id,
+        title: notification.title,
         content: notification.content,
         notification_type: notification.notification_type,
         sent_at: notification.sent_at,
@@ -79,7 +82,8 @@ export class NotificationService {
   async sendBulkNotifications(
     accountIds: string[],
     content: string,
-    type: NotificationType
+    type: NotificationType,
+    title: string
   ): Promise<void> {
     if (accountIds.length === 0) return;
 
@@ -88,6 +92,7 @@ export class NotificationService {
       await this.prisma.notification.createMany({
         data: accountIds.map(accountId => ({
           accountId,
+          title,
           content,
           notification_type: type,
           is_read: false,
@@ -111,7 +116,7 @@ export class NotificationService {
     accountId: string,
     createData: CreateNotificationDTO
   ): Promise<NotificationDTO> {
-    const { content, notification_type } = createData;
+    const { title, content, notification_type } = createData;
 
     console.log(`accountId: ${accountId}, content: ${content}, type: ${notification_type}`);
 
@@ -139,6 +144,7 @@ export class NotificationService {
     const notification = await this.prisma.notification.create({
       data: {
         accountId,
+        title,
         content,
         notification_type,
         is_read: false,
@@ -174,6 +180,8 @@ export class NotificationService {
   ): Promise<PaginationResponse<NotificationDTO>> {
     const {
       is_read,
+      title,
+      content,
       notification_type,
       orderBy = 'desc',
       sortBy = 'sent_at',
@@ -185,6 +193,8 @@ export class NotificationService {
 
     if (is_read !== undefined) where.is_read = is_read === true;
     if (notification_type) where.notification_type = notification_type;
+    if (title) where.title = { contains: title, mode: 'insensitive' };
+    if (content) where.content = { contains: content, mode: 'insensitive' };
 
     const total = await this.prisma.notification.count({ where });
 

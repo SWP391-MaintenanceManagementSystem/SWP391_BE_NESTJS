@@ -15,6 +15,20 @@ export class NotificationQueryDTO {
 
   @ApiPropertyOptional({
     required: false,
+    description: 'Title',
+  })
+  @IsOptional()
+  title?: string;
+
+  @ApiPropertyOptional({
+    required: false,
+    description: 'Content',
+  })
+  @IsOptional()
+  content?: string;
+
+  @ApiPropertyOptional({
+    required: false,
     description: 'Type of the notification',
     enum: NotificationType,
   })
