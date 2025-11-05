@@ -426,15 +426,18 @@ export class BookingService {
     }
 
     let where: Prisma.BookingWhereInput = {
-      ...(status && { status }),
+      ...(status
+        ? { status }
+        : isActive !== undefined
+          ? {
+              status: isActive
+                ? { notIn: ['CANCELLED', 'CHECKED_OUT'] }
+                : { in: ['CANCELLED', 'CHECKED_OUT'] },
+            }
+          : {}),
       ...(isPremium !== undefined && { customer: { isPremium } }),
       ...(centerId && { centerId }),
       ...(shiftId && { shiftId }),
-      ...(isActive !== undefined && {
-        status: isActive
-          ? { notIn: ['CANCELLED', 'CHECKED_OUT'] }
-          : { in: ['CANCELLED', 'CHECKED_OUT'] },
-      }),
       ...(parsedBookingDate && {
         bookingDate: {
           gte: dateFns.startOfDay(parsedBookingDate),
