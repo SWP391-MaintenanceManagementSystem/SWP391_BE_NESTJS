@@ -256,6 +256,7 @@ model Booking {
   handoverId  String?       @unique @map("handover_id")
   rating      Int?
   feedback    String?
+  reminded    Json?         @default("{}") @map("reminded")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
