@@ -44,7 +44,6 @@ export class NotificationController {
   @Get()
   @ApiOperation({
     summary: 'Get all notifications for current user',
-    description: 'Retrieves paginated notifications for the authenticated user',
   })
   async findAll(@Query() query: NotificationQueryDTO, @CurrentUser() user: JWT_Payload) {
     const data = await this.notificationService.getNotifications(user.sub, query);

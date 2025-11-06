@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt, IsBoolean } from 'class-validator';
+import { IsOptional, IsInt, IsBoolean, IsEnum } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 import { NotificationType } from '@prisma/client';
 import { Order } from 'src/common/sort/sort.config';
@@ -41,11 +41,18 @@ export class NotificationQueryDTO {
 
   @ApiPropertyOptional({
     required: false,
-    description: 'Type of the notification',
     enum: NotificationType,
+    isArray: true,
+    example: ['BOOKING', 'PAYMENT'],
   })
   @IsOptional()
-  notification_type?: NotificationType;
+  @IsEnum(NotificationType, { each: true })
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value;
+    return value.split(',').map((v: string) => v.trim().toUpperCase());
+  })
+  notification_type?: NotificationType[];
 
   @ApiPropertyOptional({
     required: false,
