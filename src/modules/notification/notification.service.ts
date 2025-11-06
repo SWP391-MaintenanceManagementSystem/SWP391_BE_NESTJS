@@ -195,7 +195,9 @@ export class NotificationService {
     const where: any = { accountId };
 
     if (is_read !== undefined) where.is_read = is_read;
-    if (notification_type) where.notification_type = notification_type;
+    if (notification_type && notification_type.length > 0) {
+      where.notification_type = { in: notification_type };
+    }
     if (title) where.title = { contains: title, mode: 'insensitive' };
     if (content) where.content = { contains: content, mode: 'insensitive' };
     if (search) {
@@ -265,51 +267,34 @@ export class NotificationService {
     countShift: number;
     countMembership: number;
   }> {
-    const total = await this.prisma.notification.count({
-      where: { accountId },
-    });
+    const [
+      total,
+      unreadCount,
+      countBooking,
+      countSystem,
+      countPayment,
+      countShift,
+      countMembership,
+    ] = await Promise.all([
+      this.prisma.notification.count({ where: { accountId } }),
+      this.prisma.notification.count({ where: { accountId, is_read: false } }),
+      this.prisma.notification.count({
+        where: { accountId, notification_type: NotificationType.BOOKING },
+      }),
+      this.prisma.notification.count({
+        where: { accountId, notification_type: NotificationType.SYSTEM },
+      }),
+      this.prisma.notification.count({
+        where: { accountId, notification_type: NotificationType.PAYMENT },
+      }),
+      this.prisma.notification.count({
+        where: { accountId, notification_type: NotificationType.SHIFT },
+      }),
+      this.prisma.notification.count({
+        where: { accountId, notification_type: NotificationType.MEMBERSHIP },
+      }),
+    ]);
 
-    const unreadCount = await this.prisma.notification.count({
-      where: {
-        accountId,
-        is_read: false,
-      },
-    });
-
-    const countBooking = await this.prisma.notification.count({
-      where: {
-        accountId,
-        notification_type: NotificationType.BOOKING,
-      },
-    });
-
-    const countSystem = await this.prisma.notification.count({
-      where: {
-        accountId,
-        notification_type: NotificationType.SYSTEM,
-      },
-    });
-
-    const countPayment = await this.prisma.notification.count({
-      where: {
-        accountId,
-        notification_type: NotificationType.PAYMENT,
-      },
-    });
-
-    const countShift = await this.prisma.notification.count({
-      where: {
-        accountId,
-        notification_type: NotificationType.SHIFT,
-      },
-    });
-
-    const countMembership = await this.prisma.notification.count({
-      where: {
-        accountId,
-        notification_type: NotificationType.MEMBERSHIP,
-      },
-    });
     const readCount = total - unreadCount;
 
     return {
