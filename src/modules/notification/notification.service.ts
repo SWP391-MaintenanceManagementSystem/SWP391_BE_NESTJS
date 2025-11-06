@@ -102,6 +102,7 @@ export class NotificationService {
       // Send real-time notifications
       accountIds.forEach(accountId => {
         this.notificationGateway.sendNotificationWithData(accountId, {
+          title,
           content,
           notification_type: type,
           sent_at: new Date().toISOString(),
@@ -157,6 +158,7 @@ export class NotificationService {
     try {
       this.notificationGateway.sendNotificationWithData(accountId, {
         id: notification.id,
+        title: notification.title,
         content: notification.content,
         notification_type: notification.notification_type,
         sent_at: notification.sent_at,
@@ -192,7 +194,7 @@ export class NotificationService {
 
     const where: any = { accountId };
 
-    if (is_read !== undefined) where.is_read = is_read === true;
+    if (is_read !== undefined) where.is_read = is_read;
     if (notification_type) where.notification_type = notification_type;
     if (title) where.title = { contains: title, mode: 'insensitive' };
     if (content) where.content = { contains: content, mode: 'insensitive' };
@@ -253,15 +255,32 @@ export class NotificationService {
     });
   }
 
-  async getUnreadCount(accountId: string): Promise<{ count: number }> {
-    const count = await this.prisma.notification.count({
+  async getCount(accountId: string): Promise<{
+    total: number;
+    unreadCount: number;
+    readCount: number;
+  }> {
+    // Get total count
+    const total = await this.prisma.notification.count({
+      where: { accountId },
+    });
+
+    // Get unread count
+    const unreadCount = await this.prisma.notification.count({
       where: {
         accountId,
         is_read: false,
       },
     });
 
-    return { count };
+    // Calculate read count
+    const readCount = total - unreadCount;
+
+    return {
+      total,
+      unreadCount,
+      readCount,
+    };
   }
 
   async updateNotification(
