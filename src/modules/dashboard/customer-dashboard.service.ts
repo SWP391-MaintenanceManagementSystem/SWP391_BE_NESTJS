@@ -48,89 +48,110 @@ export class CustomerDashboardService {
     ];
   }
 
-  async getTotalSpending(customerId: string) {
-    const now = new Date();
+  // ===================== UTILS =====================
 
-    // === WEEK RANGE ===
-    const startOfWeek = new Date(now);
+  private getWeekRange() {
+    const now = new Date();
+    const start = new Date(now);
     const day = now.getDay();
     const diff = day === 0 ? 6 : day - 1; // Monday = 0
-    startOfWeek.setDate(now.getDate() - diff);
-    startOfWeek.setHours(0, 0, 0, 0);
+    start.setDate(now.getDate() - diff);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
 
-    const endOfWeek = new Date(startOfWeek);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-    endOfWeek.setHours(23, 59, 59, 999);
+  private getMonthRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
 
-    // === MONTH RANGE ===
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    endOfMonth.setHours(23, 59, 59, 999);
+  private getYearRange() {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), 0, 1);
+    const end = new Date(now.getFullYear(), 11, 31);
+    end.setHours(23, 59, 59, 999);
+    return { start, end };
+  }
 
-    // === YEAR RANGE ===
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const endOfYear = new Date(now.getFullYear(), 11, 31);
-    endOfYear.setHours(23, 59, 59, 999);
+  private async aggregateSpending(customerId: string) {
+    const result = await this.prismaService.transaction.aggregate({
+      where: {
+        customerId,
+        status: TransactionStatus.SUCCESS,
+      },
+      _sum: { amount: true },
+      _avg: { amount: true },
+      _max: { amount: true, createdAt: true },
+    });
+    return {
+      total: result._sum.amount ?? 0,
+      average: result._avg.amount ?? 0,
+      peak: {
+        key: result._max.createdAt ? result._max.createdAt.toISOString().split('T')[0] : '',
+        amount: result._max.amount ?? 0,
+      },
+    };
+  }
 
-    // ===================== WEEK =====================
-    const weekRaw = await this.prismaService.transaction.groupBy({
+  private async getGroupedSpending(customerId: string, range: { start: Date; end: Date }) {
+    const raw = await this.prismaService.transaction.groupBy({
       by: ['createdAt'],
       where: {
         customerId,
         status: TransactionStatus.SUCCESS,
-        createdAt: { gte: startOfWeek, lte: endOfWeek },
+        createdAt: { gte: range.start, lte: range.end },
       },
       _sum: { amount: true },
     });
 
-    const weekMap: Record<string, number> = {};
-    for (const t of weekRaw) {
+    const map: Record<string, number> = {};
+    for (const t of raw) {
       const key = t.createdAt.toISOString().split('T')[0];
-      weekMap[key] = (weekMap[key] ?? 0) + (t._sum.amount ?? 0);
+      map[key] = (map[key] ?? 0) + (t._sum.amount ?? 0);
     }
+    return map;
+  }
 
+  async getTotalSpending(customerId: string) {
+    const { start: weekStart, end: weekEnd } = this.getWeekRange();
+    const { start: monthStart, end: monthEnd } = this.getMonthRange();
+    const { start: yearStart, end: yearEnd } = this.getYearRange();
+    const now = new Date();
+
+    // week
+    const weekMap = await this.getGroupedSpending(customerId, { start: weekStart, end: weekEnd });
     const week = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(startOfWeek);
-      d.setDate(startOfWeek.getDate() + i);
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
       const key = d.toISOString().split('T')[0];
-      return {
-        key,
-        amount: weekMap[key] ?? 0,
-      };
+      return { key, amount: weekMap[key] ?? 0 };
     });
 
-    const monthRaw = await this.prismaService.transaction.groupBy({
-      by: ['createdAt'],
-      where: {
-        customerId,
-        status: TransactionStatus.SUCCESS,
-        createdAt: { gte: startOfMonth, lte: endOfMonth },
-      },
-      _sum: { amount: true },
+    // month
+    const monthMap = await this.getGroupedSpending(customerId, {
+      start: monthStart,
+      end: monthEnd,
     });
-
-    const monthMap: Record<string, number> = {};
-    for (const t of monthRaw) {
-      const key = t.createdAt.toISOString().split('T')[0];
-      monthMap[key] = (monthMap[key] ?? 0) + (t._sum.amount ?? 0);
-    }
-
-    const daysInMonth = endOfMonth.getDate();
+    const daysInMonth = monthEnd.getDate();
     const month = Array.from({ length: daysInMonth }, (_, i) => {
       const d = new Date(now.getFullYear(), now.getMonth(), i + 1);
       const key = d.toISOString().split('T')[0];
-      return {
-        key,
-        amount: monthMap[key] ?? 0,
-      };
+      return { key, amount: monthMap[key] ?? 0 };
     });
 
+    // year
     const yearRaw = await this.prismaService.transaction.groupBy({
       by: ['createdAt'],
       where: {
         customerId,
         status: TransactionStatus.SUCCESS,
-        createdAt: { gte: startOfYear, lte: endOfYear },
+        createdAt: { gte: yearStart, lte: yearEnd },
       },
       _sum: { amount: true },
     });
@@ -140,16 +161,19 @@ export class CustomerDashboardService {
       const monthIndex = t.createdAt.getMonth();
       yearMap[monthIndex] = (yearMap[monthIndex] ?? 0) + (t._sum.amount ?? 0);
     }
-
     const year = Array.from({ length: 12 }, (_, i) => ({
       key: String(i + 1),
       amount: yearMap[i] ?? 0,
     }));
 
+    // overall aggregation
+    const overall = await this.aggregateSpending(customerId);
+
     return plainToInstance(SpendingSummaryDTO, {
       week,
       month,
       year,
+      ...overall,
     });
   }
 

@@ -42,6 +42,18 @@ export class SpendingSummaryDTO {
   @Expose()
   @Type(() => SpendingPointDTO)
   year: SpendingPointDTO[];
+
+  @Expose()
+  total: number;
+
+  @Expose()
+  average: number;
+
+  @Expose()
+  peak: {
+    key: string;
+    amount: number;
+  };
 }
 
 export class CustomerDashboardDTO {
