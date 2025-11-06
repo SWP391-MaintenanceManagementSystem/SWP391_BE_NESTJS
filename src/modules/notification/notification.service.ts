@@ -259,13 +259,16 @@ export class NotificationService {
     total: number;
     unreadCount: number;
     readCount: number;
+    countBooking: number;
+    countSystem: number;
+    countPayment: number;
+    countShift: number;
+    countMembership: number;
   }> {
-    // Get total count
     const total = await this.prisma.notification.count({
       where: { accountId },
     });
 
-    // Get unread count
     const unreadCount = await this.prisma.notification.count({
       where: {
         accountId,
@@ -273,13 +276,51 @@ export class NotificationService {
       },
     });
 
-    // Calculate read count
+    const countBooking = await this.prisma.notification.count({
+      where: {
+        accountId,
+        notification_type: NotificationType.BOOKING,
+      },
+    });
+
+    const countSystem = await this.prisma.notification.count({
+      where: {
+        accountId,
+        notification_type: NotificationType.SYSTEM,
+      },
+    });
+
+    const countPayment = await this.prisma.notification.count({
+      where: {
+        accountId,
+        notification_type: NotificationType.PAYMENT,
+      },
+    });
+
+    const countShift = await this.prisma.notification.count({
+      where: {
+        accountId,
+        notification_type: NotificationType.SHIFT,
+      },
+    });
+
+    const countMembership = await this.prisma.notification.count({
+      where: {
+        accountId,
+        notification_type: NotificationType.MEMBERSHIP,
+      },
+    });
     const readCount = total - unreadCount;
 
     return {
       total,
       unreadCount,
       readCount,
+      countBooking,
+      countSystem,
+      countPayment,
+      countShift,
+      countMembership,
     };
   }
 
