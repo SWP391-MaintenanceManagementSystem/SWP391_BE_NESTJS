@@ -30,15 +30,15 @@ export class WorkScheduleController {
   constructor(private readonly workScheduleService: WorkScheduleService) {}
 
   @Post()
-  @EmitNotification(NotificationTemplateService.shiftAssigned())
+  @EmitNotification(NotificationTemplateService.workScheduleAssigned())
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateWorkScheduleDTO })
   async createWorkSchedule(@Body() createDto: CreateWorkScheduleDTO, @CurrentUser() user: any) {
-    const data = await this.workScheduleService.createWorkSchedule(createDto, user.role);
+    const result = await this.workScheduleService.createWorkSchedule(createDto, user.role);
     return {
       message: 'Work schedules created successfully',
-      data,
-      count: data.length,
+      data: result.data,
+      count: result.data.length,
     };
   }
 

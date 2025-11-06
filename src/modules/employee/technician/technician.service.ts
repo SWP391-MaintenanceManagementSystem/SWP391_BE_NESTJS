@@ -8,11 +8,13 @@ import { plainToInstance } from 'class-transformer';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { hashPassword } from 'src/utils';
-import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { AccountStatus } from '@prisma/client';
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
 import { EmployeeService } from '../employee.service';
+import { NotificationService } from 'src/modules/notification/notification.service';
+import { NotificationTemplateService } from 'src/modules/notification/notification-template.service';
 
 @Injectable()
 export class TechnicianService {
@@ -20,7 +22,8 @@ export class TechnicianService {
     private prisma: PrismaService,
     private readonly accountService: AccountService,
     private readonly configService: ConfigService,
-    private readonly employeeService: EmployeeService
+    private readonly employeeService: EmployeeService,
+    private readonly notificationService: NotificationService
   ) {}
 
   async createTechnician(createTechnicianDto: CreateTechnicianDTO): Promise<EmployeeWithCenterDTO> {
@@ -55,9 +58,57 @@ export class TechnicianService {
       throw new NotFoundException('Technician not found');
     }
 
-    return await this.employeeService.updateEmployee(id, updateData);
-  }
+    // ✅ Call updateEmployee
+    const result = await this.employeeService.updateEmployee(id, updateData);
 
+    // ✅ Send notifications
+    const notificationPromises: Promise<void>[] = [];
+
+    // Profile updated
+    if (result.notifications.profileUpdated) {
+      const template = NotificationTemplateService.employeeProfileUpdated();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          typeof template.message === 'function'
+            ? template.message({})
+            : 'Your profile has been updated by an administrator.',
+          template.type!,
+          template.title as string
+        )
+      );
+    }
+
+    // ✅ Center removed
+    if (result.notifications.centerRemoved && result.notifications.oldCenterName) {
+      const removeTemplate = NotificationTemplateService.employeeRemovedFromCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been removed from ${result.notifications.oldCenterName}.`,
+          removeTemplate.type!,
+          removeTemplate.title as string
+        )
+      );
+    }
+
+    // ✅ Center assigned
+    if (result.notifications.centerUpdated && result.notifications.newCenterName) {
+      const assignTemplate = NotificationTemplateService.employeeAssignedToCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been assigned to ${result.notifications.newCenterName}.`,
+          assignTemplate.type!,
+          assignTemplate.title as string
+        )
+      );
+    }
+
+    await Promise.all(notificationPromises);
+
+    return result.data;
+  }
   async deleteTechnician(accountId: string): Promise<void> {
     const existingTechnician = await this.prisma.account.findUnique({
       where: { id: accountId },

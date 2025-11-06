@@ -14,6 +14,8 @@ import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employe
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
 import { EmployeeService } from '../employee.service';
 import { CertificateService } from '../certificate/certificate.service';
+import { NotificationService } from 'src/modules/notification/notification.service';
+import { NotificationTemplateService } from 'src/modules/notification/notification-template.service';
 
 @Injectable()
 export class StaffService {
@@ -22,7 +24,8 @@ export class StaffService {
     private readonly accountService: AccountService,
     private readonly configService: ConfigService,
     private readonly employeeService: EmployeeService,
-    private readonly certificateService: CertificateService
+    private readonly certificateService: CertificateService,
+    private readonly notificationService: NotificationService
   ) {}
 
   async getStaffs(
@@ -53,7 +56,57 @@ export class StaffService {
       throw new NotFoundException('Staff not found');
     }
 
-    return await this.employeeService.updateEmployee(id, updateData);
+    // ✅ Call updateEmployee
+    const result = await this.employeeService.updateEmployee(id, updateData);
+
+    // ✅ Send notifications based on what changed
+    const notificationPromises: Promise<void>[] = [];
+
+    // Profile updated
+    if (result.notifications.profileUpdated) {
+      const template = NotificationTemplateService.employeeProfileUpdated();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          typeof template.message === 'function'
+            ? template.message({})
+            : 'Your profile has been updated by an administrator.',
+          template.type!,
+          template.title as string
+        )
+      );
+    }
+
+    // ✅ Center removed (sent FIRST)
+    if (result.notifications.centerRemoved && result.notifications.oldCenterName) {
+      const removeTemplate = NotificationTemplateService.employeeRemovedFromCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been removed from ${result.notifications.oldCenterName}.`,
+          removeTemplate.type!,
+          removeTemplate.title as string
+        )
+      );
+    }
+
+    // ✅ Center assigned (sent SECOND)
+    if (result.notifications.centerUpdated && result.notifications.newCenterName) {
+      const assignTemplate = NotificationTemplateService.employeeAssignedToCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been assigned to ${result.notifications.newCenterName}.`,
+          assignTemplate.type!,
+          assignTemplate.title as string
+        )
+      );
+    }
+
+    // ✅ Send all notifications in parallel
+    await Promise.all(notificationPromises);
+
+    return result.data;
   }
 
   async deleteStaff(accountId: string): Promise<{ message: string }> {

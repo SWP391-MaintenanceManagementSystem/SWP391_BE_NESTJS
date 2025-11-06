@@ -58,8 +58,10 @@ export class VehicleHandoverController {
     @UploadedFiles() images?: Express.Multer.File[]
   ): Promise<{ data: VehicleHandoverDTO; message: string }> {
     const staffAccountId = user.sub;
+    const result = await this.vehicleHandoverService.create(createDto, staffAccountId, images);
+
     return {
-      data: await this.vehicleHandoverService.create(createDto, staffAccountId, images),
+      data: result.data, // VehicleHandoverDTO
       message: 'Vehicle handover created successfully. Booking status updated to CHECKED_IN.',
     };
   }

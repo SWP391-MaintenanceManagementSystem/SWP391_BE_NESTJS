@@ -568,7 +568,17 @@ export class EmployeeService {
   async updateEmployee(
     employeeId: string,
     updateData: UpdateTechnicianDTO | UpdateStaffDTO
-  ): Promise<EmployeeWithCenterDTO> {
+  ): Promise<{
+    data: EmployeeWithCenterDTO;
+    employeeId: string;
+    notifications: {
+      profileUpdated: boolean;
+      centerUpdated: boolean;
+      centerRemoved: boolean;
+      oldCenterName?: string;
+      newCenterName?: string;
+    };
+  }> {
     if (!employeeId) throw new BadRequestException('Employee ID is required');
     if (!updateData || Object.keys(updateData).length === 0)
       throw new BadRequestException('No update data provided');
@@ -637,12 +647,19 @@ export class EmployeeService {
       throw new BadRequestException({ message: 'Validation failed', errors });
     }
 
+    let profileUpdated = false;
+    let centerUpdated = false;
+    let centerRemoved = false;
+    let oldCenterName: string | undefined;
+    let newCenterName: string | undefined;
+
     // Update account
     if (phone || status) {
       await this.prisma.account.update({
         where: { id: employeeId },
         data: { phone, status },
       });
+      profileUpdated = true;
     }
 
     // Update employee
@@ -651,10 +668,38 @@ export class EmployeeService {
         where: { accountId: employeeId },
         data: { firstName, lastName },
       });
+      profileUpdated = true;
     }
 
     // Assign work center
     if (workCenter) {
+      const currentCenterId = existing.employee.workCenters[0]?.centerId;
+      const newCenterId = workCenter.centerId?.trim() || null;
+
+      // Track if center changed or removed
+      if (currentCenterId && currentCenterId !== newCenterId) {
+        centerRemoved = true;
+
+        // Get old center name
+        const oldCenter = await this.prisma.serviceCenter.findUnique({
+          where: { id: currentCenterId },
+          select: { name: true },
+        });
+        oldCenterName = oldCenter?.name;
+      }
+
+      // Track if new center assigned
+      if (newCenterId && newCenterId !== currentCenterId) {
+        centerUpdated = true;
+
+        // Get new center name
+        const newCenter = await this.prisma.serviceCenter.findUnique({
+          where: { id: newCenterId },
+          select: { name: true },
+        });
+        newCenterName = newCenter?.name;
+      }
+
       await this.assignEmployeeToServiceCenter(employeeId, workCenter);
     }
 
@@ -663,9 +708,19 @@ export class EmployeeService {
       select: this.getEmployeeSelectFields(),
     });
 
-    return plainToInstance(EmployeeWithCenterDTO, this.transformAccountToDTO(updated!), {
-      excludeExtraneousValues: true,
-    });
+    return {
+      data: plainToInstance(EmployeeWithCenterDTO, this.transformAccountToDTO(updated!), {
+        excludeExtraneousValues: true,
+      }),
+      employeeId,
+      notifications: {
+        profileUpdated,
+        centerUpdated,
+        centerRemoved,
+        oldCenterName,
+        newCenterName,
+      },
+    };
   }
 
   // === CREATE ===

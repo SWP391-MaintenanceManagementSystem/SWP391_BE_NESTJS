@@ -567,9 +567,22 @@ export class BookingService {
     };
   }
 
-  async cancelBooking(bookingId: string, user: JWT_Payload): Promise<BookingDTO> {
+  async cancelBooking(
+    bookingId: string,
+    user: JWT_Payload
+  ): Promise<{ data: BookingDTO; customerId: string; staffIds: string[] }> {
     const booking = await this.prismaService.booking.findUniqueOrThrow({
       where: { id: bookingId },
+      select: {
+        status: true,
+        customerId: true,
+        shiftId: true,
+        centerId: true,
+        bookingDate: true,
+        customer: {
+          select: { accountId: true },
+        },
+      },
     });
 
     if (booking.status === BookingStatus.CANCELLED)
@@ -581,12 +594,50 @@ export class BookingService {
     if (user.role === AccountRole.CUSTOMER && booking.customerId !== user.sub)
       throw new BadRequestException('You can only cancel your own bookings');
 
-    const updatedBooking = await this.prismaService.booking.update({
-      where: { id: bookingId },
-      data: { status: BookingStatus.CANCELLED },
+    const [updatedBooking, staffSchedules] = await this.prismaService.$transaction([
+      this.prismaService.booking.update({
+        where: { id: bookingId },
+        data: { status: BookingStatus.CANCELLED },
+        include: {
+          customer: { select: { accountId: true } },
+        },
+      }),
+      this.prismaService.workSchedule.findMany({
+        where: {
+          shiftId: booking.shiftId,
+          date: {
+            gte: dateFns.startOfDay(booking.bookingDate),
+            lt: dateFns.endOfDay(booking.bookingDate),
+          },
+          employee: {
+            account: { role: AccountRole.STAFF, status: AccountStatus.VERIFIED },
+            workCenters: {
+              some: {
+                centerId: booking.centerId,
+                startDate: { lte: dateFns.startOfDay(booking.bookingDate) },
+                OR: [
+                  { endDate: null },
+                  { endDate: { gte: dateFns.startOfDay(booking.bookingDate) } },
+                ],
+              },
+            },
+          },
+        },
+        select: { employeeId: true },
+      }),
+    ]);
+
+    const bookingDTO = plainToInstance(BookingDTO, updatedBooking, {
+      excludeExtraneousValues: true,
     });
 
-    return plainToInstance(BookingDTO, updatedBooking, { excludeExtraneousValues: true });
+    const staffIds = staffSchedules.map(s => s.employeeId);
+
+    return {
+      data: bookingDTO,
+      customerId: updatedBooking.customer.accountId, // ← Bây giờ hợp lệ
+      staffIds,
+    };
   }
 
   async updateBooking(
