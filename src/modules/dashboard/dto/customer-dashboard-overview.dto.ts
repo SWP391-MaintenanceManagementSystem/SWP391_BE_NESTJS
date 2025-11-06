@@ -22,15 +22,26 @@ export class CenterSummaryDTO {
   percentage: number;
 }
 
+export class SpendingPointDTO {
+  @Expose()
+  key: string;
+
+  @Expose()
+  amount: number;
+}
+
 export class SpendingSummaryDTO {
   @Expose()
-  week: number;
+  @Type(() => SpendingPointDTO)
+  week: SpendingPointDTO[];
 
   @Expose()
-  month: number;
+  @Type(() => SpendingPointDTO)
+  month: SpendingPointDTO[];
 
   @Expose()
-  year: number;
+  @Type(() => SpendingPointDTO)
+  year: SpendingPointDTO[];
 }
 
 export class CustomerDashboardDTO {
