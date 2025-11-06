@@ -15,7 +15,7 @@ export class CustomerDashboardService {
   }
 
   async getBookingStatusSummary(customerId: string) {
-    const [pending, inProgress, completed] = await Promise.all([
+    const [pending, inProgress, finished] = await Promise.all([
       this.prismaService.booking.count({
         where: { customerId, status: { in: ['PENDING', 'ASSIGNED'] } },
       }),
@@ -27,7 +27,7 @@ export class CustomerDashboardService {
       }),
     ]);
 
-    const total = pending + inProgress + completed || 1;
+    const total = pending + inProgress + finished || 1;
 
     return [
       {
@@ -41,9 +41,9 @@ export class CustomerDashboardService {
         percentage: Number(((inProgress / total) * 100).toFixed(2)),
       },
       {
-        status: 'COMPLETED',
-        count: completed,
-        percentage: Number(((completed / total) * 100).toFixed(2)),
+        status: 'FINISHED',
+        count: finished,
+        percentage: Number(((finished / total) * 100).toFixed(2)),
       },
     ];
   }
