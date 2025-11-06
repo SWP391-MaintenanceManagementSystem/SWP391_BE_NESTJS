@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsInt, IsBoolean } from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { NotificationType } from '@prisma/client';
 import { Order } from 'src/common/sort/sort.config';
 
@@ -10,7 +10,12 @@ export class NotificationQueryDTO {
     description: 'Mark notification as read',
   })
   @IsOptional()
-  @Type(() => Boolean)
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
+  })
   is_read?: boolean;
 
   @ApiPropertyOptional({

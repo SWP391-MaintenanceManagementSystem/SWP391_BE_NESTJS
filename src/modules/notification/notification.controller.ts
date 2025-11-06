@@ -54,17 +54,13 @@ export class NotificationController {
     };
   }
 
-  @Get('unread-count')
+  @Get('count')
   @ApiOperation({
-    summary: 'Get unread notification count',
-    description: 'Returns the count of unread notifications for current user',
+    summary: 'Get notification counts',
   })
-  async getUnreadCount(@CurrentUser() user: JWT_Payload) {
-    const data = await this.notificationService.getUnreadCount(user.sub);
-    return {
-      message: 'Unread count retrieved successfully',
-      data,
-    };
+  async getCount(@CurrentUser() user: JWT_Payload) {
+    const data = await this.notificationService.getCount(user.sub);
+    return data;
   }
 
   @Get(':id')
