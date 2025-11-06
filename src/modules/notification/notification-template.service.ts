@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
+import { add } from 'date-fns/add';
 import {
   NotificationMetadata,
   NotificationItem,
@@ -15,7 +16,7 @@ export class NotificationTemplateService {
       message: data => {
         const booking = data.data;
         const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
-        return `Your booking #${booking.id.slice(0, 8)} for ${date} has been created successfully.`;
+        return `Your booking #${booking.id.slice(0, 8)} on ${date} has been created successfully.`;
       },
       targetUserIdField: 'data.customerId',
     };
@@ -126,9 +127,24 @@ export class NotificationTemplateService {
       title: 'Booking Cancelled',
       message: data => {
         const booking = data.data;
-        return `Your booking #${booking.id.slice(0, 8)} has been cancelled.`;
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        return `Your booking #${booking.id.slice(0, 8)} on ${date} has been cancelled.`;
       },
-      targetUserIdField: 'data.customerId',
+      targetUserIdField: 'customerId',
+      additional: [this.notBookingCancelledForStaff()],
+    };
+  }
+
+  static notBookingCancelledForStaff(): NotificationItem {
+    return {
+      type: NotificationType.BOOKING,
+      title: 'Booking Cancelled',
+      message: data => {
+        const booking = data.data;
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        return `Booking #${booking.id.slice(0, 8)} on ${date} has been cancelled.`;
+      },
+      targetUserIdField: 'staffIds',
     };
   }
 
@@ -180,21 +196,29 @@ export class NotificationTemplateService {
   }
 
   // Shift Schedule Notifications (for Employee)
-  static shiftAssigned(): NotificationMetadata {
+  static workScheduleAssigned(): NotificationMetadata {
     return {
       type: NotificationType.SHIFT,
       title: 'New Shift Assigned',
       message: data => {
-        const schedules = data.data;
-        if (Array.isArray(schedules) && schedules.length > 0) {
-          const first = schedules[0];
-          const date = new Date(first.date).toLocaleDateString('vi-VN');
-          const shiftName = first.shift?.name || 'a shift';
-          return `You have been assigned to ${shiftName} on ${date}.`;
+        const schedules = data.schedules; // Array<WorkScheduleDTO>
+        if (!Array.isArray(schedules) || schedules.length === 0) {
+          return 'You have been assigned a new work schedule.';
         }
-        return 'You have been assigned a new work schedule.';
+
+        const dates = schedules
+          .map(s => new Date(s.date).toLocaleDateString('vi-VN'))
+          .sort()
+          .join(', ');
+
+        const shiftName = schedules[0].shift?.name || 'a shift';
+
+        if (schedules.length === 1) {
+          return `You have been assigned to ${shiftName} on ${dates}.`;
+        }
+        return `You have been assigned to ${shiftName} on ${schedules.length} dates: ${dates}.`;
       },
-      targetUserIdField: 'data[].employeeId', // Multi-employee
+      targetUserIdField: 'employeeIds', //arary of employees
     };
   }
 
@@ -255,7 +279,7 @@ export class NotificationTemplateService {
     };
   }
 
-  // Check-in form notification (Customer)
+  // Check-in form notification (Customer and Technician)
   static vehicleHandoverCreated(): NotificationMetadata {
     return {
       type: NotificationType.BOOKING,
@@ -263,43 +287,50 @@ export class NotificationTemplateService {
       message: () => {
         return `Vehicle Check-In completed. Check your booking for details.`;
       },
-      targetUserIdField: 'data.booking.customerId', // Customer (nested field)
+      targetUserIdField: 'customerId',
+      additional: [this.notiCheckInForTechnician()],
     };
   }
 
-  // membership notifications (Customer)
-  static membershipActivated(): NotificationMetadata {
+  static notiCheckInForTechnician(): NotificationItem {
     return {
-      type: NotificationType.MEMBERSHIP,
-      title: 'Membership Activated',
+      type: NotificationType.BOOKING,
+      title: 'Vehicle Check-In Completed',
       message: data => {
-        const subscription = data.data;
-        const endDate = new Date(subscription.endDate).toLocaleDateString('vi-VN');
-        return `Your premium membership has been activated! Valid until ${endDate}.`;
+        const handover = data.data; // ← handoverDTO
+        const booking = handover.booking; // ← booking nằm trong handover
+        const bookingId = booking?.id?.slice(0, 8) || 'N/A';
+        const bookingDate = booking?.bookingDate
+          ? new Date(booking.bookingDate).toLocaleDateString('vi-VN')
+          : 'N/A';
+        return `Vehicle Check-In completed for booking #${bookingId} on ${bookingDate}.`;
       },
-      targetUserIdField: 'data.customerId',
+      targetUserIdField: 'technicianIds',
     };
   }
 
-  static membershipExpiringSoon(): NotificationMetadata {
+  static bookingInProgress(): NotificationMetadata {
     return {
-      type: NotificationType.MEMBERSHIP,
-      title: 'Membership Expiring Soon',
+      type: NotificationType.BOOKING,
+      title: 'Booking In Progress',
       message: data => {
-        const subscription = data.data;
-        const endDate = new Date(subscription.endDate).toLocaleDateString('vi-VN');
-        return `Your premium membership will expire on ${endDate}. Renew now to continue enjoying benefits!`;
+        const booking = data.data;
+        return `Your booking #${booking.id.slice(0, 8)} is now in progress.`;
       },
-      targetUserIdField: 'data.customerId',
+      targetUserIdField: 'customerId',
+      additional: [this.notiBookingInProgressForStaff()],
     };
   }
 
-  static membershipExpired(): NotificationMetadata {
+  static notiBookingInProgressForStaff(): NotificationItem {
     return {
-      type: NotificationType.MEMBERSHIP,
-      title: 'Membership Expired',
-      message: () => 'Your premium membership has expired. Renew now to restore your benefits!',
-      targetUserIdField: 'data.customerId',
+      type: NotificationType.BOOKING,
+      title: 'Booking In Progress',
+      message: data => {
+        const booking = data.data;
+        return `Booking #${booking.id.slice(0, 8)} is now in progress.`;
+      },
+      targetUserIdField: 'staffIds',
     };
   }
 
@@ -309,11 +340,9 @@ export class NotificationTemplateService {
       type: NotificationType.SYSTEM,
       title: 'Assigned to Service Center',
       message: data => {
-        const result = data.data;
-        const centerName = result.workCenter?.name || 'a service center';
+        const centerName = data.newCenterName || 'a service center';
         return `You have been assigned to ${centerName}.`;
       },
-      targetUserIdField: 'data.employeeId',
     };
   }
 
@@ -321,8 +350,10 @@ export class NotificationTemplateService {
     return {
       type: NotificationType.SYSTEM,
       title: 'Removed from Service Center',
-      message: () => 'You have been removed from your current service center assignment.',
-      targetUserIdField: 'data.employeeId',
+      message: data => {
+        const centerName = data.oldCenterName || 'your current service center';
+        return `You have been removed from ${centerName}.`;
+      },
     };
   }
 
@@ -331,7 +362,6 @@ export class NotificationTemplateService {
       type: NotificationType.SYSTEM,
       title: 'Profile Updated by Admin',
       message: () => 'Your profile has been updated by an administrator.',
-      targetUserIdField: 'data.id',
     };
   }
 

@@ -11,6 +11,7 @@ import { buildBookingOrderBy } from 'src/common/sort/sort.util';
 import { parseDate, utcToVNDate } from 'src/utils';
 import { JWT_Payload } from 'src/common/types';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
+import { BookingDTO } from './dto/booking.dto';
 
 @Injectable()
 export class TechnicianBookingService {
@@ -221,6 +222,9 @@ export class TechnicianBookingService {
     const updatedBooking = await this.prismaService.booking.update({
       where: { id: bookingId },
       data: { status: 'COMPLETED' },
+      include: {
+        customer: { select: { accountId: true } },
+      },
     });
 
     const vnBookingDate = utcToVNDate(updatedBooking.bookingDate);
@@ -265,7 +269,10 @@ export class TechnicianBookingService {
     };
   }
 
-  async markInprogressTasks(bookingId: string, user: JWT_Payload): Promise<void> {
+  async markInprogressTasks(
+    bookingId: string,
+    user: JWT_Payload
+  ): Promise<{ data: BookingDTO; customerId: string; staffIds: string[] }> {
     const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
       include: {
@@ -288,9 +295,57 @@ export class TechnicianBookingService {
     }
 
     await this.bookingDetailService.markInprogressDetails(bookingId);
-    await this.prismaService.booking.update({
+    // Update booking status
+    const updated = await this.prismaService.booking.update({
       where: { id: bookingId },
-      data: { status: 'IN_PROGRESS' },
+      data: { status: BookingStatus.IN_PROGRESS },
+      include: {
+        customer: {
+          select: { accountId: true, firstName: true, lastName: true },
+        },
+        bookingAssignments: {
+          select: { assignedBy: true },
+        },
+      },
     });
+
+    const bookingDTO = plainToInstance(BookingDTO, updated, {
+      excludeExtraneousValues: true,
+    });
+
+    // 1. Lấy tất cả assignedBy (staff)
+    const assignedByIds = [...new Set(updated.bookingAssignments.map(a => a.assignedBy))];
+
+    // 2. Lọc: chỉ giữ staff đang trong ca hôm đó
+    const bookingDateOnly = dateFns.startOfDay(updated.bookingDate);
+
+    const workSchedules = await this.prismaService.workSchedule.findMany({
+      where: {
+        employeeId: { in: assignedByIds },
+        shiftId: updated.shiftId,
+        date: {
+          gte: bookingDateOnly,
+          lt: dateFns.endOfDay(bookingDateOnly),
+        },
+        employee: {
+          workCenters: {
+            some: {
+              centerId: updated.centerId,
+              startDate: { lte: bookingDateOnly },
+              OR: [{ endDate: null }, { endDate: { gte: bookingDateOnly } }],
+            },
+          },
+        },
+      },
+      select: { employeeId: true },
+    });
+
+    const staffIds = workSchedules.map(ws => ws.employeeId); // ← STAFF trong ca
+
+    return {
+      data: bookingDTO,
+      customerId: updated.customer.accountId,
+      staffIds, // ← Gửi cho STAFF (assignedBy) trong ca
+    };
   }
 }
