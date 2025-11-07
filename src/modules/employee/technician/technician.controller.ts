@@ -54,6 +54,21 @@ export class TechnicianController {
     };
   }
 
+  @Get('bookings/current')
+  @Roles(AccountRole.TECHNICIAN)
+  async getCurrentBooking(@CurrentUser() user: JWT_Payload) {
+    const data = await this.technicianBookingService.getTechnicianCurrentBooking(user.sub);
+    if (!data) {
+      return {
+        message: 'No current booking found',
+      };
+    }
+    return {
+      data,
+      message: 'Get current booking successfully',
+    };
+  }
+
   @Patch('bookings/:bookingId/details/complete')
   @ApiBody({ schema: { example: { detailIds: ['d1', 'd2', 'd3'] } } })
   @Roles(AccountRole.TECHNICIAN)

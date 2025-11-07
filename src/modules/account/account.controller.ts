@@ -98,7 +98,7 @@ export class AccountController {
     };
   }
 
-  @Roles(AccountRole.CUSTOMER)
+  @Roles(AccountRole.CUSTOMER, AccountRole.TECHNICIAN)
   @Get('statistics')
   async getCustomerOverview(@CurrentUser() user: JWT_Payload) {
     switch (user.role) {

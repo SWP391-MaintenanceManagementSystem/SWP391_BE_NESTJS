@@ -321,4 +321,56 @@ export class TechnicianBookingService {
       staffIds, // ← Gửi cho STAFF (assignedBy) trong ca
     };
   }
+
+  async getTechnicianCurrentBooking(technicianId: string) {
+    const booking = await this.prismaService.booking.findFirst({
+      where: {
+        bookingAssignments: {
+          some: {
+            employeeId: technicianId,
+          },
+        },
+        status: {
+          in: [BookingStatus.ASSIGNED, BookingStatus.IN_PROGRESS],
+        },
+      },
+      orderBy: { bookingDate: 'asc' },
+      include: {
+        customer: {
+          include: { account: true },
+        },
+        vehicle: {
+          include: { vehicleModel: { include: { brand: true } } },
+        },
+        serviceCenter: true,
+        shift: true,
+        bookingDetails: {
+          include: {
+            service: true,
+            package: {
+              include: {
+                packageDetails: {
+                  include: {
+                    service: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        bookingAssignments: {
+          include: {
+            employee: { include: { account: true } },
+            assigner: { include: { account: true } },
+          },
+        },
+      },
+    });
+
+    if (!booking) {
+      return null;
+    }
+
+    return plainToInstance(TechnicianBookingDetailDTO, booking, { excludeExtraneousValues: true });
+  }
 }
