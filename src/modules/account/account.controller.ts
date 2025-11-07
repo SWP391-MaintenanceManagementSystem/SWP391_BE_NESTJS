@@ -2,8 +2,6 @@ import {
   Body,
   Controller,
   Patch,
-  Param,
-  Delete,
   Post,
   UploadedFile,
   BadRequestException,
@@ -22,6 +20,7 @@ import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
 import { VehicleService } from '../vehicle/vehicle.service';
 import { CustomerDashboardService } from '../dashboard/customer-dashboard.service';
+import { TechnicianDashboardService } from '../dashboard/technician-dashboard.service';
 @ApiTags('Me')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/me')
@@ -29,7 +28,8 @@ export class AccountController {
   constructor(
     private readonly accountService: AccountService,
     private readonly vehicleService: VehicleService,
-    private readonly customerDashboardService: CustomerDashboardService
+    private readonly customerDashboardService: CustomerDashboardService,
+    private readonly technicianDashboardService: TechnicianDashboardService
   ) {}
 
   @Patch('/')
@@ -103,14 +103,18 @@ export class AccountController {
   async getCustomerOverview(@CurrentUser() user: JWT_Payload) {
     switch (user.role) {
       case AccountRole.CUSTOMER:
-        const data = await this.customerDashboardService.getOverview(user.sub);
+        const customerData = await this.customerDashboardService.getOverview(user.sub);
         return {
-          data,
+          data: customerData,
           message: 'Customer dashboard overview retrieved successfully.',
         };
       case AccountRole.TECHNICIAN:
-        // TODO: implement technician overview
-        break;
+        const technicianData =
+          await this.technicianDashboardService.getBookingStatisticsByTechnician(user.sub);
+        return {
+          data: technicianData,
+          message: 'Technician dashboard overview retrieved successfully.',
+        };
       default:
         break;
     }

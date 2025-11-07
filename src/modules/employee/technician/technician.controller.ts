@@ -5,7 +5,7 @@ import { CreateTechnicianDTO } from './dto/create-technician.dto';
 import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
-import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
@@ -13,7 +13,6 @@ import { JWT_Payload } from 'src/common/types';
 import { TechnicianBookingQueryDTO } from 'src/modules/booking/dto/technician-booking-query.dto';
 import { TechnicianBookingService } from 'src/modules/booking/technician-booking.service';
 import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
-import { NotificationService } from 'src/modules/notification/notification.service';
 import { NotificationTemplateService } from 'src/modules/notification/notification-template.service';
 
 @ApiTags('Technicians')
@@ -24,14 +23,6 @@ export class TechnicianController {
     private readonly technicianService: TechnicianService,
     private readonly technicianBookingService: TechnicianBookingService
   ) {}
-
-  @Get('/me/booking-statistics')
-  @Roles(AccountRole.TECHNICIAN)
-  async getMyBookingStatistics(@CurrentUser() user: JWT_Payload){
-    const technicianId = user.sub;
-    return this.technicianService.getBookingStatisticsByTechnician(technicianId);
-  }
-
 
   @Get('/statistics')
   @Roles(AccountRole.ADMIN)
