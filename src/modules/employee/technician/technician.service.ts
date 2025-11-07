@@ -3,7 +3,7 @@ import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateTechnicianDTO } from './dto/create-technician.dto';
 import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { AccountRole } from '@prisma/client';
+import { AccountRole, BookingStatus } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
@@ -153,4 +153,71 @@ export class TechnicianService {
     ].filter(item => item.count > 0);
     return { data, total };
   }
+
+  async getBookingStatisticsByTechnician(technicianId: string): Promise<{
+  totalBookings: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+  completionRate: number;
+}> {
+
+  const technician = await this.prisma.account.findUnique({
+    where: { id: technicianId },
+    select: { role: true },
+  });
+
+  if (!technician || technician.role !== AccountRole.TECHNICIAN) {
+    throw new NotFoundException(`Technician with ID ${technicianId} not found`);
+  }
+
+
+  const assignments = await this.prisma.bookingAssignment.findMany({
+    where: {
+      employeeId: technicianId,
+    },
+    select: {
+      booking: {
+        select: { status: true },
+      },
+    },
+  });
+
+
+  const stats = {
+    [BookingStatus.COMPLETED]: 0,
+    [BookingStatus.IN_PROGRESS]: 0,
+    [BookingStatus.PENDING]: 0,
+    [BookingStatus.ASSIGNED]: 0,
+    [BookingStatus.CHECKED_IN]: 0,
+    [BookingStatus.CHECKED_OUT]: 0,
+    [BookingStatus.CANCELLED]: 0,
+  };
+
+  assignments.forEach(assign => {
+    const status = assign.booking.status;
+    stats[status] = (stats[status] || 0) + 1;
+  });
+
+  const totalBookings = assignments.length;
+
+  const completed = stats[BookingStatus.COMPLETED] + stats[BookingStatus.CHECKED_OUT] || 0;
+  const inProgress = stats[BookingStatus.IN_PROGRESS] || 0;
+  const pending =
+    stats[BookingStatus.PENDING] +
+    stats[BookingStatus.ASSIGNED] +
+    stats[BookingStatus.CHECKED_IN];
+
+  const completionRate = totalBookings > 0
+    ? Math.round((completed / totalBookings) * 100)
+    : 0;
+
+  return {
+    totalBookings,
+    completed,
+    inProgress,
+    pending,
+    completionRate,
+  };
+}
 }
