@@ -101,10 +101,19 @@ export class AccountController {
   @Roles(AccountRole.CUSTOMER)
   @Get('statistics')
   async getCustomerOverview(@CurrentUser() user: JWT_Payload) {
-    const data = await this.customerDashboardService.getOverview(user.sub);
-    return {
-      data,
-      message: 'Customer dashboard overview retrieved successfully.',
-    };
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        const data = await this.customerDashboardService.getOverview(user.sub);
+        return {
+          data,
+          message: 'Customer dashboard overview retrieved successfully.',
+        };
+      case AccountRole.TECHNICIAN:
+        // TODO: implement technician overview
+        break;
+      default:
+        break;
+    }
+    throw new BadRequestException('Invalid role for statistics');
   }
 }
