@@ -131,9 +131,11 @@ export class BookingController {
   @Delete(':id')
   @EmitNotification(NotificationTemplateService.bookingCancelled())
   async cancelBooking(@Param('id') id: string, @CurrentUser() user: JWT_Payload) {
-    const data = await this.bookingService.cancelBooking(id, user);
+    const { booking, staffIds } = await this.bookingService.cancelBooking(id, user);
     return {
-      data,
+      data: booking,
+      customerId: user.sub,
+      staffIds,
       message: 'Booking cancelled successfully',
     };
   }

@@ -56,12 +56,18 @@ export class VehicleHandoverController {
     @Body() createDto: CreateVehicleHandoverDTO,
     @CurrentUser() user: JWT_Payload,
     @UploadedFiles() images?: Express.Multer.File[]
-  ): Promise<{ data: VehicleHandoverDTO; message: string }> {
+  ): Promise<{
+    data: VehicleHandoverDTO;
+    customerId: string;
+    technicianIds: string[];
+    message: string;
+  }> {
     const staffAccountId = user.sub;
     const result = await this.vehicleHandoverService.create(createDto, staffAccountId, images);
-
     return {
-      data: result.data, // VehicleHandoverDTO
+      data: result.data,
+      customerId: result.customerId,
+      technicianIds: result.technicianIds,
       message: 'Vehicle handover created successfully. Booking status updated to CHECKED_IN.',
     };
   }

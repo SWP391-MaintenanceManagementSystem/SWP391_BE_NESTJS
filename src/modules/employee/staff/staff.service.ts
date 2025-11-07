@@ -55,11 +55,9 @@ export class StaffService {
     if (!existingStaff || !existingStaff.employee) {
       throw new NotFoundException('Staff not found');
     }
-
-    // ✅ Call updateEmployee
     const result = await this.employeeService.updateEmployee(id, updateData);
 
-    // ✅ Send notifications based on what changed
+    // Send notifications based on what changed
     const notificationPromises: Promise<void>[] = [];
 
     // Profile updated
@@ -77,7 +75,7 @@ export class StaffService {
       );
     }
 
-    // ✅ Center removed (sent FIRST)
+    // Center removed
     if (result.notifications.centerRemoved && result.notifications.oldCenterName) {
       const removeTemplate = NotificationTemplateService.employeeRemovedFromCenter();
       notificationPromises.push(
@@ -90,7 +88,7 @@ export class StaffService {
       );
     }
 
-    // ✅ Center assigned (sent SECOND)
+    // Center assigned
     if (result.notifications.centerUpdated && result.notifications.newCenterName) {
       const assignTemplate = NotificationTemplateService.employeeAssignedToCenter();
       notificationPromises.push(
@@ -103,7 +101,6 @@ export class StaffService {
       );
     }
 
-    // ✅ Send all notifications in parallel
     await Promise.all(notificationPromises);
 
     return result.data;

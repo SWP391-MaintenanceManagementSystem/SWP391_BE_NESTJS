@@ -83,15 +83,26 @@ export class TechnicianController {
       body.detailIds
     );
 
-    return { data: result.data, message: 'Booking details marked as complete successfully' };
+    return {
+      data: result.data,
+      customerId: result.customerId,
+      staffIds: result.staffIds,
+      message: 'Booking details marked as complete successfully',
+    };
   }
 
   @Patch('bookings/:bookingId/details/start')
   @Roles(AccountRole.TECHNICIAN)
   @EmitNotification(NotificationTemplateService.bookingInProgress())
   async startTasks(@Param('bookingId') bookingId: string, @CurrentUser() user: JWT_Payload) {
-    await this.technicianBookingService.markInprogressTasks(bookingId, user);
-    return { message: 'Booking details marked as in progress successfully' };
+    const result = await this.technicianBookingService.markInprogressTasks(bookingId, user);
+
+    return {
+      data: result.data,
+      customerId: result.customerId,
+      staffIds: result.staffIds,
+      message: 'Booking details marked as in progress successfully',
+    };
   }
 
   @Get('/')
