@@ -58,10 +58,10 @@ export class TechnicianService {
       throw new NotFoundException('Technician not found');
     }
 
-    // ✅ Call updateEmployee
+    // updateEmployee
     const result = await this.employeeService.updateEmployee(id, updateData);
 
-    // ✅ Send notifications
+    // Send notifications
     const notificationPromises: Promise<void>[] = [];
 
     // Profile updated
@@ -79,7 +79,7 @@ export class TechnicianService {
       );
     }
 
-    // ✅ Center removed
+    // Center removed
     if (result.notifications.centerRemoved && result.notifications.oldCenterName) {
       const removeTemplate = NotificationTemplateService.employeeRemovedFromCenter();
       notificationPromises.push(
@@ -92,7 +92,7 @@ export class TechnicianService {
       );
     }
 
-    // ✅ Center assigned
+    // Center assigned
     if (result.notifications.centerUpdated && result.notifications.newCenterName) {
       const assignTemplate = NotificationTemplateService.employeeAssignedToCenter();
       notificationPromises.push(

@@ -654,21 +654,35 @@ export class EmployeeService {
     let newCenterName: string | undefined;
 
     // Update account
-    if (phone || status) {
-      await this.prisma.account.update({
-        where: { id: employeeId },
-        data: { phone, status },
-      });
-      profileUpdated = true;
+    if (phone !== undefined || status !== undefined) {
+      const updateData: any = {};
+      if (phone !== undefined && phone !== existing.phone) updateData.phone = phone;
+      if (status !== undefined && status !== existing.status) updateData.status = status;
+
+      if (Object.keys(updateData).length > 0) {
+        await this.prisma.account.update({
+          where: { id: employeeId },
+          data: updateData,
+        });
+        profileUpdated = true;
+      }
     }
 
     // Update employee
-    if (firstName || lastName) {
-      await this.prisma.employee.update({
-        where: { accountId: employeeId },
-        data: { firstName, lastName },
-      });
-      profileUpdated = true;
+    if (firstName !== undefined || lastName !== undefined) {
+      const updateData: any = {};
+      if (firstName !== undefined && firstName !== existing.employee.firstName)
+        updateData.firstName = firstName;
+      if (lastName !== undefined && lastName !== existing.employee.lastName)
+        updateData.lastName = lastName;
+
+      if (Object.keys(updateData).length > 0) {
+        await this.prisma.employee.update({
+          where: { accountId: employeeId },
+          data: updateData,
+        });
+        profileUpdated = true;
+      }
     }
 
     // Assign work center
@@ -676,27 +690,29 @@ export class EmployeeService {
       const currentCenterId = existing.employee.workCenters[0]?.centerId;
       const newCenterId = workCenter.centerId?.trim() || null;
 
-      // Track if center changed or removed
-      if (currentCenterId && currentCenterId !== newCenterId) {
+      if (currentCenterId && !newCenterId) {
         centerRemoved = true;
-
-        // Get old center name
-        const oldCenter = await this.prisma.serviceCenter.findUnique({
-          where: { id: currentCenterId },
-          select: { name: true },
-        });
-        oldCenterName = oldCenter?.name;
-      }
-
-      // Track if new center assigned
-      if (newCenterId && newCenterId !== currentCenterId) {
+        oldCenterName = (
+          await this.prisma.serviceCenter.findUnique({ where: { id: currentCenterId } })
+        )?.name;
+      } else if (!currentCenterId && newCenterId) {
         centerUpdated = true;
-
-        // Get new center name
-        const newCenter = await this.prisma.serviceCenter.findUnique({
-          where: { id: newCenterId },
-          select: { name: true },
-        });
+        newCenterName = (await this.prisma.serviceCenter.findUnique({ where: { id: newCenterId } }))
+          ?.name;
+      } else if (currentCenterId && newCenterId && currentCenterId !== newCenterId) {
+        centerRemoved = true;
+        centerUpdated = true;
+        const [oldCenter, newCenter] = await Promise.all([
+          this.prisma.serviceCenter.findUnique({
+            where: { id: currentCenterId },
+            select: { name: true },
+          }),
+          this.prisma.serviceCenter.findUnique({
+            where: { id: newCenterId },
+            select: { name: true },
+          }),
+        ]);
+        oldCenterName = oldCenter?.name;
         newCenterName = newCenter?.name;
       }
 

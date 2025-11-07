@@ -570,7 +570,7 @@ export class BookingService {
   async cancelBooking(
     bookingId: string,
     user: JWT_Payload
-  ): Promise<{ data: BookingDTO; customerId: string; staffIds: string[] }> {
+  ): Promise<{ booking: BookingDTO; customerId: string; staffIds: string[] }> {
     const booking = await this.prismaService.booking.findUniqueOrThrow({
       where: { id: bookingId },
       select: {
@@ -634,7 +634,7 @@ export class BookingService {
     const staffIds = staffSchedules.map(s => s.employeeId);
 
     return {
-      data: bookingDTO,
+      booking: bookingDTO,
       customerId: updatedBooking.customer.accountId, // ← Bây giờ hợp lệ
       staffIds,
     };

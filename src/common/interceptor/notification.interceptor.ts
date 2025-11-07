@@ -4,7 +4,6 @@ import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { NotificationService } from 'src/modules/notification/notification.service';
 import { NOTIFICATION_KEY, NotificationMetadata } from '../decorator/emit-notification.decorator';
-import { title } from 'process';
 
 @Injectable()
 export class NotificationInterceptor implements NestInterceptor {
@@ -107,42 +106,81 @@ export class NotificationInterceptor implements NestInterceptor {
   }
 
   private extractUserIds(obj: any, path: string): string[] {
-    if (!obj || !path) return [];
+    if (!obj || !path?.trim()) return [];
 
-    this.logger.debug(`Extracting from path: "${path}"`);
-    const parts = path.split('.');
+    const trimmedPath = path.trim();
+    this.logger.debug(`Extracting from path: "${trimmedPath}"`);
+
+    // ✅ FIX: Try multiple levels
+    const pathsToTry = [
+      trimmedPath, // Root: "customerId"
+      `data.${trimmedPath}`, // Nested: "data.customerId"
+    ];
+
+    for (const tryPath of pathsToTry) {
+      const result = this.traversePath(obj, tryPath);
+
+      if (result.length > 0) {
+        this.logger.debug(`✅ Found at path "${tryPath}": ${result.length} ID(s)`);
+        return result;
+      }
+    }
+
+    this.logger.warn(`❌ Could not extract user ID from any path: ${trimmedPath}`);
+    return [];
+  }
+
+  // ✅ NEW: Helper method to traverse path
+  private traversePath(obj: any, path: string): string[] {
+    const parts = path.split('.').filter(p => p.length > 0);
     let current: any = obj;
 
-    for (const part of parts) {
-      if (!current) return [];
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
 
+      if (current == null) return [];
+
+      // Handle array syntax: users[]
       const arrayMatch = part.match(/^(\w+)\[\]$/);
       if (arrayMatch) {
         const key = arrayMatch[1];
         const arrayVal = current[key];
 
         if (!Array.isArray(arrayVal)) {
-          this.logger.warn(`Expected array at "${key}", got ${typeof arrayVal}`);
           return [];
         }
 
-        const remainingPath = parts.slice(parts.indexOf(part) + 1).join('.');
-        const ids = arrayVal.flatMap(item => this.extractUserIds(item, remainingPath));
-        return ids.filter(id => id != null).map(String);
+        const remainingPath = parts.slice(i + 1).join('.');
+        if (remainingPath === '') {
+          // e.g., "users[]" → return array of values
+          return arrayVal
+            .filter(item => item != null)
+            .map(item => String(item).trim())
+            .filter(id => id.length > 0);
+        }
+
+        // Recurse into each array item
+        const results = arrayVal.flatMap(item => this.traversePath(item, remainingPath));
+        return results.filter((id): id is string => typeof id === 'string' && id.trim().length > 0);
       }
 
+      // Normal object key
       current = current[part];
     }
 
+    // Final value
     if (Array.isArray(current)) {
-      return current.filter(id => id != null).map(id => String(id));
+      return current
+        .filter(id => id != null)
+        .map(id => String(id).trim())
+        .filter(id => id.length > 0);
     }
 
     if (current != null) {
-      return [String(current)];
+      const id = String(current).trim();
+      return id.length > 0 ? [id] : [];
     }
 
-    this.logger.warn(`Could not extract user ID from path: ${path}`);
     return [];
   }
 }

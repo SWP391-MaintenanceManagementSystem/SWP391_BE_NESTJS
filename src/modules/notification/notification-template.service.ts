@@ -8,25 +8,10 @@ import {
 
 @Injectable()
 export class NotificationTemplateService {
-  // Booking Notification for Customer
-  static bookingCreated(): NotificationMetadata {
-    return {
-      type: NotificationType.BOOKING,
-      title: 'Booking Created Successful',
-      message: data => {
-        const booking = data.data;
-        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
-        return `Your booking #${booking.id.slice(0, 8)} on ${date} has been created successfully.`;
-      },
-      targetUserIdField: 'data.customerId',
-    };
-  }
-
-  // 2. Chỉ gửi cho STAFF (dùng trong additional)
   static newBookingForStaff(): NotificationItem {
     return {
       type: NotificationType.BOOKING,
-      title: 'New Booking Assignament',
+      title: 'New Booking Assignment',
       message: data => {
         const booking = data.data; // ← dùng data.data để đồng nhất
         const bookingId = booking.id?.slice(0, 8) || 'N/A';
@@ -59,13 +44,6 @@ export class NotificationTemplateService {
 
       // Gửi cho staff
       additional: [this.newBookingForStaff()], // ← reuse function
-    };
-  }
-
-  // 4. CHỈ GỬI CHO STAFF (không gửi customer)
-  static onlyStaffNewBooking(): NotificationMetadata {
-    return {
-      additional: [this.newBookingForStaff()],
     };
   }
 
@@ -131,11 +109,11 @@ export class NotificationTemplateService {
         return `Your booking #${booking.id.slice(0, 8)} on ${date} has been cancelled.`;
       },
       targetUserIdField: 'customerId',
-      additional: [this.notBookingCancelledForStaff()],
+      additional: [this.notiBookingCancelledForStaff()],
     };
   }
 
-  static notBookingCancelledForStaff(): NotificationItem {
+  static notiBookingCancelledForStaff(): NotificationItem {
     return {
       type: NotificationType.BOOKING,
       title: 'Booking Cancelled',
@@ -199,16 +177,17 @@ export class NotificationTemplateService {
   static workScheduleAssigned(): NotificationMetadata {
     return {
       type: NotificationType.SHIFT,
-      title: 'New Shift Assigned',
+      title: 'New Work Schedule Assigned',
       message: data => {
-        const schedules = data.schedules; // Array<WorkScheduleDTO>
+        const schedules = data.schedules;
         if (!Array.isArray(schedules) || schedules.length === 0) {
           return 'You have been assigned a new work schedule.';
         }
 
         const dates = schedules
-          .map(s => new Date(s.date).toLocaleDateString('vi-VN'))
-          .sort()
+          .map(s => new Date(s.date))
+          .sort((a, b) => a.getTime() - b.getTime())
+          .map(d => d.toLocaleDateString('vi-VN'))
           .join(', ');
 
         const shiftName = schedules[0].shift?.name || 'a shift';
@@ -218,7 +197,7 @@ export class NotificationTemplateService {
         }
         return `You have been assigned to ${shiftName} on ${schedules.length} dates: ${dates}.`;
       },
-      targetUserIdField: 'employeeIds', //arary of employees
+      targetUserIdField: 'employeeIds',
     };
   }
 
@@ -262,7 +241,7 @@ export class NotificationTemplateService {
           : 'N/A';
         return `You have been assigned to booking #${bookingId.slice(0, 8)} on ${bookingDate}.`;
       },
-      targetUserIdField: 'employeeIds', // ← response có employeeIds
+      targetUserIdField: 'employeeIds',
     };
   }
 
@@ -338,7 +317,7 @@ export class NotificationTemplateService {
   static employeeAssignedToCenter(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
-      title: 'Assigned to Service Center',
+      title: 'Assigned to new Service Center',
       message: data => {
         const centerName = data.newCenterName || 'a service center';
         return `You have been assigned to ${centerName}.`;
@@ -349,7 +328,7 @@ export class NotificationTemplateService {
   static employeeRemovedFromCenter(): NotificationMetadata {
     return {
       type: NotificationType.SYSTEM,
-      title: 'Removed from Service Center',
+      title: 'Removed from old Service Center',
       message: data => {
         const centerName = data.oldCenterName || 'your current service center';
         return `You have been removed from ${centerName}.`;

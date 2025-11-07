@@ -35,9 +35,12 @@ export class WorkScheduleController {
   @ApiBody({ type: CreateWorkScheduleDTO })
   async createWorkSchedule(@Body() createDto: CreateWorkScheduleDTO, @CurrentUser() user: any) {
     const result = await this.workScheduleService.createWorkSchedule(createDto, user.role);
+
     return {
-      message: 'Work schedules created successfully',
       data: result.data,
+      schedules: result.schedules,
+      employeeIds: result.employeeIds,
+      message: 'Work schedules created successfully',
       count: result.data.length,
     };
   }
@@ -81,7 +84,6 @@ export class WorkScheduleController {
 
   @Patch(':id')
   @Roles(AccountRole.ADMIN)
-  @EmitNotification(NotificationTemplateService.shiftUpdated())
   @ApiBody({ type: UpdateWorkScheduleDTO })
   async updateWorkSchedule(
     @Param('id', ParseUUIDPipe) id: string,
@@ -97,7 +99,6 @@ export class WorkScheduleController {
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
-  @EmitNotification(NotificationTemplateService.shiftCancelled())
   async deleteWorkSchedule(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     const data = await this.workScheduleService.deleteWorkSchedule(id, user.role);
     return {
