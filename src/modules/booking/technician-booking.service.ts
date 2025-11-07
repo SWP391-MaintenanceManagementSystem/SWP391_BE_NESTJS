@@ -12,6 +12,7 @@ import { parseDate, utcToVNDate } from 'src/utils';
 import { JWT_Payload } from 'src/common/types';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
 import { BookingDTO } from './dto/booking.dto';
+import { buildBookingSearch } from 'src/common/search/search.util';
 
 @Injectable()
 export class TechnicianBookingService {
@@ -51,35 +52,7 @@ export class TechnicianBookingService {
       ...(status && { status }),
       ...(centerId && { centerId }),
       ...dateFilter,
-      ...(search && {
-        OR: [
-          {
-            customer: {
-              OR: [
-                { firstName: { contains: search, mode: 'insensitive' } },
-                { lastName: { contains: search, mode: 'insensitive' } },
-                { account: { email: { contains: search, mode: 'insensitive' } } },
-              ],
-            },
-          },
-          {
-            vehicle: {
-              OR: [
-                { licensePlate: { contains: search, mode: 'insensitive' } },
-                { vin: { contains: search, mode: 'insensitive' } },
-                {
-                  vehicleModel: {
-                    OR: [
-                      { name: { contains: search, mode: 'insensitive' } },
-                      { brand: { name: { contains: search, mode: 'insensitive' } } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      }),
+      ...(search && buildBookingSearch(search)),
     };
   }
 
