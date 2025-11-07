@@ -8,6 +8,8 @@ import { plainToInstance } from 'class-transformer';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
 import { localTimeToDate, parseDate } from 'src/utils';
 import { CAN_ADJUST } from './booking.service';
+import { CreateFeedbackDTO } from './dto/create-feedback.dto';
+import { BookingDTO } from './dto/booking.dto';
 
 @Injectable()
 export class CustomerBookingService {
@@ -145,5 +147,25 @@ export class CustomerBookingService {
     }
 
     return plainToInstance(CustomerBookingDetailDTO, booking, { excludeExtraneousValues: true });
+  }
+
+  async feedbackBooking(dto: CreateFeedbackDTO, userId: string) {
+    const { bookingId, feedback, rating } = dto;
+    const booking = await this.getBookingById(bookingId, userId);
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+    if (booking.status !== 'CHECKED_OUT') {
+      throw new BadRequestException('Only CHECKED_OUT bookings can be feedbacked');
+    }
+
+    const updatedBooking = await this.prismaService.booking.update({
+      where: { id: bookingId },
+      data: {
+        feedback: feedback ? feedback : booking.feedback,
+        rating: rating ? rating : booking.rating,
+      },
+    });
+    return plainToInstance(BookingDTO, updatedBooking, { excludeExtraneousValues: true });
   }
 }

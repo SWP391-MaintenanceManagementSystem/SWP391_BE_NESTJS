@@ -3,6 +3,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Order } from 'src/common/sort/sort.config';
+import { ToBoolean } from 'src/common/decorator/to-boolean.decorator';
 
 export class BookingQueryDTO {
   @IsOptional()
@@ -24,7 +25,6 @@ export class BookingQueryDTO {
   @ApiProperty({
     required: false,
     enum: BookingStatus,
-    example: BookingStatus.PENDING,
   })
   @IsOptional()
   @IsEnum(BookingStatus)
@@ -92,6 +92,14 @@ export class BookingQueryDTO {
   @IsOptional()
   @Type(() => Number)
   page?: number;
+
+  @ApiProperty({
+    required: false,
+    description: 'Filter for active bookings',
+  })
+  @IsOptional()
+  @ToBoolean()
+  isActive?: boolean;
 
   @ApiProperty({
     required: false,

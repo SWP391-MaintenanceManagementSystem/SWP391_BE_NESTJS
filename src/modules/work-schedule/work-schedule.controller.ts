@@ -19,6 +19,8 @@ import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { AccountRole } from '@prisma/client';
 import { UpdateWorkScheduleDTO } from './dto/update-work-schedule.dto';
 import { CreateWorkScheduleDTO } from './dto/create-work-schedule.dto';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationTemplateService } from '../notification/notification-template.service';
 
 @ApiTags('Work Schedules')
 @Controller('api/work-schedules')
@@ -28,14 +30,15 @@ export class WorkScheduleController {
   constructor(private readonly workScheduleService: WorkScheduleService) {}
 
   @Post()
+  @EmitNotification(NotificationTemplateService.workScheduleAssigned())
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateWorkScheduleDTO })
   async createWorkSchedule(@Body() createDto: CreateWorkScheduleDTO, @CurrentUser() user: any) {
-    const data = await this.workScheduleService.createWorkSchedule(createDto, user.role);
+    const result = await this.workScheduleService.createWorkSchedule(createDto, user.role);
     return {
       message: 'Work schedules created successfully',
-      data,
-      count: data.length,
+      data: result.data,
+      count: result.data.length,
     };
   }
 
@@ -78,6 +81,7 @@ export class WorkScheduleController {
 
   @Patch(':id')
   @Roles(AccountRole.ADMIN)
+  @EmitNotification(NotificationTemplateService.shiftUpdated())
   @ApiBody({ type: UpdateWorkScheduleDTO })
   async updateWorkSchedule(
     @Param('id', ParseUUIDPipe) id: string,
@@ -93,6 +97,7 @@ export class WorkScheduleController {
 
   @Delete(':id')
   @Roles(AccountRole.ADMIN)
+  @EmitNotification(NotificationTemplateService.shiftCancelled())
   async deleteWorkSchedule(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
     const data = await this.workScheduleService.deleteWorkSchedule(id, user.role);
     return {

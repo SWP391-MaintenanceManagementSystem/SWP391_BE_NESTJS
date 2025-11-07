@@ -254,6 +254,9 @@ model Booking {
   note        String?
   bookingDate DateTime      @map("booking_date") @db.Timestamptz
   handoverId  String?       @unique @map("handover_id")
+  rating      Int?
+  feedback    String?
+  reminded    Json?         @default("{}") @map("reminded")
   createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
@@ -518,10 +521,11 @@ model Token {
 }
 
 model Notification {
-  id                String           @id @default(uuid()) // UUID primary key
-  accountId         String           @map("account_id") // Foreign key to Account
+  id                String           @id @default(uuid())
+  accountId         String           @map("account_id")
   content           String
-  notification_type NotificationType @map("notification_type") // Enum type
+  title             String
+  notification_type NotificationType @map("notification_type")
   sent_at           DateTime         @default(now()) @db.Timestamptz
   is_read           Boolean          @default(false)
   created_at        DateTime         @default(now()) @db.Timestamptz
@@ -529,6 +533,7 @@ model Notification {
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
+  @@index([accountId, created_at])
   @@map("notifications")
 }
 

@@ -12,6 +12,9 @@ import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { JWT_Payload } from 'src/common/types';
 import { TechnicianBookingQueryDTO } from 'src/modules/booking/dto/technician-booking-query.dto';
 import { TechnicianBookingService } from 'src/modules/booking/technician-booking.service';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationService } from 'src/modules/notification/notification.service';
+import { NotificationTemplateService } from 'src/modules/notification/notification-template.service';
 
 @ApiTags('Technicians')
 @ApiBearerAuth('jwt-auth')
@@ -59,16 +62,45 @@ export class TechnicianController {
     };
   }
 
+  @Get('bookings/current')
+  @Roles(AccountRole.TECHNICIAN)
+  async getCurrentBooking(@CurrentUser() user: JWT_Payload) {
+    const data = await this.technicianBookingService.getTechnicianCurrentBooking(user.sub);
+    if (!data) {
+      return {
+        message: 'No current booking found',
+      };
+    }
+    return {
+      data,
+      message: 'Get current booking successfully',
+    };
+  }
+
   @Patch('bookings/:bookingId/details/complete')
   @ApiBody({ schema: { example: { detailIds: ['d1', 'd2', 'd3'] } } })
   @Roles(AccountRole.TECHNICIAN)
+  @EmitNotification(NotificationTemplateService.bookingCompleted())
   async completeMultiple(
     @Param('bookingId') bookingId: string,
     @Body() body: { detailIds: string[] },
     @CurrentUser() user: JWT_Payload
   ) {
-    await this.technicianBookingService.markCompleteTasks(bookingId, user, body.detailIds);
-    return { message: 'Booking details marked as complete successfully' };
+    const result = await this.technicianBookingService.markCompleteTasks(
+      bookingId,
+      user,
+      body.detailIds
+    );
+
+    return { data: result.data, message: 'Booking details marked as complete successfully' };
+  }
+
+  @Patch('bookings/:bookingId/details/start')
+  @Roles(AccountRole.TECHNICIAN)
+  @EmitNotification(NotificationTemplateService.bookingInProgress())
+  async startTasks(@Param('bookingId') bookingId: string, @CurrentUser() user: JWT_Payload) {
+    await this.technicianBookingService.markInprogressTasks(bookingId, user);
+    return { message: 'Booking details marked as in progress successfully' };
   }
 
   @Get('/')

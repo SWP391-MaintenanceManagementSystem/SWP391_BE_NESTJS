@@ -227,4 +227,13 @@ export class BookingDetailService {
       });
     });
   }
+
+  async markInprogressDetails(bookingId: string): Promise<void> {
+    await this.prismaService.bookingDetail.updateMany({
+      where: {
+        bookingId: bookingId,
+      },
+      data: { status: 'IN_PROGRESS' },
+    });
+  }
 }

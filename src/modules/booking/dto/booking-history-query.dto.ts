@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsIn, IsOptional, IsString } from 'class-validator';
 import { BookingQueryDTO } from './booking-query.dto';
 import { BookingStatus } from '@prisma/client';
 import { ApiProperty } from '@nestjs/swagger';
@@ -18,7 +18,7 @@ export class BookingHistoryQueryDTO extends BookingQueryDTO {
     description: 'Filter bookings by status CHECKED_OUT or CANCELLED',
   })
   @IsOptional()
-  @IsEnum([BookingStatus.CHECKED_OUT, BookingStatus.CANCELLED])
+  @IsIn([BookingStatus.CHECKED_OUT, BookingStatus.CANCELLED])
   status?: BookingStatus;
 
   @ApiProperty({

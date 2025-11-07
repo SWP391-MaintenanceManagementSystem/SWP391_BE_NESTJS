@@ -1,18 +1,20 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { UploadApiResponse, UploadApiErrorResponse } from 'cloudinary';
+import { FILE_FOLDER } from 'src/common/constants';
 
 @Injectable()
 export class CloudinaryService {
   async uploadImage(
     file: Express.Multer.File,
-    publicId?: string
+    publicId?: string,
+    folder: string = FILE_FOLDER.AVATAR
   ): Promise<UploadApiResponse | UploadApiErrorResponse> {
     return new Promise((resolve, reject) => {
       cloudinary.uploader
         .upload_stream(
           {
-            folder: 'avatars',
+            folder: folder,
             public_id: publicId,
             overwrite: true,
           },

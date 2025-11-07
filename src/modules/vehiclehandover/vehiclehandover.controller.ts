@@ -25,6 +25,8 @@ import { AccountRole } from '@prisma/client';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RoleGuard } from 'src/common/guard/role.guard';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationTemplateService } from '../notification/notification-template.service';
 
 @ApiTags('Vehicle Handover')
 @ApiBearerAuth('jwt-auth')
@@ -49,14 +51,17 @@ export class VehicleHandoverController {
       },
     },
   })
+  @EmitNotification(NotificationTemplateService.vehicleHandoverCreated())
   async create(
     @Body() createDto: CreateVehicleHandoverDTO,
     @CurrentUser() user: JWT_Payload,
     @UploadedFiles() images?: Express.Multer.File[]
   ): Promise<{ data: VehicleHandoverDTO; message: string }> {
     const staffAccountId = user.sub;
+    const result = await this.vehicleHandoverService.create(createDto, staffAccountId, images);
+
     return {
-      data: await this.vehicleHandoverService.create(createDto, staffAccountId, images),
+      data: result.data, // VehicleHandoverDTO
       message: 'Vehicle handover created successfully. Booking status updated to CHECKED_IN.',
     };
   }
@@ -77,7 +82,7 @@ export class VehicleHandoverController {
   }
 
   @Get('booking/:bookingId')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.CUSTOMER)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.CUSTOMER, AccountRole.TECHNICIAN)
   @ApiOperation({ summary: 'Get vehicle handover by booking ID - ADMIN, STAFF, CUSTOMER' })
   async getByBookingId(
     @Param('bookingId', ParseUUIDPipe) bookingId: string

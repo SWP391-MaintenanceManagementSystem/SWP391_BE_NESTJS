@@ -21,13 +21,15 @@ import { UseInterceptors } from '@nestjs/common';
 import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
 import { VehicleService } from '../vehicle/vehicle.service';
+import { CustomerDashboardService } from '../dashboard/customer-dashboard.service';
 @ApiTags('Me')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/me')
 export class AccountController {
   constructor(
     private readonly accountService: AccountService,
-    private readonly vehicleService: VehicleService
+    private readonly vehicleService: VehicleService,
+    private readonly customerDashboardService: CustomerDashboardService
   ) {}
 
   @Patch('/')
@@ -94,5 +96,24 @@ export class AccountController {
       message: 'Subscription retrieved successfully',
       data: subscription,
     };
+  }
+
+  @Roles(AccountRole.CUSTOMER, AccountRole.TECHNICIAN)
+  @Get('statistics')
+  async getCustomerOverview(@CurrentUser() user: JWT_Payload) {
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        const data = await this.customerDashboardService.getOverview(user.sub);
+        return {
+          data,
+          message: 'Customer dashboard overview retrieved successfully.',
+        };
+      case AccountRole.TECHNICIAN:
+        // TODO: implement technician overview
+        break;
+      default:
+        break;
+    }
+    throw new BadRequestException('Invalid role for statistics');
   }
 }

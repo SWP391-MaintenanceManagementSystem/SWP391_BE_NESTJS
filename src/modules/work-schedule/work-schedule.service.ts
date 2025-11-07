@@ -22,7 +22,7 @@ export class WorkScheduleService {
   async createWorkSchedule(
     createDto: CreateWorkScheduleDTO,
     userRole: AccountRole
-  ): Promise<WorkScheduleDTO[]> {
+  ): Promise<{ data: WorkScheduleDTO[]; schedules: WorkScheduleDTO[]; employeeIds: string[] }> {
     if (userRole !== AccountRole.ADMIN) {
       throw new ForbiddenException('Only ADMIN can create work schedule assignments');
     }
@@ -330,8 +330,13 @@ export class WorkScheduleService {
         return schedules;
       }
     );
+    const uniqueEmployeeIds = [...new Set(createDto.employeeIds)];
 
-    return createdSchedules;
+    return {
+      data: createdSchedules,
+      schedules: createdSchedules,
+      employeeIds: uniqueEmployeeIds,
+    };
   }
 
   async getWorkSchedules(

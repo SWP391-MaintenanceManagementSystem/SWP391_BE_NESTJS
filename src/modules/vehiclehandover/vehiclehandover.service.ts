@@ -26,7 +26,7 @@ export class VehicleHandoverService {
     createDto: CreateVehicleHandoverDTO,
     staffAccountId: string,
     images?: Express.Multer.File[]
-  ): Promise<VehicleHandoverDTO> {
+  ): Promise<{ data: VehicleHandoverDTO; customerId: string; technicianIds: string[] }> {
     const { bookingId, odometer, note, description, date } = createDto;
 
     // --- Upload images to Cloudinary if provided ---
@@ -157,14 +157,28 @@ export class VehicleHandoverService {
       return tx.vehicleHandover.findUnique({
         where: { id: newHandover.id },
         include: {
-          staff: {
-            include: { account: true },
+          booking: {
+            include: {
+              customer: { select: { accountId: true } },
+              bookingAssignments: {
+                select: { employeeId: true }, // ← technicianIds
+              },
+            },
           },
-          booking: true,
         },
       });
     });
-    return plainToInstance(VehicleHandoverDTO, handover, { excludeExtraneousValues: true });
+    const handoverDTO = plainToInstance(VehicleHandoverDTO, handover, {
+      excludeExtraneousValues: true,
+    });
+
+    const technicianIds = handover!.booking.bookingAssignments.map(a => a.employeeId);
+
+    return {
+      data: handoverDTO,
+      customerId: handover!.booking.customer.accountId,
+      technicianIds,
+    };
   }
 
   async getVehicleHandovers(query: VehicleHandoverQueryDTO): Promise<{
