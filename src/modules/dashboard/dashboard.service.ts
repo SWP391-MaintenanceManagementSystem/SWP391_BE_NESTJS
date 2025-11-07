@@ -206,12 +206,12 @@ export class DashboardService {
   }
 
  async getBookingsByServiceCenter(): Promise<ServiceCenterStatsDTO[]> {
-  // Bước 1: Lấy tất cả trung tâm
+
   const centers = await this.prisma.serviceCenter.findMany({
     select: { id: true, name: true },
   });
 
-  // Bước 2: Lấy tất cả transaction SUCCESS của booking
+
   const successfulTransactions = await this.prisma.transaction.findMany({
     where: {
       referenceType: 'BOOKING',
@@ -223,14 +223,14 @@ export class DashboardService {
     },
   });
 
-  // Bước 3: Lấy centerId của các booking đã thanh toán
+
   const bookingIds = successfulTransactions.map(t => t.referenceId).filter(Boolean) as string[];
   const bookings = await this.prisma.booking.findMany({
     where: { id: { in: bookingIds } },
     select: { id: true, centerId: true },
   });
 
-  // Bước 4: Tính tổng
+
   const revenueMap = new Map<string, number>();
   const bookingCountMap = new Map<string, number>();
 
@@ -242,7 +242,7 @@ export class DashboardService {
     bookingCountMap.set(booking.centerId, (bookingCountMap.get(booking.centerId) || 0) + 1);
   });
 
-  // Bước 5: Trả về
+
   return centers.map(center => ({
     centerName: center.name,
     bookings: bookingCountMap.get(center.id) ?? 0,
