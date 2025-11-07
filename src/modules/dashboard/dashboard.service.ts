@@ -238,15 +238,7 @@ export class DashboardService {
   }));
 }
 
-    return centers.map(center => {
-      const match = grouped.find(g => g.centerId === center.id);
-      return {
-        centerName: center.name,
-        bookings: match?._count.id ?? 0,
-        revenue: match?._sum.totalCost ?? 0,
-      };
-    });
-  }
+
 
   async getTrendingPurchases(): Promise<TrendingSummaryDTO> {
     const [services, packages, memberships] = await Promise.all([
