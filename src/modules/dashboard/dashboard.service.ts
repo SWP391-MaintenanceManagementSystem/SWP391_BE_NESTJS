@@ -193,13 +193,50 @@ export class DashboardService {
     return { inStock, lowStock, disStock, totalItems: parts.length, totalValue, lowStockItems };
   }
 
-  async getBookingsByServiceCenter(): Promise<ServiceCenterStatsDTO[]> {
-    const centers = await this.prisma.serviceCenter.findMany({ select: { id: true, name: true } });
-    const grouped = await this.prisma.booking.groupBy({
-      by: ['centerId'],
-      _count: { id: true },
-      _sum: { totalCost: true },
-    });
+ async getBookingsByServiceCenter(): Promise<ServiceCenterStatsDTO[]> {
+
+  const centers = await this.prisma.serviceCenter.findMany({
+    select: { id: true, name: true },
+  });
+
+
+  const successfulTransactions = await this.prisma.transaction.findMany({
+    where: {
+      referenceType: 'BOOKING',
+      status: 'SUCCESS',
+    },
+    select: {
+      referenceId: true,
+      amount: true,
+    },
+  });
+
+
+  const bookingIds = successfulTransactions.map(t => t.referenceId).filter(Boolean) as string[];
+  const bookings = await this.prisma.booking.findMany({
+    where: { id: { in: bookingIds } },
+    select: { id: true, centerId: true },
+  });
+
+
+  const revenueMap = new Map<string, number>();
+  const bookingCountMap = new Map<string, number>();
+
+  bookings.forEach(booking => {
+    const txs = successfulTransactions.filter(t => t.referenceId === booking.id);
+    const totalAmount = txs.reduce((sum, t) => sum + Number(t.amount), 0);
+
+    revenueMap.set(booking.centerId, (revenueMap.get(booking.centerId) || 0) + totalAmount);
+    bookingCountMap.set(booking.centerId, (bookingCountMap.get(booking.centerId) || 0) + 1);
+  });
+
+
+  return centers.map(center => ({
+    centerName: center.name,
+    bookings: bookingCountMap.get(center.id) ?? 0,
+    revenue: revenueMap.get(center.id) ?? 0,
+  }));
+}
 
     return centers.map(center => {
       const match = grouped.find(g => g.centerId === center.id);

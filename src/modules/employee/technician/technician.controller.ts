@@ -25,6 +25,14 @@ export class TechnicianController {
     private readonly technicianBookingService: TechnicianBookingService
   ) {}
 
+  @Get('/me/booking-statistics')
+  @Roles(AccountRole.TECHNICIAN)
+  async getMyBookingStatistics(@CurrentUser() user: JWT_Payload){
+    const technicianId = user.sub;
+    return this.technicianService.getBookingStatisticsByTechnician(technicianId);
+  }
+
+
   @Get('/statistics')
   @Roles(AccountRole.ADMIN)
   async getTechnicianStatistics() {
