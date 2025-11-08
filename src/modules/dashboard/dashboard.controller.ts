@@ -12,7 +12,7 @@ import { CustomerDashboardService } from './customer-dashboard.service';
 
 @ApiTags('Statistics')
 @Controller('api/statistics')
-@Roles(AccountRole.ADMIN)
+@Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
 @ApiBearerAuth('jwt-auth')
 export class DashboardController {
   constructor(
