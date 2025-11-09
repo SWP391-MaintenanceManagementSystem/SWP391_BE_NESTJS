@@ -46,16 +46,69 @@ export class TechnicianService {
   }
 
   async updateTechnician(
-    accountId: string,
-    updateTechnicianDto: UpdateTechnicianDto
-  ): Promise<AccountWithProfileDTO> {
-    const updatedTechnician = await this.accountService.updateAccount(
-      accountId,
-      updateTechnicianDto
-    );
-    return updatedTechnician;
-  }
+    id: string,
+    updateData: UpdateTechnicianDTO
+  ): Promise<EmployeeWithCenterDTO> {
+    const existingTechnician = await this.prisma.account.findUnique({
+      where: { id, role: 'TECHNICIAN' },
+      include: { employee: true },
+    });
 
+    if (!existingTechnician || !existingTechnician.employee) {
+      throw new NotFoundException('Technician not found');
+    }
+
+    // updateEmployee
+    const result = await this.employeeService.updateEmployee(id, updateData);
+
+    // Send notifications
+    const notificationPromises: Promise<void>[] = [];
+
+    // Profile updated
+    if (result.notifications.profileUpdated) {
+      const template = NotificationTemplateService.employeeProfileUpdated();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          typeof template.message === 'function'
+            ? template.message({})
+            : 'Your profile has been updated by an administrator.',
+          template.type!,
+          template.title as string
+        )
+      );
+    }
+
+    // Center removed
+    if (result.notifications.centerRemoved && result.notifications.oldCenterName) {
+      const removeTemplate = NotificationTemplateService.employeeRemovedFromCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been removed from ${result.notifications.oldCenterName}.`,
+          removeTemplate.type!,
+          removeTemplate.title as string
+        )
+      );
+    }
+
+    // Center assigned
+    if (result.notifications.centerUpdated && result.notifications.newCenterName) {
+      const assignTemplate = NotificationTemplateService.employeeAssignedToCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been assigned to ${result.notifications.newCenterName}.`,
+          assignTemplate.type!,
+          assignTemplate.title as string
+        )
+      );
+    }
+
+    await Promise.all(notificationPromises);
+
+    return result.data;
+  }
   async deleteTechnician(accountId: string): Promise<void> {
     const existingTechnician = await this.prisma.account.findUnique({
       where: { id: accountId },
