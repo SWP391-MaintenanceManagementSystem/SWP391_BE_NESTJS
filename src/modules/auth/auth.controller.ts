@@ -30,6 +30,7 @@ import { plainToInstance } from 'class-transformer';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { SkipResponseInterceptor } from 'src/common/decorator/skip-response.decorator';
 import { Account } from '@prisma/client';
+import { encodeBase64 } from 'src/utils';
 
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
   user: OAuthUserDTO;
@@ -163,10 +164,10 @@ export class AuthController {
         sameSite: 'lax',
         maxAge,
       });
-
+      const encoded = encodeBase64(accessToken);
       // Redirect to frontend with access token
       const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
-      return res.redirect(`${frontendUrl}/auth/success?token=${accessToken}`);
+      return res.redirect(`${frontendUrl}/auth/success?token=${encoded}`);
     } catch (error) {
       return res.redirect(
         `${this.configService.get('FRONTEND_URL')}/auth/failed?message=${error.message}`
@@ -176,7 +177,6 @@ export class AuthController {
 
   @Get('/me')
   @ApiBearerAuth('jwt-auth')
-  @Serialize(SignInResponseDTO)
   async getMe(@CurrentUser() user: JWT_Payload) {
     const account = await this.accountService.getAccountById(user.sub);
     return {

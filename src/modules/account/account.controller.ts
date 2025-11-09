@@ -2,8 +2,6 @@ import {
   Body,
   Controller,
   Patch,
-  Param,
-  Delete,
   Post,
   UploadedFile,
   BadRequestException,
@@ -21,73 +19,18 @@ import { UseInterceptors } from '@nestjs/common';
 import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
 import { VehicleService } from '../vehicle/vehicle.service';
-import { SubscriptionService } from '../subscription/subscription.service';
+import { CustomerDashboardService } from '../dashboard/customer-dashboard.service';
+import { TechnicianDashboardService } from '../dashboard/technician-dashboard.service';
 @ApiTags('Me')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/me')
 export class AccountController {
   constructor(
     private readonly accountService: AccountService,
-    private readonly vehicleService: VehicleService
+    private readonly vehicleService: VehicleService,
+    private readonly customerDashboardService: CustomerDashboardService,
+    private readonly technicianDashboardService: TechnicianDashboardService
   ) {}
-
-  // @Get('/')
-  // @Roles(AccountRole.ADMIN)
-  // @ApiQuery({
-  //   name: 'where',
-  //   required: false,
-  //   type: String,
-  //   description: 'JSON string for filter conditions',
-  //   example: '{"status":"VERIFIED"}',
-  // })
-  // @ApiQuery({
-  //   name: 'orderBy',
-  //   required: false,
-  //   type: String,
-  //   description: 'JSON string for sorting criteria',
-  //   example: '{"createdAt":"desc"}',
-  // })
-  // @ApiQuery({
-  //   name: 'page',
-  //   required: false,
-  //   type: Number,
-  //   description: 'Page number',
-  //   example: 1,
-  // })
-  // @ApiQuery({
-  //   name: 'pageSize',
-  //   required: false,
-  //   type: Number,
-  //   description: 'Number of records per page',
-  //   example: 10,
-  // })
-  // async getAccounts(
-  //   @Query('where') where?: string,
-  //   @Query('orderBy') orderBy?: string,
-  //   @Query('page') page?: string,
-  //   @Query('pageSize') pageSize?: string
-  // ) {
-  //   const {
-  //     data,
-  //     page: _page,
-  //     pageSize: _pageSize,
-  //     total,
-  //     totalPages,
-  //   } = await this.accountService.getAccounts({
-  //     where: where ? JSON.parse(where) : undefined,
-  //     orderBy: orderBy ? JSON.parse(orderBy) : undefined,
-  //     page: page ? parseInt(page) : 1,
-  //     pageSize: pageSize ? parseInt(pageSize) : 10,
-  //   });
-  //   return {
-  //     message: 'Accounts retrieved successfully',
-  //     accounts: plainToInstance(AccountWithProfileDTO, data),
-  //     page: _page,
-  //     pageSize: _pageSize,
-  //     total,
-  //     totalPages,
-  //   };
-  // }
 
   @Patch('/')
   async updateAccount(
@@ -100,13 +43,6 @@ export class AccountController {
       data: plainToInstance(AccountWithProfileDTO, data),
     };
   }
-
-  // @Delete('/:id')
-  // @Roles(AccountRole.ADMIN)
-  // async deleteAccount(@Param('id') id: string) {
-  //   await this.accountService.deleteAccount(id);
-  //   return { message: 'Account deleted successfully' };
-  // }
 
   @Get('/vehicles')
   @Roles(AccountRole.CUSTOMER)
@@ -160,5 +96,28 @@ export class AccountController {
       message: 'Subscription retrieved successfully',
       data: subscription,
     };
+  }
+
+  @Roles(AccountRole.CUSTOMER, AccountRole.TECHNICIAN)
+  @Get('statistics')
+  async getCustomerOverview(@CurrentUser() user: JWT_Payload) {
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        const customerData = await this.customerDashboardService.getOverview(user.sub);
+        return {
+          data: customerData,
+          message: 'Customer dashboard overview retrieved successfully.',
+        };
+      case AccountRole.TECHNICIAN:
+        const technicianData =
+          await this.technicianDashboardService.getBookingStatisticsByTechnician(user.sub);
+        return {
+          data: technicianData,
+          message: 'Technician dashboard overview retrieved successfully.',
+        };
+      default:
+        break;
+    }
+    throw new BadRequestException('Invalid role for statistics');
   }
 }

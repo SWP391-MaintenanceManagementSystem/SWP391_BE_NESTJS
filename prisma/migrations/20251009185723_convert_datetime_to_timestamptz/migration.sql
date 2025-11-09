@@ -1,0 +1,98 @@
+-- AlterTable
+ALTER TABLE "public"."accounts" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."booking_assignments" ALTER COLUMN "assigned_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."booking_details" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."bookings" ALTER COLUMN "booking_date" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."brands" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."categories" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."customers" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."employee_certificates" ALTER COLUMN "issued_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "expires_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."employees" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."memberships" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."packages" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."parts" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."service_centers" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."service_parts" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."services" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."shifts" ALTER COLUMN "start_time" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "end_time" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "start_date" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "end_date" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."subscriptions" ALTER COLUMN "start_date" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "end_date" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."tokens" ALTER COLUMN "expires_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."transactions" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."vehicle_models" ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."vehicles" ALTER COLUMN "deleted_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "last_service" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."work_centers" ALTER COLUMN "end_date" DROP NOT NULL,
+ALTER COLUMN "end_date" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "start_date" SET DATA TYPE TIMESTAMPTZ;
+
+-- AlterTable
+ALTER TABLE "public"."work_schedules" ALTER COLUMN "date" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMPTZ,
+ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMPTZ;

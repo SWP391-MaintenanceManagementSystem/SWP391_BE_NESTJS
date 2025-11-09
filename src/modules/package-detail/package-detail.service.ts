@@ -17,10 +17,9 @@ export class PackageDetailService {
         serviceId: createPackageDetailDto.serviceId,
         quantity: createPackageDetailDto.quantity,
       },
-      include: {service: true
-      },
+      include: { service: true },
     });
-      return plainToInstance(PackageDetailDto, packageDetail, { excludeExtraneousValues: true });
+    return plainToInstance(PackageDetailDto, packageDetail, { excludeExtraneousValues: true });
   }
 
   async getAllPackageDetail(): Promise<PackageDetailDto[]> {
@@ -30,7 +29,10 @@ export class PackageDetailService {
     return plainToInstance(PackageDetailDto, packageDetails, { excludeExtraneousValues: true });
   }
 
-  async getPackageDetailById(packageId: string, serviceId: string): Promise<PackageDetailDto | null> {
+  async getPackageDetailById(
+    packageId: string,
+    serviceId: string
+  ): Promise<PackageDetailDto | null> {
     const existingPackageDetail = await this.prisma.packageDetail.findUnique({
       where: { packageId_serviceId: { packageId, serviceId } },
       include: { service: true },
@@ -38,10 +40,16 @@ export class PackageDetailService {
     if (!existingPackageDetail) {
       throw new NotFoundException('PackageDetail not found');
     }
-    return plainToInstance(PackageDetailDto, existingPackageDetail, { excludeExtraneousValues: true });
+    return plainToInstance(PackageDetailDto, existingPackageDetail, {
+      excludeExtraneousValues: true,
+    });
   }
 
-  async updatePackageDetail(packageId: string, serviceId: string, updatePackageDetailDto: UpdatePackageDetailDto): Promise<PackageDetailDto> {
+  async updatePackageDetail(
+    packageId: string,
+    serviceId: string,
+    updatePackageDetailDto: UpdatePackageDetailDto
+  ): Promise<PackageDetailDto> {
     const existingPackageDetail = await this.prisma.packageDetail.findUnique({
       where: { packageId_serviceId: { packageId, serviceId } },
     });
@@ -55,8 +63,9 @@ export class PackageDetailService {
       },
       include: { service: true },
     });
-    return plainToInstance(PackageDetailDto, updatedPackageDetail, { excludeExtraneousValues: true });
-
+    return plainToInstance(PackageDetailDto, updatedPackageDetail, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async deletePackageDetail(packageId: string, serviceId: string): Promise<string> {

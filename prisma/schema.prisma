@@ -33,11 +33,12 @@ enum AuthProvider {
 
 enum BookingStatus {
   PENDING
-  CONFIRMED
+  ASSIGNED
   CHECKED_IN
+  CHECKED_OUT
   COMPLETED
   CANCELLED
-  IN_PROCESS
+  IN_PROGRESS
 }
 
 enum ReferenceType {
@@ -98,27 +99,58 @@ enum SubscriptionStatus {
   EXPIRED
 }
 
+enum BookingDetailStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum PartStatus {
+  AVAILABLE
+  OUT_OF_STOCK
+  DISCONTINUED
+}
+
+enum NotificationType {
+  SYSTEM
+  BOOKING
+  PAYMENT
+  SHIFT
+  MEMBERSHIP
+}
+
+enum ChatStatus {
+  OPEN
+  CLOSED
+  PENDING
+}
+
 /**
  * ================= MODELS =================
  */
 
 model Account {
-  id             String         @id @default(uuid()) @map("id")
-  email          String         @unique
-  password       String?
-  phone          String?
-  role           AccountRole    @default(CUSTOMER)
-  status         AccountStatus  @default(NOT_VERIFY)
-  avatar         String?
-  avatarPublicId String?        @map("avatar_public_id")
-  provider       AuthProvider[] @default([EMAIL])
-  providerId     Json?          @map("provider_id")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
-  customer       Customer?
-  employee       Employee?
-  admin          Admin?
-  tokens         Token[]
+  id                 String         @id @default(uuid()) @map("id")
+  email              String         @unique
+  password           String?
+  phone              String?
+  role               AccountRole    @default(CUSTOMER)
+  status             AccountStatus  @default(NOT_VERIFY)
+  avatar             String?
+  avatarPublicId     String?        @map("avatar_public_id")
+  provider           AuthProvider[] @default([EMAIL])
+  providerId         Json?          @map("provider_id")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+  customer           Customer?
+  employee           Employee?
+  // admin          Admin?
+  tokens             Token[]
+  notifications      Notification[]
+  messages           Message[]      @relation("SentMessages")
+  receivedMsgs       Message[]      @relation("ReceivedMessages")
+  conversations      Conversation[] @relation("CustomerConversations")
+  staffConversations Conversation[] @relation("StaffConversations")
 
   @@map("accounts")
 }
@@ -129,8 +161,8 @@ model Customer {
   lastName  String   @map("last_name")
   address   String?
   isPremium Boolean  @default(false) @map("is_premium")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   account       Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
   bookings      Booking[]
@@ -145,38 +177,40 @@ model Employee {
   accountId String   @id @map("account_id")
   firstName String   @map("first_name")
   lastName  String   @map("last_name")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   account            Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
   workSchedules      WorkSchedule[]
   workCenters        WorkCenter[]
-  bookingAssignments BookingAssignment[]
   certificates       EmployeeCertificate[]
+  bookingAssignments BookingAssignment[]   @relation("AssignedEmployee")
+  assignedByBookings BookingAssignment[]   @relation("AssignerEmployee")
+  VehicleHandover    VehicleHandover[]
 
   @@map("employees")
 }
 
-model Admin {
-  accountId String   @id @map("account_id")
-  fullName  String   @map("full_name")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+// model Admin {
+//   accountId String   @id @map("account_id")
+//   fullName  String   @map("full_name")
+//   createdAt DateTime @default(now()) @map("created_at")
+//   updatedAt DateTime @updatedAt @map("updated_at")
 
-  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+//   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
-  @@map("admins")
-}
+//   @@map("admins")
+// }
 
 model Vehicle {
   id           String        @id @default(uuid())
   vin          String        @unique
   customerId   String        @map("customer_id")
   licensePlate String        @unique @map("license_plate")
-  deletedAt    DateTime?     @map("deleted_at")
-  lastService  DateTime?     @map("last_service")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at") @db.Timestamptz
+  lastService  DateTime?     @map("last_service") @db.Timestamptz
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz
   status       VehicleStatus @default(ACTIVE)
   customer     Customer      @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
   modelId      Int           @map("model_id")
@@ -191,8 +225,8 @@ model VehicleModel {
   brandId        Int       @map("brand_id")
   name           String
   productionYear Int       @map("production_year")
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz
   brand          Brand     @relation(fields: [brandId], references: [id])
   vehicles       Vehicle[]
 
@@ -202,8 +236,8 @@ model VehicleModel {
 model Brand {
   id            Int            @id @default(autoincrement())
   name          String         @unique
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz
   vehicleModels VehicleModel[]
 
   @@map("brands")
@@ -214,16 +248,23 @@ model Booking {
   customerId  String        @map("customer_id")
   vehicleId   String        @map("vehicle_id")
   centerId    String        @map("center_id")
+  shiftId     String        @map("shift_id")
   totalCost   Float         @map("total_cost")
   status      BookingStatus @default(PENDING)
   note        String?
-  bookingDate DateTime      @map("booking_date")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
+  bookingDate DateTime      @map("booking_date") @db.Timestamptz
+  handoverId  String?       @unique @map("handover_id")
+  rating      Int?
+  feedback    String?
+  reminded    Json?         @default("{}") @map("reminded")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
   customer           Customer            @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
   vehicle            Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   serviceCenter      ServiceCenter       @relation(fields: [centerId], references: [id], onDelete: Cascade)
+  shift              Shift               @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  handover           VehicleHandover?
   bookingDetails     BookingDetail[]
   bookingAssignments BookingAssignment[]
 
@@ -234,14 +275,15 @@ model Booking {
 }
 
 model BookingDetail {
-  id        String   @id @default(uuid())
-  bookingId String   @map("booking_id")
-  serviceId String?  @map("service_id")
-  packageId String?  @map("package_id")
+  id        String              @id @default(uuid())
+  bookingId String              @map("booking_id")
+  serviceId String?             @map("service_id")
+  packageId String?             @map("package_id")
   quantity  Int
-  unitPrice Float    @map("unit_price")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  status    BookingDetailStatus @default(PENDING)
+  unitPrice Float               @map("unit_price")
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime            @updatedAt @map("updated_at") @db.Timestamptz
 
   booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   service Service? @relation(fields: [serviceId], references: [id])
@@ -251,14 +293,19 @@ model BookingDetail {
 }
 
 model BookingAssignment {
-  id         String   @id @default(uuid())
-  bookingId  String   @map("booking_id")
-  employeeId String   @map("employee_id")
-  assignedAt DateTime @default(now()) @map("assigned_at")
+  id         String @id @default(uuid())
+  bookingId  String @map("booking_id")
+  employeeId String @map("employee_id")
+  assignedBy String @map("assigned_by")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   booking  Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
+  employee Employee @relation("AssignedEmployee", fields: [employeeId], references: [accountId], onDelete: Cascade)
+  assigner Employee @relation("AssignerEmployee", fields: [assignedBy], references: [accountId])
 
+  @@unique([bookingId, employeeId])
   @@map("booking_assignments")
 }
 
@@ -268,8 +315,8 @@ model Service {
   description    String?
   price          Float
   status         ServiceStatus   @default(ACTIVE)
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz
   bookingDetails BookingDetail[]
   packageDetails PackageDetail[]
   ServicePart    ServicePart[]
@@ -282,9 +329,10 @@ model Package {
   name         String
   price        Float
   discountRate Float         @default(0) @map("discount_rate")
+  description  String?
   status       PackageStatus @default(ACTIVE)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz
 
   packageDetails PackageDetail[]
   bookingDetails BookingDetail[]
@@ -305,15 +353,16 @@ model PackageDetail {
 
 model Part {
   id          String        @id @default(uuid())
-  catergoryId String        @map("category_id")
+  categoryId  String        @map("category_id")
   description String?
   price       Float
   name        String
   stock       Int
   minStock    Int           @map("min_stock")
-  createdAt   DateTime      @default(now()) @map("created_at")
-  updatedAt   DateTime      @updatedAt @map("updated_at")
-  category    Category      @relation(fields: [catergoryId], references: [id], onDelete: Cascade)
+  status      PartStatus    @default(AVAILABLE)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   ServicePart ServicePart[]
 
   @@map("parts")
@@ -322,8 +371,8 @@ model Part {
 model Category {
   id        String   @id @default(uuid())
   name      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
   parts     Part[]
 
   @@map("categories")
@@ -334,8 +383,8 @@ model ServicePart {
   serviceId String   @map("service_id")
   partId    String   @map("part_id")
   quantity  Int
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
   service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   part      Part     @relation(fields: [partId], references: [id], onDelete: Cascade)
 
@@ -347,8 +396,8 @@ model ServiceCenter {
   name      String
   address   String
   status    CenterStatus @default(OPEN)
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz
 
   bookings    Booking[]
   workCenters WorkCenter[]
@@ -360,19 +409,17 @@ model ServiceCenter {
 model Shift {
   id          String      @id @default(uuid())
   name        String
-  startTime   DateTime    @map("start_time")
-  endTime     DateTime    @map("end_time")
-  startDate   DateTime?   @map("start_date")
-  endDate     DateTime?   @map("end_date")
-  maximumSlot Int?        @map("maximum_slot")
-  repeatDays  Int[]       @map("repeat_days")
+  startTime   DateTime    @map("start_time") @db.Time
+  endTime     DateTime    @map("end_time") @db.Time
+  maximumSlot Int         @map("maximum_slot")
   status      ShiftStatus @default(ACTIVE)
   centerId    String      @map("center_id")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz
 
   serviceCenter ServiceCenter  @relation(fields: [centerId], references: [id], onDelete: Cascade)
   workSchedules WorkSchedule[]
+  Booking       Booking[]
 
   @@map("shifts")
 }
@@ -381,9 +428,9 @@ model WorkSchedule {
   id         String   @id @default(uuid())
   employeeId String   @map("employee_id")
   shiftId    String   @map("shift_id")
-  date       DateTime
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  date       DateTime @db.Timestamptz
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz
 
   employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
   shift    Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
@@ -392,11 +439,11 @@ model WorkSchedule {
 }
 
 model WorkCenter {
-  id         String   @id @default(uuid())
-  employeeId String   @map("employee_id")
-  centerId   String   @map("center_id")
-  startDate  DateTime @map("start_date")
-  endDate    DateTime @map("end_date")
+  id            String        @id @default(uuid())
+  employeeId    String        @map("employee_id")
+  centerId      String        @map("center_id")
+  startDate     DateTime      @map("start_date") @db.Timestamptz
+  endDate       DateTime?     @map("end_date") @db.Timestamptz
   employee      Employee      @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
   serviceCenter ServiceCenter @relation(fields: [centerId], references: [id], onDelete: Cascade)
 
@@ -407,8 +454,8 @@ model EmployeeCertificate {
   id         String   @id @default(uuid())
   employeeId String   @map("employee_id")
   name       String
-  issuedAt   DateTime @map("issued_at")
-  expiresAt  DateTime @map("expires_at")
+  issuedAt   DateTime @map("issued_at") @db.Timestamptz
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz
 
   employee Employee @relation(fields: [employeeId], references: [accountId], onDelete: Cascade)
 
@@ -420,23 +467,25 @@ model Transaction {
   customerId    String            @map("customer_id")
   referenceId   String?           @map("reference_id")
   referenceType ReferenceType?    @map("reference_type")
+  sessionId     String?           @unique @map("session_id")
   amount        Float
   status        TransactionStatus @default(PENDING)
   method        Method
-  createdAt     DateTime          @default(now()) @map("created_at")
-  updatedAt     DateTime          @updatedAt @map("updated_at")
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz
   customer      Customer          @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
 
   @@map("transactions")
 }
 
 model Subscription {
-  id           String             @id @default(uuid())
-  customerId   String             @map("customer_id")
-  membershipId String             @map("membership_id")
-  status       SubscriptionStatus @default(ACTIVE)
-  startDate    DateTime           @map("start_date")
-  endDate      DateTime           @map("end_date")
+  id             String             @id @default(uuid())
+  customerId     String             @map("customer_id")
+  membershipId   String             @map("membership_id")
+  status         SubscriptionStatus @default(ACTIVE)
+  lastFreeUsedAt DateTime?          @map("last_free_used_at") @db.Timestamptz
+  startDate      DateTime           @map("start_date") @db.Timestamptz
+  endDate        DateTime           @map("end_date") @db.Timestamptz
 
   customer   Customer   @relation(fields: [customerId], references: [accountId], onDelete: Cascade)
   membership Membership @relation(fields: [membershipId], references: [id])
@@ -452,8 +501,8 @@ model Membership {
   periodType  PeriodType
   status      MembershipStatus @default(ACTIVE)
   description String?
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz
 
   subscriptions Subscription[]
 
@@ -464,9 +513,74 @@ model Token {
   id           String   @id @default(uuid())
   accountId    String   @map("account_id")
   refreshToken String
-  expiresAt    DateTime @map("expires_at")
+  expiresAt    DateTime @map("expires_at") @db.Timestamptz
 
   account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@map("tokens")
+}
+
+model Notification {
+  id                String           @id @default(uuid())
+  accountId         String           @map("account_id")
+  content           String
+  title             String
+  notification_type NotificationType @map("notification_type")
+  sent_at           DateTime         @default(now()) @db.Timestamptz
+  is_read           Boolean          @default(false)
+  created_at        DateTime         @default(now()) @db.Timestamptz
+  read_at           DateTime?        @db.Timestamptz
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, created_at])
+  @@map("notifications")
+}
+
+model VehicleHandover {
+  id          String   @id @default(uuid())
+  bookingId   String   @unique @map("booking_id")
+  odometer    Int
+  note        String?
+  description String[]
+  staffId     String   @map("staff_id")
+  date        DateTime @db.Timestamptz
+  imageUrls   String[] @map("image_urls")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  staff   Employee @relation(fields: [staffId], references: [accountId], onDelete: Cascade)
+
+  @@map("vehicle_handovers")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  receiverId     String?  @map("receiver_id")
+  content        String
+  sentAt         DateTime @default(now()) @map("sent_at") @db.Timestamptz
+
+  sender       Account      @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver     Account?     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@map("messages")
+}
+
+model Conversation {
+  id         String     @id @default(uuid())
+  customerId String     @map("customer_id")
+  staffId    String?    @map("staff_id")
+  status     ChatStatus @default(OPEN)
+  createdAt  DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt  DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  customer Account   @relation("CustomerConversations", fields: [customerId], references: [id], onDelete: Cascade)
+  staff    Account?  @relation("StaffConversations", fields: [staffId], references: [id], onDelete: SetNull)
+  messages Message[]
+
+  @@map("conversations")
 }

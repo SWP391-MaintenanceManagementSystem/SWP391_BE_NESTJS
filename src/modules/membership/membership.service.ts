@@ -4,6 +4,7 @@ import { CreateMembershipDTO } from './dto/create-membership.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { plainToInstance } from 'class-transformer';
 import { UpdateMembershipDTO } from './dto/update-membership.dto';
+import { MembershipStatus } from '@prisma/client';
 
 @Injectable()
 export class MembershipService {
@@ -17,7 +18,17 @@ export class MembershipService {
   }
 
   async getAllMemberships(): Promise<MembershipDTO[]> {
-    const memberships = await this.prismaService.membership.findMany();
+    const memberships = await this.prismaService.membership.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return memberships.map(membership => plainToInstance(MembershipDTO, membership));
+  }
+
+  async getActiveMemberships(): Promise<MembershipDTO[]> {
+    const memberships = await this.prismaService.membership.findMany({
+      where: { status: MembershipStatus.ACTIVE },
+      orderBy: { createdAt: 'desc' },
+    });
     return memberships.map(membership => plainToInstance(MembershipDTO, membership));
   }
 
@@ -45,12 +56,12 @@ export class MembershipService {
     if (!membershipExisted) {
       throw new Error('No active subscriptions found for this membership.');
     }
-    if (membershipExisted.status === 'ACTIVE') {
-      throw new Error('Cannot delete membership with active subscriptions.');
+    if (membershipExisted.status === MembershipStatus.INACTIVE) {
+      throw new Error('Cannot delete membership with INACTIVE subscriptions.');
     }
     await this.prismaService.membership.update({
       where: { id },
-      data: { status: 'INACTIVE' },
+      data: { status: MembershipStatus.INACTIVE },
     });
   }
 }

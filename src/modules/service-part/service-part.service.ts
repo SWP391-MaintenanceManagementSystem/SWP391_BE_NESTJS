@@ -14,32 +14,34 @@ export class ServicePartService {
   async createServicePart(createServicePartDto: CreateServicePartDto): Promise<ServicePartDto> {
     const servicePart = await this.prisma.servicePart.create({
       data: createServicePartDto,
-      include: {service: true, part: true}
+      include: { service: true, part: true },
     });
-    return plainToInstance(ServicePartDto, servicePart, { excludeExtraneousValues: true } );
+    return plainToInstance(ServicePartDto, servicePart, { excludeExtraneousValues: true });
   }
-
 
   async getAllServiceParts(): Promise<ServicePartDto[]> {
     const serviceParts = await this.prisma.servicePart.findMany({
-      include: {service: true, part: true},
-      orderBy: { id: 'asc' }
+      include: { service: true, part: true },
+      orderBy: { id: 'asc' },
     });
-    return plainToInstance(ServicePartDto, serviceParts, { excludeExtraneousValues: true } );
+    return plainToInstance(ServicePartDto, serviceParts, { excludeExtraneousValues: true });
   }
 
   async getServicePartById(id: string): Promise<ServicePartDto | null> {
     const servicePart = await this.prisma.servicePart.findUnique({
-      where: { id},
-      include: {service: true, part: true}
+      where: { id },
+      include: { service: true, part: true },
     });
-    if(!servicePart) {
+    if (!servicePart) {
       throw new NotFoundException(`ServicePart with ID ${id} not found`);
     }
-    return plainToInstance(ServicePartDto, servicePart, { excludeExtraneousValues: true } );
+    return plainToInstance(ServicePartDto, servicePart, { excludeExtraneousValues: true });
   }
 
-  async updateServicePart(id: string, updateServicePartDto: UpdateServicePartDto): Promise<ServicePartDto> {
+  async updateServicePart(
+    id: string,
+    updateServicePartDto: UpdateServicePartDto
+  ): Promise<ServicePartDto> {
     const existingServicePart = await this.prisma.servicePart.findUnique({ where: { id } });
     if (!existingServicePart) {
       throw new NotFoundException(`ServicePart with ID ${id} not found`);
@@ -47,9 +49,9 @@ export class ServicePartService {
     const updatedServicePart = await this.prisma.servicePart.update({
       where: { id },
       data: updateServicePartDto,
-      include: {service: true, part: true}
+      include: { service: true, part: true },
     });
-    return plainToInstance(ServicePartDto, updatedServicePart, { excludeExtraneousValues: true } );
+    return plainToInstance(ServicePartDto, updatedServicePart, { excludeExtraneousValues: true });
   }
 
   async deleteServicePart(id: string): Promise<ServicePartDto> {
@@ -59,8 +61,8 @@ export class ServicePartService {
     }
     const deletedServicePart = await this.prisma.servicePart.delete({
       where: { id },
-      include: {service: true, part: true}
+      include: { service: true, part: true },
     });
-    return plainToInstance(ServicePartDto, deletedServicePart, { excludeExtraneousValues: true } );
+    return plainToInstance(ServicePartDto, deletedServicePart, { excludeExtraneousValues: true });
   }
 }

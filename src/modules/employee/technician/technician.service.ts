@@ -1,60 +1,33 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
-import { CreateTechnicianDto } from './dto/create-technician.dto';
-import { UpdateTechnicianDto } from './dto/update-technician.dto';
+import { CreateTechnicianDTO } from './dto/create-technician.dto';
+import { UpdateTechnicianDTO } from './dto/update-technician.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
-import { Employee, AccountRole, Prisma } from '@prisma/client';
+import { AccountRole, BookingStatus } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { AccountService } from 'src/modules/account/account.service';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { hashPassword } from 'src/utils';
-import { ConflictException } from '@nestjs/common/exceptions/conflict.exception';
-import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { ConfigService } from '@nestjs/config';
-import { buildAccountOrderBy } from 'src/common/sort/sort.util';
 import { AccountStatus } from '@prisma/client';
+import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
+import { EmployeeService } from '../employee.service';
+import { NotificationService } from 'src/modules/notification/notification.service';
+import { NotificationTemplateService } from 'src/modules/notification/notification-template.service';
 
 @Injectable()
 export class TechnicianService {
   constructor(
     private prisma: PrismaService,
     private readonly accountService: AccountService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly employeeService: EmployeeService,
+    private readonly notificationService: NotificationService
   ) {}
 
-  async createTechnician(createTechnicianDto: CreateTechnicianDto): Promise<Employee | null> {
-    const defaultPassword = this.configService.get<string>('DEFAULT_TECHNICIAN_PASSWORD');
-    if (!defaultPassword) {
-      throw new Error('DEFAULT_TECHNICIAN_PASSWORD is not set in environment variables');
-    }
-
-    if (createTechnicianDto.email) {
-      const existingAccount = await this.prisma.account.findUnique({
-        where: { email: createTechnicianDto.email },
-      });
-      if (existingAccount) {
-        throw new BadRequestException('Technician with email is already exists');
-      }
-    }
-
-    const technicianAccount = await this.prisma.account.create({
-      data: {
-        email: createTechnicianDto.email,
-        password: await hashPassword(defaultPassword),
-        role: AccountRole.TECHNICIAN,
-        phone: createTechnicianDto.phone,
-        status: 'VERIFIED',
-      },
-    });
-
-    const employee = await this.prisma.employee.create({
-      data: {
-        accountId: technicianAccount.id,
-        firstName: createTechnicianDto.firstName,
-        lastName: createTechnicianDto.lastName ? createTechnicianDto.lastName : '',
-      },
-    });
-    return employee;
+  async createTechnician(createTechnicianDto: CreateTechnicianDTO): Promise<EmployeeWithCenterDTO> {
+    return this.employeeService.createEmployee(createTechnicianDto, 'TECHNICIAN');
   }
 
   async getTechnicianById(accountId: string): Promise<AccountWithProfileDTO | null> {
@@ -67,24 +40,9 @@ export class TechnicianService {
   }
 
   async getTechnicians(
-    filter: EmployeeQueryDTO
-  ): Promise<PaginationResponse<AccountWithProfileDTO>> {
-    let { page = 1, pageSize = 10, orderBy = 'asc', sortBy = 'createdAt' } = filter;
-    page < 1 && (page = 1);
-    pageSize < 1 && (pageSize = 10);
-
-    const where: Prisma.AccountWhereInput = {
-      employee: {
-        firstName: { contains: filter?.firstName, mode: 'insensitive' },
-        lastName: { contains: filter?.lastName, mode: 'insensitive' },
-      },
-      email: { contains: filter?.email, mode: 'insensitive' },
-      phone: filter?.phone,
-      status: filter?.status,
-      role: AccountRole.TECHNICIAN,
-    };
-
-    return await this.accountService.getAccounts(where, sortBy, orderBy, page, pageSize);
+    filter: EmployeeQueryWithPaginationDTO
+  ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
+    return this.employeeService.getEmployees(filter, AccountRole.TECHNICIAN);
   }
 
   async updateTechnician(
@@ -102,14 +60,25 @@ export class TechnicianService {
     const existingTechnician = await this.prisma.account.findUnique({
       where: { id: accountId },
     });
-
     if (!existingTechnician || existingTechnician.role !== AccountRole.TECHNICIAN) {
       throw new NotFoundException(`Technician with ID ${accountId} not found`);
     }
 
+    if (existingTechnician.status === AccountStatus.DISABLED) {
+      throw new BadRequestException('Technician is already disabled');
+    }
+
+    if (await this.employeeService.checkEmployeeHasActiveShifts(accountId)) {
+      throw new BadRequestException('Cannot delete technician with active or upcoming shifts');
+    }
+
+    if (await this.employeeService.checkTechnicianHasAssigned(accountId)) {
+      throw new BadRequestException('Cannot delete technician with active booking assignments');
+    }
+
     await this.prisma.account.update({
       where: { id: accountId },
-      data: { status: 'DISABLED' },
+      data: { status: AccountStatus.DISABLED },
     });
   }
 

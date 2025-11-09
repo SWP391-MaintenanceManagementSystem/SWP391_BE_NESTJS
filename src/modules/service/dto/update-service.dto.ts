@@ -4,7 +4,7 @@ import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
 import { ServiceStatus } from '@prisma/client';
 
 export class UpdateServiceDto extends PartialType(CreateServiceDto) {
-    @IsOptional()
+  @IsOptional()
   @IsString()
   status?: ServiceStatus;
 }

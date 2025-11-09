@@ -1,0 +1,237 @@
+import { Expose, Transform, Type } from 'class-transformer';
+import { BookingDetailStatus, BookingStatus } from '@prisma/client';
+import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns/format';
+import { VN_DATE_TIME_FORMAT, VN_TIMEZONE } from 'src/common/constants';
+class CustomerInfo {
+  @Expose()
+  firstName: string;
+
+  @Expose()
+  lastName: string;
+
+  @Expose()
+  email: string;
+
+  @Expose()
+  phone: string;
+
+  @Expose()
+  isPremium: boolean;
+}
+
+class VehicleInfo {
+  @Expose()
+  id: string;
+  @Expose()
+  licensePlate: string;
+  @Expose()
+  vin: string;
+  @Expose()
+  model: string;
+  @Expose()
+  brand: string;
+  @Expose()
+  productionYear?: number;
+}
+
+class ServiceCenterInfo {
+  @Expose()
+  id: string;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  address: string;
+}
+
+class ShiftInfo {
+  @Expose()
+  id: string;
+
+  @Expose()
+  name: string;
+
+  @Expose()
+  startTime: string;
+
+  @Expose()
+  endTime: string;
+}
+
+class TechnicianInfo {
+  @Expose()
+  email: string;
+  @Expose()
+  firstName: string;
+  @Expose()
+  lastName: string;
+}
+class AssignerInfo {
+  @Expose()
+  firstName: string;
+
+  @Expose()
+  lastName: string;
+
+  @Expose()
+  email: string;
+}
+
+class ServiceInfo {
+  @Expose()
+  id: string;
+  @Expose()
+  bookingDetailId: string;
+  @Expose()
+  name: string;
+  @Expose()
+  price: number;
+  @Expose()
+  status: BookingDetailStatus;
+}
+
+class PackageInfo {
+  @Expose()
+  id: string;
+  @Expose()
+  bookingDetailId: string;
+  @Expose()
+  name: string;
+  @Expose()
+  price: number;
+  @Expose()
+  services: Omit<ServiceInfo, 'bookingDetailId' | 'status'>[];
+  @Expose()
+  status: BookingDetailStatus;
+}
+
+class BookingDetails {
+  @Expose()
+  @Type(() => ServiceInfo)
+  services?: ServiceInfo[];
+  @Expose()
+  @Type(() => PackageInfo)
+  packages?: PackageInfo[];
+}
+
+export class CustomerBookingDetailDTO {
+  @Expose()
+  id: string;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    const localDate = toZonedTime(obj.bookingDate, VN_TIMEZONE);
+    return format(localDate, VN_DATE_TIME_FORMAT);
+  })
+  bookingDate: string;
+
+  @Expose()
+  status: BookingStatus;
+
+  @Expose()
+  totalCost: number;
+
+  @Expose()
+  note?: string;
+
+  @Expose()
+  @Transform(({ obj }) => ({
+    firstName: obj.customer?.firstName,
+    lastName: obj.customer?.lastName,
+    email: obj.customer?.account?.email,
+    phone: obj.customer?.account?.phone,
+    isPremium: obj.customer?.isPremium,
+  }))
+  @Type(() => CustomerInfo)
+  customer: CustomerInfo;
+
+  @Expose()
+  @Transform(({ obj }) => ({
+    id: obj.vehicle?.id,
+    licensePlate: obj.vehicle?.licensePlate,
+    vin: obj.vehicle?.vin,
+    model: obj.vehicle?.vehicleModel?.name,
+    brand: obj.vehicle?.vehicleModel?.brand?.name,
+    productionYear: obj.vehicle?.vehicleModel?.productionYear,
+  }))
+  @Type(() => VehicleInfo)
+  vehicle: VehicleInfo;
+
+  @Expose()
+  @Type(() => ServiceCenterInfo)
+  serviceCenter: ServiceCenterInfo;
+
+  @Expose()
+  @Type(() => ShiftInfo)
+  shift: ShiftInfo;
+
+  @Expose()
+  @Transform(({ obj }) => ({
+    firstName: obj.bookingAssignments?.[0]?.assigner?.firstName,
+    lastName: obj.bookingAssignments?.[0]?.assigner?.lastName,
+    email: obj.bookingAssignments?.[0]?.assigner?.account?.email,
+  }))
+  @Type(() => AssignerInfo)
+  staff: AssignerInfo;
+  @Expose()
+  @Transform(
+    ({ obj }) =>
+      obj.bookingAssignments?.map((ba: any) => ({
+        email: ba.employee?.account?.email,
+        firstName: ba.employee?.firstName,
+        lastName: ba.employee?.lastName,
+      })) || []
+  )
+  @Type(() => TechnicianInfo)
+  technicians: TechnicianInfo[];
+  @Expose()
+  @Transform(({ obj }) => {
+    const services: ServiceInfo[] = [];
+    const packages: PackageInfo[] = [];
+
+    obj.bookingDetails?.forEach((detail: any) => {
+      if (detail.service) {
+        services.push({
+          id: detail.service.id,
+          bookingDetailId: detail.id,
+          name: detail.service.name,
+          price: detail.service.price,
+          status: detail.status,
+        });
+      }
+      if (detail.package) {
+        packages.push({
+          id: detail.package.id,
+          bookingDetailId: detail.id,
+          name: detail.package.name,
+          price: detail.package.price,
+          status: detail.status,
+          services:
+            detail.package.packageDetails?.map((pd: any) => ({
+              id: pd.service.id,
+              name: pd.service.name,
+              price: pd.service.price,
+            })) || [],
+        });
+      }
+    });
+
+    return { services, packages };
+  })
+  @Type(() => BookingDetails)
+  bookingDetails: BookingDetails;
+
+  @Expose()
+  feedback?: string;
+
+  @Expose()
+  rating?: number;
+
+  @Expose()
+  createdAt: Date;
+
+  @Expose()
+  updatedAt: Date;
+}

@@ -1,34 +1,40 @@
-import {
-  IsNotEmpty,
-  IsString,
-  IsOptional,
-  IsEmail,
-  Matches,
-  MinLength,
-  IsNumber,
-} from 'class-validator';
+import { IsEmail, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { UpdateEmployeeWithCenterDTO } from '../../dto/update-employee-with-center.dto';
 
-export class CreateTechnicianDto {
-  @IsString({ message: 'Email must be a string' })
-  @IsNotEmpty({ message: 'Email is required' })
-  @IsEmail({}, { message: 'Invalid email format' })
-  @ApiProperty({ example: 'tech@example.com', description: 'Technician email address' })
+export class CreateTechnicianDTO {
+  @ApiProperty({
+    description: 'Technician email',
+    example: 'technician@example.com',
+  })
+  @IsEmail({}, { message: 'Email must be a valid email address' })
   email: string;
 
+  @IsOptional()
+  @IsString({ message: 'Phone must be a string' })
+  @ApiPropertyOptional({ example: '0912345678' })
+  phone?: string;
+
+  @ApiProperty({
+    description: 'The first name of the technician',
+    example: 'John',
+  })
   @IsString({ message: 'First name must be a string' })
-  @IsNotEmpty({ message: 'First name is required' })
-  @ApiProperty({ example: 'John', description: 'Technician first name' })
   firstName: string;
 
+  @ApiProperty({
+    description: 'The last name of the technician',
+    example: 'Doe',
+  })
   @IsString({ message: 'Last name must be a string' })
-  @IsOptional()
-  @ApiPropertyOptional({ example: 'Doe', description: 'Technician last name' })
-  lastName?: string;
+  lastName: string;
 
-  @IsString({ message: 'Phone must be a string' })
+  @ApiPropertyOptional({
+    type: UpdateEmployeeWithCenterDTO,
+    description: 'Work center assignment',
+  })
   @IsOptional()
-  @Matches(/^[0-9]{10,11}$/, { message: 'Phone must be 10-11 digits' })
-  @ApiPropertyOptional({ example: '0912345678', description: 'Phone number (10-11 digits)' })
-  phone?: string;
+  @Type(() => UpdateEmployeeWithCenterDTO)
+  workCenter?: UpdateEmployeeWithCenterDTO;
 }

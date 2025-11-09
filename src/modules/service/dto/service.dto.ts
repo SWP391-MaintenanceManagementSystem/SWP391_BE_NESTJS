@@ -1,10 +1,10 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { Part, ServicePart } from "@prisma/client";
-import { Expose, Transform, Type } from "class-transformer";
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from "class-validator";
-import { PackageDetailDto } from "src/modules/package-detail/dto/package-detail.dto";
-import { PartDto } from "src/modules/part/dto/part.dto";
-import ServicePartDto from "src/modules/service-part/dto/service-part.dto";
+import { ApiProperty } from '@nestjs/swagger';
+import { Part, ServicePart } from '@prisma/client';
+import { Expose, Transform, Type } from 'class-transformer';
+import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { PackageDetailDto } from 'src/modules/package-detail/dto/package-detail.dto';
+import { PartDto } from 'src/modules/part/dto/part.dto';
+import ServicePartDto from 'src/modules/service-part/dto/service-part.dto';
 
 export class ServiceDto {
   @IsNotEmpty()
@@ -28,7 +28,6 @@ export class ServiceDto {
   @Expose()
   price: number;
 
-
   @IsNotEmpty()
   @IsString()
   @Expose()
@@ -44,36 +43,35 @@ export class ServiceDto {
   @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   updatedAt: Date;
 
-  // Quan hệ (nếu bạn muốn expose)
-  // Service có nhiều bookingDetails, packageDetails, serviceParts
-  // Nếu bạn muốn lazy load hay join DTO thì để đây, còn không có thể exclude
   @IsOptional()
   @Expose()
-  bookingDetails?: any[]; // TODO: define BookingDetailDTO nếu cần
+  bookingDetails?: any[];
 
   @IsOptional()
   @Expose()
-  packageDetails?: PackageDetailDto[]; // TODO: define PackageDetailDTO nếu cần
+  packageDetails?: PackageDetailDto[];
 
   @IsOptional()
   @Expose()
-  serviceParts?: ServicePartDto[]; // TODO: define ServicePartDTO nếu cần
+  serviceParts?: ServicePartDto[];
 
   @ApiProperty({
-  type: () => [PartDto],
-  description: 'List of parts included in the service',
+    type: () => [PartDto],
+    description: 'List of parts included in the service',
   })
   @Expose()
   @Type(() => PartDto)
-  parts: PartDto[];
+  parts?: PartDto[];
 
- @ApiProperty({ description: "Final price = price + sum(parts.price)" })
-@Expose()
-@Transform(({ obj }) => {
-  const parts: PartDto[] = obj.parts || [];
-  const partsTotal = parts.reduce((sum, part) => sum + (part.price || 0), 0);
-  return (obj.price || 0) + partsTotal;
-})
-finalPrice: number;
-
+  @Expose()
+  @Transform(({ obj }) => {
+    if (obj && typeof obj.finalPrice === 'number') return obj.finalPrice;
+    const parts = obj?.parts || [];
+    if (Array.isArray(parts) && parts.length > 0) {
+      const partsTotal = parts.reduce((sum, part) => sum + (part.price || 0), 0);
+      return (obj.price || 0) + partsTotal;
+    }
+    return obj?.price ?? 0;
+  })
+  finalPrice: number;
 }

@@ -7,7 +7,7 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Package Detail')
-@Controller('package-detail')
+@Controller('api/package-details')
 export class PackageDetailController {
   constructor(private readonly packageDetailService: PackageDetailService) {}
 
@@ -35,8 +35,16 @@ export class PackageDetailController {
   @Patch(':packageId/:serviceId')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  update(@Param('packageId') packageId: string, @Param('serviceId') serviceId: string , @Body() updatePackageDetailDto: UpdatePackageDetailDto) {
-    return this.packageDetailService.updatePackageDetail(packageId, serviceId, updatePackageDetailDto);
+  update(
+    @Param('packageId') packageId: string,
+    @Param('serviceId') serviceId: string,
+    @Body() updatePackageDetailDto: UpdatePackageDetailDto
+  ) {
+    return this.packageDetailService.updatePackageDetail(
+      packageId,
+      serviceId,
+      updatePackageDetailDto
+    );
   }
 
   @Delete(':packageId/:serviceId')
