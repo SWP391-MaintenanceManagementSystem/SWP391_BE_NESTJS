@@ -8,6 +8,10 @@ import { AccountRole } from '@prisma/client';
 import { PartQueryDto } from './dto/part-query.dto';
 import { PartDto } from './dto/part.dto';
 import { plainToInstance } from 'class-transformer';
+import { EmitNotification } from 'src/common/decorator/emit-notification.decorator';
+import { NotificationTemplateService } from '../notification/notification-template.service';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { JWT_Payload } from 'src/common/types';
 
 @ApiTags('Part')
 @Controller('api/parts')
@@ -76,5 +80,49 @@ export class PartController {
   @ApiBearerAuth('jwt-auth')
   remove(@Param('id') id: string) {
     return this.partService.deletePart(id);
+  }
+
+  // Technician requests refill for out-of-stock part
+  @Post(':id/request-refill')
+  @Roles(AccountRole.TECHNICIAN)
+  @EmitNotification(NotificationTemplateService.partRefillRequested())
+  @ApiBearerAuth('jwt-auth')
+  async requestRefill(
+    @Param('id') partId: string,
+    @Body() dto: RefillPartDto,
+    @CurrentUser() user: JWT_Payload
+  ) {
+    //fetches technician info from database
+    const result = await this.partService.requestPartRefill(partId, dto.refillAmount, user.sub);
+
+    return {
+      data: result.part,
+      part: result.part,
+      adminIds: result.adminIds,
+      technician: result.technician,
+      refillAmount: dto.refillAmount,
+      message: 'Refill request sent to admins successfully.',
+    };
+  }
+
+  // Admin approves refill request
+  @Patch(':id/approve-refill')
+  @Roles(AccountRole.ADMIN)
+  @EmitNotification(NotificationTemplateService.partRefillApproved())
+  @ApiBearerAuth('jwt-auth')
+  async approveRefill(
+    @Param('id') partId: string,
+    @Body() dto: { refillAmount: number; technicianId: string }
+  ) {
+    const updatedPart = await this.partService.refillOutOfStockPart(partId, dto.refillAmount);
+
+    return {
+      data: updatedPart,
+      part: updatedPart,
+      refillAmount: dto.refillAmount,
+      newStock: updatedPart.stock,
+      technicianId: dto.technicianId,
+      message: 'Part refilled successfully. Technician has been notified.',
+    };
   }
 }

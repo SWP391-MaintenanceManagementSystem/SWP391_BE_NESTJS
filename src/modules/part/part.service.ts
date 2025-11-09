@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { CreatePartDto } from './dto/create-part.dto';
 import { UpdatePartDto } from './dto/update-part.dto';
 import { PartDto } from './dto/part.dto';
-import { PartStatus, Prisma } from '@prisma/client';
+import { PartStatus, Prisma, AccountRole } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartQueryDto } from './dto/part-query.dto';
@@ -302,6 +302,98 @@ export class PartService {
       { ...updatedPart, quantity: updatedPart.stock },
       { excludeExtraneousValues: true }
     );
+  }
+
+  async requestPartRefill(
+    partId: string,
+    refillAmount: number,
+    technicianId: string
+  ): Promise<{
+    part: PartDto;
+    adminIds: string[];
+    technician: { id: string; firstName: string; lastName: string; email: string };
+  }> {
+    // 1. Validate refill amount
+    if (refillAmount <= 0) {
+      throw new BadRequestException('Refill amount must be greater than 0');
+    }
+
+    // 2. Get part info
+    const part = await this.prisma.part.findUnique({
+      where: { id: partId },
+      include: { category: true },
+    });
+
+    if (!part) {
+      throw new NotFoundException(`Part with ID ${partId} not found`);
+    }
+
+    // 3. Check if part is OUT_OF_STOCK
+    if (part.status !== PartStatus.OUT_OF_STOCK) {
+      throw new BadRequestException(
+        `Part "${part.name}" is currently ${part.status}. Only OUT_OF_STOCK parts can request refill.`
+      );
+    }
+
+    // 4. ✅ FIX: Get technician info from Account
+    const account = await this.prisma.account.findUnique({
+      where: { id: technicianId },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        employee: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
+
+    if (!account) {
+      throw new NotFoundException('Account not found');
+    }
+
+    if (account.role !== AccountRole.TECHNICIAN) {
+      throw new BadRequestException('Only technicians can request part refill');
+    }
+
+    if (!account.employee) {
+      throw new NotFoundException('Technician profile not found');
+    }
+
+    // 5. Get all VERIFIED ADMIN accounts
+    const admins = await this.prisma.account.findMany({
+      where: {
+        role: AccountRole.ADMIN,
+        status: 'VERIFIED',
+      },
+      select: { id: true },
+    });
+
+    const adminIds = admins.map(admin => admin.id);
+
+    if (adminIds.length === 0) {
+      throw new BadRequestException('No admins available to process refill request');
+    }
+
+    const partDto = plainToInstance(
+      PartDto,
+      { ...part, quantity: part.stock },
+      { excludeExtraneousValues: true }
+    );
+
+    return {
+      part: partDto,
+      adminIds,
+      technician: {
+        id: account.id,
+        firstName: account.employee.firstName || 'Unknown',
+        lastName: account.employee.lastName || '',
+        email: account.email,
+      },
+    };
   }
 
   async deletePart(id: string): Promise<{ message: string }> {
