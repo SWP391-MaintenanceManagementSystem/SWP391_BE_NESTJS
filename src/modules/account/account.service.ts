@@ -381,23 +381,36 @@ export class AccountService {
     });
   }
 
-  async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO | null> {
-    const customer = await this.getAccountById(customerId);
-    if (!customer) {
-      throw new NotFoundException('Customer not found');
-    }
+  async getSubscriptionByCustomerId(customerId: string) {
     const subscription = await this.prisma.subscription.findFirst({
       where: {
         customerId,
         status: SubscriptionStatus.ACTIVE,
       },
       include: {
+        customer: true,
         membership: true,
       },
     });
-    if (!subscription) {
-      return null;
+    return subscription;
+  }
+
+  async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO[]> {
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        customerId,
+        status: {
+          in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.INACTIVE],
+        },
+      },
+      include: {
+        customer: true,
+        membership: true,
+      },
+    });
+    if (!subscriptions || subscriptions.length === 0) {
+      return [];
     }
-    return plainToInstance(SubscriptionDTO, subscription);
+    return subscriptions.map(sub => plainToInstance(SubscriptionDTO, sub));
   }
 }

@@ -86,7 +86,7 @@ export class AccountController {
   @Get('subscription')
   @Roles(AccountRole.CUSTOMER)
   async getMySubscription(@CurrentUser() user: JWT_Payload) {
-    const subscription = await this.accountService.getSubscriptionsByCustomerId(user.sub);
+    const subscription = await this.accountService.getSubscriptionByCustomerId(user.sub);
     if (!subscription) {
       return {
         message: 'No active subscription found',
@@ -95,6 +95,21 @@ export class AccountController {
     return {
       message: 'Subscription retrieved successfully',
       data: subscription,
+    };
+  }
+
+  @Get('subscriptions')
+  @Roles(AccountRole.CUSTOMER)
+  async getMySubscriptions(@CurrentUser() user: JWT_Payload) {
+    const subscriptions = await this.accountService.getSubscriptionsByCustomerId(user.sub);
+    if (!subscriptions || subscriptions.length === 0) {
+      return {
+        message: 'No active subscriptions found',
+      };
+    }
+    return {
+      message: 'Subscriptions retrieved successfully',
+      data: subscriptions,
     };
   }
 

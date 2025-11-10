@@ -3,15 +3,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { Prisma, SubscriptionStatus } from '@prisma/client';
 import { MembershipService } from '../membership/membership.service';
 import { convertToPeriod } from '../../utils';
-import { CustomerService } from '../customer/customer.service';
 import { plainToInstance } from 'class-transformer';
 import { SubscriptionDTO } from './dto/subscription.dto';
 @Injectable()
 export class SubscriptionService {
   constructor(
     private readonly prismaService: PrismaService,
-    private readonly membershipService: MembershipService,
-    private readonly customerService: CustomerService
+    private readonly membershipService: MembershipService
   ) {}
 
   async createSubscription(membershipId: string, customerId: string) {
@@ -138,17 +136,36 @@ export class SubscriptionService {
     return plainToInstance(SubscriptionDTO, newSub);
   }
 
-  async getSubscriptionByCustomerId(customerId: string) {
-    const subscription = await this.prismaService.subscription.findFirst({
-      where: {
-        customerId,
-        status: SubscriptionStatus.ACTIVE,
-      },
-      include: {
-        customer: true,
-        membership: true,
-      },
-    });
-    return subscription;
-  }
+  // async getSubscriptionByCustomerId(customerId: string) {
+  //   const subscription = await this.prismaService.subscription.findFirst({
+  //     where: {
+  //       customerId,
+  //       status: SubscriptionStatus.ACTIVE,
+  //     },
+  //     include: {
+  //       customer: true,
+  //       membership: true,
+  //     },
+  //   });
+  //   return subscription;
+  // }
+
+  // async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO[]> {
+  //   const subscriptions = await this.prismaService.subscription.findMany({
+  //     where: {
+  //       customerId,
+  //       status: {
+  //         in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.INACTIVE],
+  //       },
+  //     },
+  //     include: {
+  //       customer: true,
+  //       membership: true,
+  //     },
+  //   });
+  //   if (!subscriptions || subscriptions.length === 0) {
+  //     return [];
+  //   }
+  //   return subscriptions.map(sub => plainToInstance(SubscriptionDTO, sub));
+  // }
 }
