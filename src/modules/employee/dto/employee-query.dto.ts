@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsInt, IsEnum } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsOptional, IsString, IsInt, IsEnum, IsEmail, IsBoolean } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { AccountStatus } from '@prisma/client';
 import { Order } from 'src/common/sort/sort.config';
 import { AccountRole } from '@prisma/client';
@@ -30,12 +30,12 @@ export class EmployeeQueryDTO {
   @IsEnum(AccountStatus)
   status?: AccountStatus;
 
-  @ApiPropertyOptional({ required: false, description: 'Customer email' })
+  @ApiPropertyOptional({ required: false, description: 'Employee email' })
   @IsOptional()
   @IsString()
   email?: string;
 
-  @ApiPropertyOptional({ required: false, description: 'Customer phone number' })
+  @ApiPropertyOptional({ required: false, description: 'Employee phone number' })
   @IsOptional()
   @IsString()
   phone?: string;
@@ -57,6 +57,25 @@ export class EmployeeQueryDTO {
 
   @ApiPropertyOptional({
     required: false,
+    description:
+      'Filter by work center assignment status. true = has work center, false = not assigned',
+  })
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  hasWorkCenter?: boolean;
+
+  @ApiPropertyOptional({ required: false, description: 'Search by employee name or email' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    required: false,
     description: 'Sort order example: "createdAt" ',
     type: String,
   })
@@ -72,7 +91,9 @@ export class EmployeeQueryDTO {
   @IsOptional()
   @IsString()
   orderBy?: Order;
+}
 
+export class EmployeeQueryWithPaginationDTO extends EmployeeQueryDTO {
   @ApiPropertyOptional({ required: false, description: 'Page number', example: 1 })
   @IsOptional()
   @Type(() => Number)

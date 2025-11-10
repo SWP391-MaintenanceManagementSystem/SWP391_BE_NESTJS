@@ -1,5 +1,8 @@
 import { Expose, Transform } from 'class-transformer';
 import { $Enums } from '@prisma/client';
+import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns/format';
+import { VN_DATE_TIME_FORMAT, VN_TIMEZONE } from 'src/common/constants';
 
 export class WorkCenterDTO {
   @Expose()
@@ -12,20 +15,25 @@ export class WorkCenterDTO {
   centerId: string;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
+  @Transform(({ obj }) => {
+    const localDate = toZonedTime(obj.startDate, VN_TIMEZONE);
+    return format(localDate, VN_DATE_TIME_FORMAT);
+  })
+  startDate: string;
+
+  @Expose()
+  @Transform(({ obj }) => {
+    if (!obj.endDate) return null;
+    const localDate = toZonedTime(obj.endDate, VN_TIMEZONE);
+    return format(localDate, VN_DATE_TIME_FORMAT);
+  })
+  endDate: string | null;
+
+  @Expose()
   createdAt: Date;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
   updatedAt: Date;
-
-  @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
-  startDate: Date;
-
-  @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
-  endDate: Date;
 
   @Expose()
   @Transform(({ obj }) => {
@@ -35,24 +43,26 @@ export class WorkCenterDTO {
     if (!account) return null;
 
     return {
+      id: account.id,
       email: account.email,
       phone: account.phone,
       role: account.role,
       status: account.status,
       avatar: account.avatar,
-      createdAt: account.createdAt?.toISOString(),
-      updatedAt: account.updatedAt?.toISOString(),
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
       profile: employee
         ? {
             firstName: employee.firstName,
             lastName: employee.lastName,
-            createdAt: employee.createdAt?.toISOString(),
-            updatedAt: employee.updatedAt?.toISOString(),
+            createdAt: employee.createdAt,
+            updatedAt: employee.updatedAt,
           }
         : null,
     };
   })
   account: {
+    id: string;
     email: string;
     phone: string;
     role: string;

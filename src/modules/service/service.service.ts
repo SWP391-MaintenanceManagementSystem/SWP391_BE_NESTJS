@@ -8,6 +8,7 @@ import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { ServiceDto } from './dto/service.dto';
 import { plainToInstance } from 'class-transformer';
 import { ServiceQueryCustomerDTO } from './dto/service-query-customer.dto';
+import { ServiceDetailDTO } from './dto/service-detail.dto';
 
 @Injectable()
 export class ServiceService {
@@ -32,7 +33,11 @@ export class ServiceService {
       this.prisma.service.findMany({
         where,
         include: {
-          ServicePart: { include: { part: true } },
+          ServicePart: {
+            include: {
+              part: true,
+            },
+          },
         },
         orderBy: { [query.sortBy ?? 'createdAt']: query.orderBy ?? 'asc' },
         skip: (page - 1) * pageSize,
@@ -43,7 +48,10 @@ export class ServiceService {
 
     const mappedData = data.map(service => ({
       ...service,
-      parts: service.ServicePart.map(sp => sp.part),
+
+      parts: service.ServicePart.map(sp => sp.part).filter(
+        part => part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+      ),
       serviceParts: undefined,
     }));
 
@@ -72,14 +80,18 @@ export class ServiceService {
               lte: query.maxPrice ?? undefined,
             }
           : undefined,
-      status: 'ACTIVE',
+      status: ServiceStatus.ACTIVE,
     };
 
-    const [data, total] = await this.prisma.$transaction([
+    const [services, total] = await this.prisma.$transaction([
       this.prisma.service.findMany({
         where,
         include: {
-          ServicePart: { include: { part: true } },
+          ServicePart: {
+            include: {
+              part: true,
+            },
+          },
         },
         orderBy: { [query.sortBy ?? 'createdAt']: query.orderBy ?? 'asc' },
         skip: (page - 1) * pageSize,
@@ -88,16 +100,24 @@ export class ServiceService {
       this.prisma.service.count({ where }),
     ]);
 
-    const mappedData = data.map(service => ({
-      ...service,
-      parts: service.ServicePart.map(sp => sp.part),
-      serviceParts: undefined,
-    }));
+    const processed = services.map(s => {
+      const partsTotal = s.ServicePart.reduce((sum, sp) => sum + (sp.part?.price ?? 0), 0);
+      const finalPrice = s.price + partsTotal;
+
+      return {
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        price: s.price,
+        status: s.status,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        finalPrice,
+      };
+    });
 
     return {
-      data: plainToInstance(ServiceDto, mappedData, {
-        excludeExtraneousValues: true,
-      }),
+      data: processed,
       page,
       pageSize,
       total,
@@ -108,7 +128,6 @@ export class ServiceService {
   async create(createServiceDto: CreateServiceDto): Promise<ServiceDto> {
     const { name, description, price, partIds } = createServiceDto;
 
-    // Tạo service trước, rồi tạo ServicePart
     const newService = await this.prisma.service.create({
       data: {
         name,
@@ -119,7 +138,7 @@ export class ServiceService {
           create:
             partIds?.map(partId => ({
               partId,
-              quantity: 1, // default quantity, bạn có thể cho nhập từ DTO
+              quantity: 1,
             })) || [],
         },
       },
@@ -133,50 +152,83 @@ export class ServiceService {
     return plainToInstance(ServiceDto, newService, { excludeExtraneousValues: true });
   }
 
-  async getServiceByNameForCustomer(name: string): Promise<ServiceDto[]> {
+  async getServiceById(id: string): Promise<ServiceDto> {
+    const service = await this.prisma.service.findUnique({
+      where: { id },
+      include: {
+        ServicePart: {
+          include: {
+            part: true,
+          },
+        },
+      },
+    });
+
+    if (!service) {
+      throw new NotFoundException(`Service with ID ${id} not found`);
+    }
+
+    const filteredParts = service.ServicePart.map(sp => sp.part).filter(
+      part => part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+    );
+
+    return plainToInstance(
+      ServiceDto,
+      {
+        ...service,
+        parts: filteredParts,
+        serviceParts: undefined,
+      },
+      { excludeExtraneousValues: true }
+    );
+  }
+
+  async getServiceByNameForCustomer(name: string): Promise<ServiceDetailDTO[]> {
     const services = await this.prisma.service.findMany({
       where: {
-        name: {
-          contains: name,
-          mode: 'insensitive',
-        },
+        name: { contains: name, mode: 'insensitive' },
         status: ServiceStatus.ACTIVE,
       },
       include: { ServicePart: { include: { part: true } } },
+      orderBy: { createdAt: 'asc' },
     });
 
     if (!services.length) {
       throw new NotFoundException(`No active services found with name containing "${name}"`);
     }
 
-    // Map lại giống findAll
     const mappedData = services.map(service => ({
       ...service,
-      parts: service.ServicePart.map(sp => sp.part),
-      serviceParts: undefined,
+      parts: service.ServicePart.map(sp => ({
+        id: sp.part.id,
+        name: sp.part.name,
+        quantity: sp.quantity,
+        price: sp.part.price,
+      })),
     }));
 
-    return plainToInstance(ServiceDto, mappedData, { excludeExtraneousValues: true });
+    return plainToInstance(ServiceDetailDTO, mappedData, {
+      excludeExtraneousValues: true,
+    });
   }
 
   async getServiceByNameForAdmin(name: string): Promise<ServiceDto[]> {
     const services = await this.prisma.service.findMany({
       where: {
-        name: {
-          contains: name,
-          mode: 'insensitive',
-        },
+        name: { contains: name, mode: 'insensitive' },
       },
       include: { ServicePart: { include: { part: true } } },
     });
 
     if (!services.length) {
-      throw new NotFoundException(`No services found with name containing "${name}"`);
+      throw new NotFoundException(`No services found with name containing ${name}`);
     }
 
     const mappedData = services.map(service => ({
       ...service,
-      parts: service.ServicePart.map(sp => sp.part),
+      parts: service.ServicePart.map(sp => sp.part).filter(
+        part => part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+      ),
       serviceParts: undefined,
     }));
 
@@ -186,16 +238,46 @@ export class ServiceService {
   async updateService(id: string, updateServiceDto: UpdateServiceDto): Promise<ServiceDto> {
     const existingService = await this.prisma.service.findUnique({
       where: { id },
+      include: { ServicePart: true },
     });
+
     if (!existingService) {
       throw new NotFoundException(`Service with ID ${id} not found`);
     }
+
+    const { partIds, ...rest } = updateServiceDto;
+
     const updatedService = await this.prisma.service.update({
       where: { id },
-      data: updateServiceDto,
-      include: { ServicePart: { include: { part: true } } },
+      data: {
+        ...rest,
+
+        ...(partIds && {
+          ServicePart: {
+            deleteMany: {},
+            create: partIds.map(partId => ({
+              part: { connect: { id: partId } },
+              quantity: 1,
+            })),
+          },
+        }),
+      },
+      include: {
+        ServicePart: {
+          include: { part: true },
+        },
+      },
     });
-    return plainToInstance(ServiceDto, updatedService, { excludeExtraneousValues: true });
+
+    const filteredParts = updatedService.ServicePart.map(sp => sp.part).filter(
+      part => part.status === 'AVAILABLE' || part.status === 'OUT_OF_STOCK'
+    );
+
+    return plainToInstance(
+      ServiceDto,
+      { ...updatedService, parts: filteredParts },
+      { excludeExtraneousValues: true }
+    );
   }
 
   async deleteService(id: string) {
@@ -208,6 +290,23 @@ export class ServiceService {
     return this.prisma.service.update({
       where: { id },
       data: { status: ServiceStatus.INACTIVE },
+    });
+  }
+
+  async getManyByIds(ids: string[]) {
+    const services = await this.prisma.service.findMany({
+      where: { id: { in: ids } },
+      include: {
+        ServicePart: {
+          include: {
+            part: true,
+          },
+        },
+      },
+    });
+
+    return plainToInstance(ServiceDto, services, {
+      excludeExtraneousValues: true,
     });
   }
 }

@@ -6,7 +6,7 @@ export class StaffUpdateBookingDTO {
   @IsOptional()
   @IsEnum(BookingStatus)
   @ApiProperty({
-    example: BookingStatus.CONFIRMED,
+    example: BookingStatus.ASSIGNED,
     required: false,
   })
   status?: BookingStatus;

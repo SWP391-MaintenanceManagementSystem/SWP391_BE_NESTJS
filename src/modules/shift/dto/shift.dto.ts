@@ -9,12 +9,10 @@ export default class ShiftDTO {
   name: string;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  startTime: Date;
+  startTime: string;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
-  endTime: Date;
+  endTime: string;
 
   @Expose()
   maximumSlot?: number;
@@ -23,32 +21,30 @@ export default class ShiftDTO {
   status: ShiftStatus;
 
   @Expose()
-  centerId: string;
-
-  @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   createdAt: Date;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   updatedAt: Date;
 
   @Expose()
-  @Transform(({ obj }) => {
-    const serviceCenter = obj.serviceCenter;
-    if (!serviceCenter) return undefined;
-
-    return {
-      id: serviceCenter.id,
-      name: serviceCenter.name,
-      address: serviceCenter.address,
-      status: serviceCenter.status,
-    };
-  })
+  @Transform(({ value }) =>
+    value
+      ? {
+          id: value.id,
+          name: value.name,
+          address: value.address,
+          status: value.status,
+          createAt: value.createdAt,
+          updatedAt: value.updatedAt,
+        }
+      : undefined
+  )
   serviceCenter?: {
     id: string;
     name: string;
     address: string;
     status: string;
+    createdAt: string;
+    updatedAt: string;
   };
 }

@@ -2,8 +2,6 @@ import {
   Body,
   Controller,
   Patch,
-  Param,
-  Delete,
   Post,
   UploadedFile,
   BadRequestException,
@@ -21,13 +19,17 @@ import { UseInterceptors } from '@nestjs/common';
 import { AccountWithProfileDTO } from './dto/account-with-profile.dto';
 import { plainToInstance } from 'class-transformer';
 import { VehicleService } from '../vehicle/vehicle.service';
+import { CustomerDashboardService } from '../dashboard/customer-dashboard.service';
+import { TechnicianDashboardService } from '../dashboard/technician-dashboard.service';
 @ApiTags('Me')
 @ApiBearerAuth('jwt-auth')
 @Controller('api/me')
 export class AccountController {
   constructor(
     private readonly accountService: AccountService,
-    private readonly vehicleService: VehicleService
+    private readonly vehicleService: VehicleService,
+    private readonly customerDashboardService: CustomerDashboardService,
+    private readonly technicianDashboardService: TechnicianDashboardService
   ) {}
 
   @Patch('/')
@@ -84,7 +86,7 @@ export class AccountController {
   @Get('subscription')
   @Roles(AccountRole.CUSTOMER)
   async getMySubscription(@CurrentUser() user: JWT_Payload) {
-    const subscription = await this.accountService.getSubscriptionsByCustomerId(user.sub);
+    const subscription = await this.accountService.getSubscriptionByCustomerId(user.sub);
     if (!subscription) {
       return {
         message: 'No active subscription found',
@@ -94,5 +96,43 @@ export class AccountController {
       message: 'Subscription retrieved successfully',
       data: subscription,
     };
+  }
+
+  @Get('subscriptions')
+  @Roles(AccountRole.CUSTOMER)
+  async getMySubscriptions(@CurrentUser() user: JWT_Payload) {
+    const subscriptions = await this.accountService.getSubscriptionsByCustomerId(user.sub);
+    if (!subscriptions || subscriptions.length === 0) {
+      return {
+        message: 'No active subscriptions found',
+      };
+    }
+    return {
+      message: 'Subscriptions retrieved successfully',
+      data: subscriptions,
+    };
+  }
+
+  @Roles(AccountRole.CUSTOMER, AccountRole.TECHNICIAN)
+  @Get('statistics')
+  async getCustomerOverview(@CurrentUser() user: JWT_Payload) {
+    switch (user.role) {
+      case AccountRole.CUSTOMER:
+        const customerData = await this.customerDashboardService.getOverview(user.sub);
+        return {
+          data: customerData,
+          message: 'Customer dashboard overview retrieved successfully.',
+        };
+      case AccountRole.TECHNICIAN:
+        const technicianData =
+          await this.technicianDashboardService.getBookingStatisticsByTechnician(user.sub);
+        return {
+          data: technicianData,
+          message: 'Technician dashboard overview retrieved successfully.',
+        };
+      default:
+        break;
+    }
+    throw new BadRequestException('Invalid role for statistics');
   }
 }

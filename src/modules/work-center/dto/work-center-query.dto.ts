@@ -28,12 +28,12 @@ export class WorkCenterQueryDTO {
   centerId?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   @ApiProperty({ required: false, description: 'Filter by start date' })
   startDate?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   @ApiPropertyOptional({ required: false, description: 'Filter by end date' })
   endDate?: string;
 

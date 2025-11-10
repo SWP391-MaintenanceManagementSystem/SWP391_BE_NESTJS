@@ -16,8 +16,11 @@ export class CertificateController {
   @Post('/:employeeId')
   @Roles(AccountRole.ADMIN)
   @ApiBody({ type: CreateCertificateDTO })
-  async createCertificate(@Param('employeeId') employeeId:string,@Body() createCertificateDto: CreateCertificateDTO,) {
-    await this.certificateService.createCertificate(employeeId,createCertificateDto);
+  async createCertificate(
+    @Param('employeeId') employeeId: string,
+    @Body() createCertificateDto: CreateCertificateDTO
+  ) {
+    await this.certificateService.createCertificate(employeeId, createCertificateDto);
     return { message: 'Certificate created successfully' };
   }
 

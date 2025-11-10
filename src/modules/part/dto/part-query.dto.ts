@@ -44,7 +44,7 @@ export class PartQueryDto {
   @ApiProperty({
     required: false,
     description: 'Sort order (asc or desc)',
-    example: 'desc',
+    example: 'asc',
   })
   orderBy?: Order;
 

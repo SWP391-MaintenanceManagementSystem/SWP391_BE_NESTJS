@@ -19,9 +19,9 @@ import { AccountRole } from '@prisma/client';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 
-@ApiTags('Service Center')
+@ApiTags('Service Centers')
 @ApiBearerAuth('jwt-auth')
-@Controller('api/service-center')
+@Controller('api/service-centers')
 export class ServiceCenterController {
   constructor(private readonly serviceCenterService: ServiceCenterService) {}
 
@@ -34,7 +34,6 @@ export class ServiceCenterController {
   }
 
   @Get('/')
-  @Roles(AccountRole.ADMIN)
   async getServiceCenters(@Query() query: ServiceCenterQueryDTO) {
     const { data } = await this.serviceCenterService.getServiceCenters(query);
 
@@ -45,7 +44,6 @@ export class ServiceCenterController {
   }
 
   @Get('/:id')
-  @Roles(AccountRole.ADMIN, AccountRole.STAFF, AccountRole.TECHNICIAN)
   async getServiceCenterById(
     @Param('id') id: string,
     @CurrentUser() user: { sub: string; role: AccountRole; centerId?: string }

@@ -7,19 +7,19 @@ import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
 @ApiTags('Category')
-@Controller('api/category')
+@Controller('api/categories')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
   @Post('/')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoryService.createCategory(createCategoryDto);
   }
 
   @Get()
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   async getAllCategories() {
     const categories = await this.categoryService.getAllCategory();
@@ -30,21 +30,25 @@ export class CategoryController {
   }
 
   @Get(':id')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   findOne(@Param('id') id: string) {
     return this.categoryService.getCategoryById(id);
   }
 
   @Get('search/:name')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
-  findByName(@Param('name') name: string) {
-    return this.categoryService.getCategoryByName(name);
+  async findByName(@Param('name') name: string) {
+    const categories = await this.categoryService.getCategoryByName(name);
+    return {
+      message: 'Successfully',
+      data: categories,
+    };
   }
 
   @Patch(':id')
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
   @ApiBearerAuth('jwt-auth')
   update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
     return this.categoryService.updateCategory(id, updateCategoryDto);

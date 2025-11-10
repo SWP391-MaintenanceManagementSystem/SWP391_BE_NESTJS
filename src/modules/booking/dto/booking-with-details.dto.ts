@@ -1,8 +1,10 @@
-import { Exclude, Expose, Type } from 'class-transformer';
+import { Exclude, Expose, Transform, Type } from 'class-transformer';
 import { ValidateNested } from 'class-validator';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { BookingDetailDTO } from 'src/modules/booking-detail/dto/booking-detail.dto';
-
+import { toZonedTime } from 'date-fns-tz';
+import { format } from 'date-fns/format';
+import { VN_DATE_TIME_FORMAT, VN_TIMEZONE } from 'src/common/constants';
 class BookingVehicleDTO {
   @Expose()
   id: string;
@@ -37,7 +39,11 @@ export class BookingWithDetailsDTO {
   @Expose()
   totalCost: number;
   @Expose()
-  bookingDate: Date;
+  @Transform(({ obj }) => {
+    const localDate = toZonedTime(obj.bookingDate, VN_TIMEZONE);
+    return format(localDate, VN_DATE_TIME_FORMAT);
+  })
+  bookingDate: string;
   @Expose()
   status: string;
   @Expose()

@@ -1,14 +1,8 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { AccountRole, AccountStatus, Employee, Prisma } from '@prisma/client';
-import { CreateStaffDto } from './dto/create-staff.dto';
-import { UpdateStaffDto } from './dto/update-staff.dto';
-import { FilterOptionsDTO } from 'src/common/dto/filter-options.dto';
+import { CreateStaffDTO } from './dto/create-staff.dto';
+import { UpdateStaffDTO } from './dto/update-staff.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
 import { AccountService } from 'src/modules/account/account.service';
@@ -16,10 +10,12 @@ import { StaffDTO } from './dto/staff.dto';
 import { plainToClass, plainToInstance } from 'class-transformer';
 import { hashPassword } from 'src/utils';
 import { ConfigService } from '@nestjs/config';
-import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { EmployeeWithCenterDTO } from '../dto/employee-with-center.dto';
 import { EmployeeService } from '../employee.service';
 import { CertificateService } from '../certificate/certificate.service';
+import { NotificationService } from 'src/modules/notification/notification.service';
+import { NotificationTemplateService } from 'src/modules/notification/notification-template.service';
 
 @Injectable()
 export class StaffService {
@@ -28,10 +24,13 @@ export class StaffService {
     private readonly accountService: AccountService,
     private readonly configService: ConfigService,
     private readonly employeeService: EmployeeService,
-    private readonly certificateService: CertificateService
+    private readonly certificateService: CertificateService,
+    private readonly notificationService: NotificationService
   ) {}
 
-  async getStaffs(filter: EmployeeQueryDTO): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
+  async getStaffs(
+    filter: EmployeeQueryWithPaginationDTO
+  ): Promise<PaginationResponse<EmployeeWithCenterDTO>> {
     return this.employeeService.getEmployees(filter, AccountRole.STAFF);
   }
 
@@ -43,63 +42,68 @@ export class StaffService {
     return plainToInstance(AccountWithProfileDTO, staff);
   }
 
-  async createStaff(dto: CreateStaffDto): Promise<Employee | null> {
-  // 1️⃣ Kiểm tra email trùng
-  const existingAccount = await this.prisma.account.findUnique({
-    where: { email: dto.email },
-  });
-  if (existingAccount) {
-    throw new BadRequestException('Email is already in use');
+  async createStaff(createStaffDto: CreateStaffDTO): Promise<EmployeeWithCenterDTO> {
+    return this.employeeService.createEmployee(createStaffDto, 'STAFF');
   }
 
-  // 2️⃣ Tạo account mặc định cho staff
-  const defaultPassword =
-    this.configService.get<string>('DEFAULT_STAFF_PASSWORD') || 'Staff123!';
+  async updateStaff(id: string, updateData: UpdateStaffDTO): Promise<EmployeeWithCenterDTO> {
+    const existingStaff = await this.prisma.account.findUnique({
+      where: { id, role: 'STAFF' },
+      include: { employee: true },
+    });
 
-  const staffAccount = await this.prisma.account.create({
-    data: {
-      email: dto.email,
-      password: await hashPassword(defaultPassword),
-      phone: dto.phone,
-      role: AccountRole.STAFF,
-      status: 'VERIFIED',
-    },
-  });
+    if (!existingStaff || !existingStaff.employee) {
+      throw new NotFoundException('Staff not found');
+    }
+    const result = await this.employeeService.updateEmployee(id, updateData);
 
-  // 3️⃣ Tạo employee gắn với account vừa tạo
-  const employee = await this.prisma.employee.create({
-    data: {
-      accountId: staffAccount.id,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-    },
-  });
+    // Send notifications based on what changed
+    const notificationPromises: Promise<void>[] = [];
 
-  // 4️⃣ Nếu có certificates thì tạo qua CertificateService (không cần nhập employeeId)
-  if (dto.certificates?.length) {
-    await Promise.all(
-      dto.certificates.map((cert) =>
-        this.certificateService.createCertificate(staffAccount.id, cert)
-      )
-    );
-  }
+    // Profile updated
+    if (result.notifications.profileUpdated) {
+      const template = NotificationTemplateService.employeeProfileUpdated();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          typeof template.message === 'function'
+            ? template.message({})
+            : 'Your profile has been updated by an administrator.',
+          template.type!,
+          template.title as string
+        )
+      );
+    }
 
-  // 5️⃣ Trả về employee kèm certificates (nếu có)
-  const result = await this.prisma.employee.findUnique({
-    where: { accountId: employee.accountId },
-    include: { certificates: true },
-  });
+    // Center removed
+    if (result.notifications.centerRemoved && result.notifications.oldCenterName) {
+      const removeTemplate = NotificationTemplateService.employeeRemovedFromCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been removed from ${result.notifications.oldCenterName}.`,
+          removeTemplate.type!,
+          removeTemplate.title as string
+        )
+      );
+    }
 
-  return result;
-}
+    // Center assigned
+    if (result.notifications.centerUpdated && result.notifications.newCenterName) {
+      const assignTemplate = NotificationTemplateService.employeeAssignedToCenter();
+      notificationPromises.push(
+        this.notificationService.sendNotification(
+          id,
+          `You have been assigned to ${result.notifications.newCenterName}.`,
+          assignTemplate.type!,
+          assignTemplate.title as string
+        )
+      );
+    }
 
-  async updateStaff(
-    accountId: string,
-    updateStaffDto: UpdateStaffDto
-  ): Promise<AccountWithProfileDTO> {
-    const updatedStaff = await this.accountService.updateAccount(accountId, updateStaffDto);
+    await Promise.all(notificationPromises);
 
-    return plainToInstance(AccountWithProfileDTO, updatedStaff);
+    return result.data;
   }
 
   async deleteStaff(accountId: string): Promise<{ message: string }> {
@@ -108,6 +112,14 @@ export class StaffService {
     });
     if (!staff || staff.role !== AccountRole.STAFF) {
       throw new NotFoundException(`Staff with ID ${accountId} not found`);
+    }
+
+    if (staff.status === AccountStatus.DISABLED) {
+      throw new BadRequestException('Staff is already disabled');
+    }
+
+    if (await this.employeeService.checkEmployeeHasActiveShifts(accountId)) {
+      throw new BadRequestException('Cannot disable staff with active shifts');
     }
 
     await this.prisma.account.update({
@@ -183,6 +195,88 @@ export class StaffService {
     return {
       total,
       data,
+    };
+  }
+
+  async getStaffDashboard(accountId: string): Promise<{
+    totalCustomers: number;
+    newTickets: number;
+    bookingOverview: {
+      total: number;
+      bookingStatistics: Array<{ name: string; value: number }>;
+    };
+  }> {
+    const employee = await this.prisma.employee.findUnique({
+      where: { accountId },
+      include: {
+        workCenters: {
+          where: {
+            OR: [{ endDate: null }, { endDate: { gt: new Date() } }],
+          },
+          include: { serviceCenter: true },
+          orderBy: { startDate: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!employee) throw new BadRequestException('Staff not found');
+
+    const currentServiceCenterId = employee.workCenters[0]?.serviceCenter?.id;
+
+    const bookingWhere = {
+      OR: [
+        { bookingAssignments: { some: { employeeId: employee.accountId } } },
+        { bookingAssignments: { some: { assignedBy: employee.accountId } } },
+        ...(currentServiceCenterId ? [{ centerId: currentServiceCenterId }] : []),
+      ],
+    };
+
+    const statusGroups = await this.prisma.booking.groupBy({
+      by: ['status'],
+      where: bookingWhere,
+      _count: { status: true },
+    });
+
+    const bookingStatusMap = new Map<string, number>();
+    statusGroups.forEach(g => bookingStatusMap.set(g.status, g._count.status));
+
+    const [totalBookings, newTickets, totalCustomers] = await Promise.all([
+      this.prisma.booking.count({ where: bookingWhere }),
+      this.prisma.conversation.count({
+        where: { staffId: null },
+      }),
+
+      this.prisma.account.count({
+        where: {
+          role: AccountRole.CUSTOMER,
+          status: AccountStatus.VERIFIED,
+        },
+      }),
+    ]);
+
+    const allStatuses = [
+      { key: 'PENDING', label: 'Pending' },
+      { key: 'ASSIGNED', label: 'Assigned' },
+      { key: 'IN_PROGRESS', label: 'In Progress' },
+      { key: 'CANCELLED', label: 'Cancelled' },
+      { key: 'CHECKED_IN', label: 'Checked In' },
+      { key: 'CHECKED_OUT', label: 'Checked Out' },
+      { key: 'COMPLETED', label: 'Completed' },
+    ];
+
+    const bookingStatistics = allStatuses.map(({ key, label }) => ({
+      name: label,
+      value: bookingStatusMap.get(key) ?? 0,
+    }));
+
+    return {
+      totalCustomers,
+      newTickets,
+      bookingOverview: {
+        total: totalBookings,
+        bookingStatistics,
+      },
     };
   }
 }

@@ -1,58 +1,39 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsNotEmpty,
-  IsString,
-  IsDateString,
-  IsOptional,
-  IsNumber,
-  Min,
-  Max,
-  IsUUID,
-  IsArray,
-  ArrayMinSize,
-  ArrayMaxSize,
-  IsInt,
-} from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { IsUUID, IsNotEmpty, Matches, IsOptional, IsNumber, Min, Max } from 'class-validator';
 
 export class CreateShiftDTO {
-  @IsString({ message: 'Name must be a string' })
-  @IsNotEmpty({ message: 'Name is required' })
-  @ApiProperty({
-    example: 'Morning Shift',
-    description: 'Shift name',
-  })
+  @ApiProperty({ example: 'Morning Shift' })
+  @IsNotEmpty({ message: 'Shift name is required' })
   name: string;
 
-  @IsDateString({}, { message: 'Start time must be a valid date string' })
-  @ApiProperty({
-    example: '2025-11-01T08:00:00.000Z',
-    description: 'Shift start time',
+  @ApiProperty({ example: '08:00:00', description: 'Start Time (HH:mm:ss)' })
+  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'Start time must be in format HH:mm:ss',
   })
+  @IsNotEmpty({ message: 'Start time is required' })
   startTime: string;
 
-  @IsDateString({}, { message: 'End time must be a valid date string' })
-  @ApiProperty({
-    example: '2025-11-01T17:00:00.000Z',
-    description: 'Shift end time',
+  @ApiProperty({ example: '12:00:00', description: 'End Time (HH:mm:ss)' })
+  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'End time must be in format HH:mm:ss',
   })
+  @IsNotEmpty({ message: 'End time is required' })
   endTime: string;
 
-  @IsOptional()
-  @IsNumber({}, { message: 'Maximum slot must be a number' })
-  @Min(1, { message: 'Maximum slot must be at least 1' })
-  @Max(50, { message: 'Maximum slot cannot exceed 50' })
   @ApiPropertyOptional({
     example: 10,
-    description: 'Maximum number of technicians for this shift',
+    description: 'Maximum booking slots for this shift',
   })
-  maximumSlot?: number;
+  @Min(1, { message: 'Maximum slot must be at least 1' })
+  @Max(50, { message: 'Maximum slot cannot exceed 50' })
+  @IsNumber({}, { message: 'Maximum slot must be a number' })
+  @IsNotEmpty({ message: 'Maximum slot is required' })
+  maximumSlot: number;
 
-  @IsUUID(4, { message: 'Center ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Center ID is required' })
+  @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Service Center ID is required' })
   @ApiProperty({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    description: 'Service center UUID',
+    example: 'uuid-service-center',
   })
   centerId: string;
 }

@@ -1,7 +1,7 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { Shift, ShiftStatus } from '@prisma/client';
-import { Transform, Type } from 'class-transformer';
-import { IsArray, IsEnum, IsInt, IsNumber, IsOptional, IsString } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ShiftStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { IsEnum, IsNumber, IsOptional, IsString, Matches } from 'class-validator';
 import { Order } from 'src/common/sort/sort.config';
 
 export class ShiftQueryDTO {
@@ -15,30 +15,59 @@ export class ShiftQueryDTO {
   @IsString()
   centerId?: string;
 
+  @ApiProperty({ required: false, description: 'Filter by service center name' })
+  @IsOptional()
+  @IsString()
+  centerName?: string;
+
   @ApiProperty({ required: false, description: 'Filter by shift name' })
   @IsOptional()
   @IsString()
   name?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by start time' })
+  @ApiPropertyOptional({
+    description: 'Filter by start time (HH:mm:ss)',
+  })
   @IsOptional()
-  @Type(() => Date)
-  startTime?: Date;
+  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'startTime must be in format HH:mm:ss',
+  })
+  startTime?: string;
 
-  @ApiProperty({ required: false, description: 'Filter by end time' })
+  @ApiPropertyOptional({
+    description: 'Filter by end time (HH:mm:ss)',
+  })
   @IsOptional()
-  @Type(() => Date)
-  endTime?: Date;
+  @Matches(/^([0-1]\d|2[0-3]):([0-5]\d):([0-5]\d)$/, {
+    message: 'endTime must be in format HH:mm:ss',
+  })
+  endTime?: string;
+
+  @ApiPropertyOptional({
+    required: false,
+    description: 'Filter by maximum slot',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  maximumSlot?: number;
 
   @ApiProperty({ required: false, description: 'Filter by shift status', enum: ShiftStatus })
   @IsOptional()
   @IsEnum(ShiftStatus)
   status?: ShiftStatus;
 
-  @ApiProperty({ required: false, description: 'Field to sort by' })
+  @ApiPropertyOptional({ required: false, description: 'Filter by Order (asc or desc)' })
+  @IsOptional()
+  orderBy?: Order;
+
+  @ApiPropertyOptional({
+    required: false,
+    description: 'Filter by Sort field',
+  })
   @IsOptional()
   @IsString()
-  sortBy?: keyof Shift;
+  sortBy?: string;
 
   @ApiProperty({ required: false, description: 'Filter by page number', example: 1 })
   @IsOptional()

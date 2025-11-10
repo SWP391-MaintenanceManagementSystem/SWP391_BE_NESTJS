@@ -1,37 +1,52 @@
-import { IsNotEmpty, IsUUID, IsDateString, IsOptional, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform } from 'class-transformer';
+import {
+  IsUUID,
+  IsNotEmpty,
+  IsDateString,
+  IsOptional,
+  IsArray,
+  ArrayMinSize,
+} from 'class-validator';
 
 export class CreateWorkScheduleDTO {
-  @IsUUID(4, { message: 'Shift ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Shift ID is required' })
   @ApiProperty({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-    description: 'Shift UUID',
+    example: 'uuid-shift',
   })
+  @IsUUID(4, { message: 'Shift ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Shift ID is required and cannot be empty' })
   shiftId: string;
 
-  @IsUUID(4, { message: 'Employee ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Employee ID is required' })
   @ApiProperty({
-    example: 'c7a72f5e-98ab-40b2-bd53-6220cba91c7a',
-    description: 'Technician employee UUID to assign',
+    example: 'uuid-service-center',
   })
-  employeeId: string;
+  @IsUUID(4, { message: 'Service Center ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Service Center ID is required and cannot be empty' })
+  centerId: string;
 
-  @IsDateString(
-    {},
-    { message: 'Date must be a valid ISO date string (YYYY-MM-DD or YYYY-MM-DDTHH:mm:ssZ)' }
-  )
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return new Date(value).toISOString();
-    }
-    return value;
-  })
   @ApiProperty({
-    example: '2025-10-09T08:00:00.000Z',
-    description: 'Date for the work schedule (YYYY-MM-DD or ISO format)',
+    type: [String],
+    example: ['uuid-employee-1', 'uuid-employee-2'],
   })
-  date: string;
+  @IsUUID(4, { each: true, message: 'Each employee ID must be a valid UUID' })
+  @ArrayMinSize(1, { message: 'At least one employee ID is required' })
+  @IsNotEmpty({ message: 'Employee IDs are required and cannot be empty' })
+  employeeIds: string[];
+
+  // --- CYCLIC ---
+  @ApiPropertyOptional({ example: '2025-10-11' })
+  @IsDateString({}, { message: 'Start date must be a valid date string' })
+  @IsNotEmpty({ message: 'Start date is required and cannot be empty' })
+  startDate: string;
+
+  @ApiPropertyOptional({ example: '' })
+  @IsOptional()
+  endDate?: string;
+
+  @ApiPropertyOptional({
+    example: [],
+    description: 'Days of week to repeat (0=Sunday,...6=Saturday)',
+    type: [Number],
+  })
+  @IsOptional()
+  repeatDays?: number[];
 }

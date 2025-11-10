@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { MembershipStatus, PeriodType } from '@prisma/client';
+import { Type } from 'class-transformer';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 
 export class UpdateMembershipDTO {
@@ -10,6 +11,7 @@ export class UpdateMembershipDTO {
 
   @IsOptional()
   @ApiPropertyOptional({ description: 'The duration of the membership in months', example: 12 })
+  @Type(() => Number)
   duration?: number;
 
   @IsOptional()
@@ -22,6 +24,7 @@ export class UpdateMembershipDTO {
 
   @IsOptional()
   @ApiPropertyOptional({ description: 'The price of the membership', example: 99.99 })
+  @Type(() => Number)
   price?: number;
 
   @IsOptional()

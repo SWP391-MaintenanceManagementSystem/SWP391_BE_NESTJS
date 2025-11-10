@@ -37,6 +37,13 @@ import { WorkScheduleModule } from './modules/work-schedule/work-schedule.module
 import { WorkCenterModule } from './modules/work-center/work-center.module';
 import { BookingModule } from './modules/booking/booking.module';
 import { BookingDetailModule } from './modules/booking-detail/booking-detail.module';
+import { BookingAssignmentModule } from './modules/booking-assignment/booking-assignment.module';
+import { VehicleHandoverModule } from './modules/vehiclehandover/vehiclehandover.module';
+import { ChatModule } from './modules/chat/chat.module';
+import { WebsocketModule } from './common/socket/socket.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { NotificationModule } from './modules/notification/notification.module';
+import { NotificationInterceptor } from './common/interceptor/notification.interceptor';
 
 @Module({
   imports: [
@@ -78,7 +85,6 @@ import { BookingDetailModule } from './modules/booking-detail/booking-detail.mod
     EmailModule,
     RedisModule,
     CustomerModule,
-    TechnicianModule,
     CertificateModule,
     VehicleModule,
     ServiceModule,
@@ -99,6 +105,13 @@ import { BookingDetailModule } from './modules/booking-detail/booking-detail.mod
     ServiceModule,
     BookingModule,
     BookingDetailModule,
+    BookingAssignmentModule,
+    TechnicianModule,
+    VehicleHandoverModule,
+    ChatModule,
+    WebsocketModule,
+    DashboardModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [
@@ -118,6 +131,10 @@ import { BookingDetailModule } from './modules/booking-detail/booking-detail.mod
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: NotificationInterceptor,
     },
   ],
 })

@@ -1,38 +1,49 @@
-import { IsString, IsNotEmpty, IsUUID, IsOptional, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsUUID,
+  IsOptional,
+  IsDateString,
+  ValidateIf,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class CreateWorkCenterDTO {
-  @IsString({ message: 'Employee ID must be a string' })
-  @IsUUID(4, { message: 'Employee ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Employee ID must be provided' })
   @ApiProperty({
-    example: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
+    example: 'uuid-employee',
     description: 'Employee account UUID',
   })
+  @IsUUID(4, { message: 'Employee ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Employee ID is required' })
   employeeId: string;
 
-  @IsString({ message: 'Center ID must be a string' })
-  @IsUUID(4, { message: 'Center ID must be a valid UUID' })
-  @IsNotEmpty({ message: 'Center ID must be provided' })
   @ApiProperty({
-    example: 'a1b2c3d4-5678-9abc-def0-123456789abc',
+    example: 'uuid-service-center',
     description: 'Service Center UUID',
   })
+  @IsUUID(4, { message: 'Center ID must be a valid UUID' })
+  @IsNotEmpty({ message: 'Center ID is required' })
   centerId: string;
 
-  @IsNotEmpty({ message: 'Start Date must be provided' })
-  @IsDateString({}, { message: 'Start Date must be a valid date string' })
   @ApiProperty({
-    example: '2025-11-20T08:00:00.000Z',
+    example: '2025-11-20T08:00',
     description: 'Start date of the work center assignment',
   })
+  @IsDateString({}, { message: 'Start date must be a valid ISO date string' })
+  @IsNotEmpty({ message: 'Start date is required' })
   startDate: string;
 
-  @IsOptional()
-  @IsDateString({}, { message: 'End Date must be a valid date string' })
-  @ApiPropertyOptional({
-    example: '2029-11-25T17:00:00.000Z',
-    description: 'End date of the work center assignment (optional)',
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    return value;
   })
-  endDate: string;
+  @ApiPropertyOptional({
+    example: '',
+    description: 'End date of the work center assignment. Leave empty for permanent assignment.',
+  })
+  @IsOptional()
+  @ValidateIf(obj => obj.endDate !== null && obj.endDate !== undefined && obj.endDate !== '')
+  @IsDateString({}, { message: 'End date must be a valid ISO date string' })
+  endDate?: string;
 }

@@ -11,17 +11,12 @@ export class WorkScheduleDTO {
   shiftId: string;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString().split('T')[0] : null), {
-    toPlainOnly: true,
-  })
-  date: Date;
+  date: string;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
   createdAt: Date;
 
   @Expose()
-  @Transform(({ value }) => (value ? value.toISOString() : null), { toPlainOnly: true })
   updatedAt: Date;
 
   @Expose()
@@ -32,22 +27,24 @@ export class WorkScheduleDTO {
     if (!employee || !account) return undefined;
 
     return {
+      id: account.id,
       email: account.email,
       phone: account.phone,
       role: account.role,
       status: account.status,
       avatar: account.avatar,
-      createdAt: account.createdAt?.toISOString(),
-      updatedAt: account.updatedAt?.toISOString(),
+      createdAt: account.createdAt,
+      updatedAt: account.updatedAt,
       profile: {
         firstName: employee.firstName,
         lastName: employee.lastName,
-        createdAt: employee.createdAt?.toISOString(),
-        updatedAt: employee.updatedAt?.toISOString(),
+        createdAt: employee.createdAt,
+        updatedAt: employee.updatedAt,
       },
     };
   })
   account?: {
+    id: string;
     email: string;
     phone: string;
     role: string;
@@ -58,6 +55,53 @@ export class WorkScheduleDTO {
     profile: {
       firstName: string;
       lastName: string;
+      createdAt: string;
+      updatedAt: string;
+    };
+  };
+
+  @Expose()
+  @Transform(({ obj }) => {
+    const shift = obj.shift;
+    const serviceCenter = shift?.serviceCenter;
+
+    if (!shift) return undefined;
+
+    return {
+      id: shift.id,
+      name: shift.name,
+      startTime: shift.startTime,
+      endTime: shift.endTime,
+      maximumSlot: shift.maximumSlot,
+      status: shift.status,
+      createdAt: shift.createdAt,
+      updatedAt: shift.updatedAt,
+      serviceCenter: serviceCenter
+        ? {
+            id: serviceCenter.id,
+            name: serviceCenter.name,
+            address: serviceCenter.address,
+            status: serviceCenter.status,
+            createdAt: serviceCenter.createdAt,
+            updatedAt: serviceCenter.updatedAt,
+          }
+        : undefined,
+    };
+  })
+  shift?: {
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    maximumSlot: number | null;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    serviceCenter?: {
+      id: string;
+      name: string;
+      address: string;
+      status: string;
       createdAt: string;
       updatedAt: string;
     };

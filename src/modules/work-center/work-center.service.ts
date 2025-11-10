@@ -13,10 +13,61 @@ import { WorkCenterDTO } from './dto/work-center.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountRole, Prisma } from '@prisma/client';
+import { parseDate, utcToVNDate, vnToUtcDate } from 'src/utils';
 
 @Injectable()
 export class WorkCenterService {
   constructor(private readonly prismaService: PrismaService) {}
+
+  private async checkEmployeeOverlap(
+    employeeId: string,
+    startDate: Date,
+    endDate: Date | null,
+    excludeId?: string
+  ): Promise<void> {
+    const overlapping = await this.prismaService.workCenter.findFirst({
+      where: {
+        employeeId,
+        ...(excludeId && { id: { not: excludeId } }),
+        OR: [
+          {
+            AND: [
+              { startDate: { lte: endDate || new Date('2099-12-31') } },
+              {
+                OR: [
+                  { endDate: null }, // Permanent assignment
+                  { endDate: { gte: startDate } }, // Active assignment overlaps
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      include: {
+        serviceCenter: { select: { name: true } },
+        employee: {
+          include: {
+            account: {
+              select: {
+                employee: {
+                  select: { firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (overlapping) {
+      const employeeName = `${overlapping.employee.account?.employee?.firstName} ${overlapping.employee.account?.employee?.lastName}`;
+      const centerName = overlapping.serviceCenter?.name || 'another center';
+
+      throw new ConflictException(
+        `Employee ${employeeName} already has an active assignment at ${centerName} from ${overlapping.startDate.toDateString()} to ${overlapping.endDate?.toDateString() || 'permanent'}`
+      );
+    }
+  }
 
   async createWorkCenter(
     createWorkCenterDto: CreateWorkCenterDTO,
@@ -26,74 +77,88 @@ export class WorkCenterService {
       throw new ForbiddenException('Only ADMIN can assign employees to service centers');
     }
 
-    // Validate service center exists
-    const serviceCenter = await this.prismaService.serviceCenter.findUnique({
-      where: { id: createWorkCenterDto.centerId },
-    });
+    const { employeeId, centerId, startDate, endDate } = createWorkCenterDto;
+    const errors: Record<string, string> = {};
 
-    if (!serviceCenter) {
-      throw new NotFoundException(
-        `Service center with ID ${createWorkCenterDto.centerId} not found`
-      );
+    const parsedStartDate = parseDate(startDate);
+    const parsedEndDate = endDate ? parseDate(endDate) : null;
+
+    if (!parsedStartDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { startDate: 'Invalid start date format' },
+      });
     }
 
-    // Validate employee exists and has correct role
+    if (endDate && !parsedEndDate) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors: { endDate: 'Invalid end date format' },
+      });
+    }
+
+    const start = vnToUtcDate(parsedStartDate);
+    const end = parsedEndDate ? vnToUtcDate(parsedEndDate) : null;
+
+    const localStartDate = utcToVNDate(start);
+    const localEndDate = end ? utcToVNDate(end) : null;
+
+    if (localEndDate && localStartDate >= localEndDate) {
+      errors.dateRange = 'End date must be after start date';
+    }
+
+    // --- Employee tồn tại & role hợp lệ ---
     const employee = await this.prismaService.employee.findUnique({
-      where: { accountId: createWorkCenterDto.employeeId },
+      where: { accountId: employeeId },
       include: { account: true },
     });
-
     if (!employee) {
-      throw new NotFoundException(`Employee with ID ${createWorkCenterDto.employeeId} not found`);
-    }
-
-    if (
-      employee.account?.role !== AccountRole.STAFF &&
-      employee.account?.role !== AccountRole.TECHNICIAN
+      errors.employeeId = `Employee with ID ${employeeId} not found`;
+    } else if (
+      employee.account.role !== AccountRole.TECHNICIAN &&
+      employee.account.role !== AccountRole.STAFF
     ) {
-      throw new BadRequestException(
-        'Only STAFF and TECHNICIAN employees can be assigned to service centers'
-      );
+      errors.employeeId = `Only STAFF and TECHNICIAN employees can be assigned. This employee has role ${employee.account?.role}`;
     }
 
-    const startDate = new Date(createWorkCenterDto.startDate);
-    const endDate = new Date(createWorkCenterDto.endDate);
-
-    if (endDate && startDate >= endDate) {
-      throw new BadRequestException('Start date must be before end date');
+    // --- Service center tồn tại ---
+    const center = await this.prismaService.serviceCenter.findUnique({ where: { id: centerId } });
+    if (!center) {
+      errors.centerId = `Service center with ID ${centerId} not found`;
     }
 
-    // Check for overlapping assignments
-    const overlapping = await this.prismaService.workCenter.findFirst({
-      where: {
-        employeeId: createWorkCenterDto.employeeId,
-        centerId: createWorkCenterDto.centerId,
-        OR: [
-          {
-            AND: [{ startDate: { lte: endDate } }, { endDate: { gte: startDate } }],
-          },
-        ],
-      },
-    });
-
-    if (overlapping) {
-      throw new ConflictException(
-        `Employee ${employee.firstName} ${employee.lastName} already has an overlapping assignment at this center`
-      );
+    // --- Check overlapping assignments ---
+    if (employee && localStartDate && !errors.employeeId) {
+      try {
+        await this.checkEmployeeOverlap(employeeId, localStartDate, localEndDate);
+      } catch (error) {
+        if (error instanceof ConflictException) {
+          errors.overlap = error.message;
+        }
+      }
     }
 
+    // --- Throw all business validation errors ---
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors,
+      });
+    }
+    // Create work center
     const workCenter = await this.prismaService.workCenter.create({
       data: {
-        employeeId: createWorkCenterDto.employeeId,
-        centerId: createWorkCenterDto.centerId,
-        startDate,
-        endDate,
+        employeeId,
+        centerId,
+        startDate: start,
+        endDate: end,
       },
       include: {
         employee: {
           include: {
             account: {
               select: {
+                id: true,
                 email: true,
                 phone: true,
                 role: true,
@@ -144,16 +209,19 @@ export class WorkCenterService {
       centerId: filter.centerId ? { contains: filter.centerId, mode: 'insensitive' } : undefined,
     };
 
-    // Date filters for startDate
-    if (filter.startDate && filter.endDate) {
-      where.startDate = {
-        gte: new Date(filter.startDate),
-        lte: new Date(filter.endDate),
-      };
-    } else if (filter.startDate) {
-      where.startDate = { gte: new Date(filter.startDate) };
-    } else if (filter.endDate) {
-      where.startDate = { lte: new Date(filter.endDate) };
+    // --- Convert & filter theo ngày ---
+    const startDate = filter.startDate ? parseDate(filter.startDate) : null;
+    const endDate = filter.endDate ? parseDate(filter.endDate) : null;
+
+    const startUtc = startDate ? vnToUtcDate(startDate) : null;
+    const endUtc = endDate ? vnToUtcDate(endDate) : null;
+
+    if (startUtc && endUtc) {
+      where.startDate = { gte: startUtc, lte: endUtc };
+    } else if (startUtc) {
+      where.startDate = { gte: startUtc };
+    } else if (endUtc) {
+      where.startDate = { lte: endUtc };
     }
 
     if ((role === AccountRole.STAFF || role === AccountRole.TECHNICIAN) && currentUserId) {
@@ -173,7 +241,10 @@ export class WorkCenterService {
     const [workCenters, total] = await this.prismaService.$transaction([
       this.prismaService.workCenter.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          startDate: true,
+          endDate: true,
           employee: {
             include: {
               account: {
@@ -234,7 +305,10 @@ export class WorkCenterService {
   ): Promise<WorkCenterDTO> {
     const workCenter = await this.prismaService.workCenter.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        startDate: true,
+        endDate: true,
         employee: {
           include: {
             account: {
@@ -275,7 +349,7 @@ export class WorkCenterService {
     }
 
     if ((role === AccountRole.STAFF || role === AccountRole.TECHNICIAN) && currentUserId) {
-      if (workCenter.employeeId !== currentUserId) {
+      if (workCenter.employee.accountId !== currentUserId) {
         throw new ForbiddenException('You can only view your own work center assignments');
       }
     }
@@ -289,6 +363,7 @@ export class WorkCenterService {
     id: string,
     updateWorkCenterDto: UpdateWorkCenterDTO
   ): Promise<WorkCenterDTO> {
+    const errors: Record<string, string> = {};
     const existingWorkCenter = await this.prismaService.workCenter.findUnique({
       where: { id },
       include: {
@@ -301,84 +376,87 @@ export class WorkCenterService {
       throw new NotFoundException(`Work center assignment with ID ${id} not found`);
     }
 
-    const targetCenterId = updateWorkCenterDto.centerId || existingWorkCenter.centerId;
-    const targetEmployeeId = updateWorkCenterDto.employeeId || existingWorkCenter.employeeId;
-    const targetStartDate = updateWorkCenterDto.startDate
-      ? new Date(updateWorkCenterDto.startDate)
+    // --- Determine target values ---
+    const targetEmployeeId = updateWorkCenterDto.employeeId ?? existingWorkCenter.employeeId;
+    const targetCenterId = updateWorkCenterDto.centerId ?? existingWorkCenter.centerId;
+    const parsedStartDate = updateWorkCenterDto.startDate
+      ? parseDate(updateWorkCenterDto.startDate)
       : existingWorkCenter.startDate;
-    const targetEndDate =
-      updateWorkCenterDto.endDate !== undefined
-        ? updateWorkCenterDto.endDate
-          ? new Date(updateWorkCenterDto.endDate)
-          : null
-        : existingWorkCenter.endDate;
 
-    // Date validation
-    if (targetEndDate && targetStartDate >= targetEndDate) {
-      throw new BadRequestException('Start date must be before end date');
-    }
+    const parsedEndDate = updateWorkCenterDto.endDate
+      ? parseDate(updateWorkCenterDto.endDate)
+      : existingWorkCenter.endDate;
 
-    // Validate new service center if changed
-    if (
-      updateWorkCenterDto.centerId &&
-      updateWorkCenterDto.centerId !== existingWorkCenter.centerId
-    ) {
-      const serviceCenter = await this.prismaService.serviceCenter.findUnique({
-        where: { id: updateWorkCenterDto.centerId },
-      });
+    const start = parsedStartDate ? vnToUtcDate(parsedStartDate) : existingWorkCenter.startDate;
+    const end = parsedEndDate ? vnToUtcDate(parsedEndDate) : existingWorkCenter.endDate;
 
-      if (!serviceCenter) {
-        throw new NotFoundException(
-          `Service center with ID ${updateWorkCenterDto.centerId} not found`
-        );
+    // --- Validate employeeId ---
+    if (!targetEmployeeId || targetEmployeeId.trim() === '') {
+      errors.employeeId = 'Employee ID cannot be empty';
+    } else {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(targetEmployeeId)) {
+        errors.employeeId = 'Employee ID must be a valid UUID';
+      } else {
+        const employee = await this.prismaService.employee.findUnique({
+          where: { accountId: targetEmployeeId },
+          include: { account: true },
+        });
+        if (!employee) {
+          errors.employeeId = `Employee with ID ${targetEmployeeId} not found`;
+        } else if (
+          employee.account.role !== AccountRole.STAFF &&
+          employee.account.role !== AccountRole.TECHNICIAN
+        ) {
+          errors.employeeId = `Only STAFF and TECHNICIAN employees can be assigned. Employee has role ${employee.account.role}`;
+        }
       }
     }
 
-    // Validate new employee if changed
+    // --- Validate centerId ---
+    if (!targetCenterId || targetCenterId.trim() === '') {
+      errors.centerId = 'Center ID cannot be empty';
+    } else {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(targetCenterId)) {
+        errors.centerId = 'Center ID must be a valid UUID';
+      } else {
+        const center = await this.prismaService.serviceCenter.findUnique({
+          where: { id: targetCenterId },
+        });
+        if (!center) {
+          errors.centerId = `Service center with ID ${targetCenterId} not found`;
+        }
+      }
+    }
+
+    // --- Validate date ---
+
     if (
-      updateWorkCenterDto.employeeId &&
-      updateWorkCenterDto.employeeId !== existingWorkCenter.employeeId
+      updateWorkCenterDto.startDate !== undefined &&
+      updateWorkCenterDto.startDate.trim() === ''
     ) {
-      const employee = await this.prismaService.employee.findUnique({
-        where: { accountId: updateWorkCenterDto.employeeId },
-        include: { account: true },
+      errors.startDate = 'Start date cannot be empty';
+    }
+    if (end && start >= end) {
+      errors.dateRange = 'End date must be after start date';
+    }
+
+    // --- Check overlapping assignments ---
+    try {
+      await this.checkEmployeeOverlap(targetEmployeeId, start, end, id);
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        errors.overlap = error.message;
+      }
+    }
+
+    // --- Throw all validation errors at once ---
+    if (Object.keys(errors).length > 0) {
+      throw new BadRequestException({
+        message: 'Validation failed',
+        errors,
       });
-
-      if (!employee) {
-        throw new NotFoundException(`Employee with ID ${updateWorkCenterDto.employeeId} not found`);
-      }
-
-      if (
-        employee.account?.role !== AccountRole.STAFF &&
-        employee.account?.role !== AccountRole.TECHNICIAN
-      ) {
-        throw new BadRequestException(
-          `Only STAFF and TECHNICIAN employees can be assigned. Employee ${employee.firstName} ${employee.lastName} has role ${employee.account?.role}`
-        );
-      }
-
-      // Check for overlapping assignments with new employee
-      const overlapping = await this.prismaService.workCenter.findFirst({
-        where: {
-          employeeId: targetEmployeeId,
-          centerId: targetCenterId,
-          id: { not: id },
-          OR: [
-            {
-              AND: [
-                { startDate: { lte: targetEndDate || new Date('2099-12-31') } },
-                { endDate: { gte: targetStartDate } },
-              ],
-            },
-          ],
-        },
-      });
-
-      if (overlapping) {
-        throw new ConflictException(
-          `Employee ${employee.firstName} ${employee.lastName} already has an overlapping assignment at this center`
-        );
-      }
     }
 
     const updatedWorkCenter = await this.prismaService.workCenter.update({
@@ -386,8 +464,8 @@ export class WorkCenterService {
       data: {
         employeeId: targetEmployeeId,
         centerId: targetCenterId,
-        startDate: targetStartDate,
-        endDate: targetEndDate || new Date('2099-12-31'),
+        startDate: start,
+        endDate: end,
       },
       include: {
         employee: {

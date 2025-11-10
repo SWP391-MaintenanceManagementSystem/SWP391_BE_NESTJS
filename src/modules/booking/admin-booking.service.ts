@@ -3,6 +3,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { startOfDay } from 'date-fns/startOfDay';
 import { endOfDay } from 'date-fns/endOfDay';
 import { AdminUpdateBookingDTO } from './dto/admin-update-booking.dto';
+import { AdminBookingDetailDTO } from './dto/admin-booking-detail.dto';
+import { plainToInstance } from 'class-transformer';
+import { parseDate } from 'src/utils';
 
 @Injectable()
 export class AdminBookingService {
@@ -20,25 +23,37 @@ export class AdminBookingService {
     let bookingDate = booking.bookingDate;
     let vehicleId = booking.vehicleId;
 
-    if (updateData.bookingDate && updateData.bookingDate !== booking.bookingDate) {
-      const centerId = updateData.centerId ?? booking.centerId;
-      const workSchedule = await this.prismaService.workSchedule.findFirst({
-        where: {
-          date: { gte: startOfDay(updateData.bookingDate), lt: endOfDay(updateData.bookingDate) },
-          shift: {
-            centerId,
-            status: 'ACTIVE',
-            startTime: { lte: updateData.bookingDate },
-            endTime: { gt: updateData.bookingDate },
-          },
-        },
-        include: { shift: true },
-      });
-      if (!workSchedule)
-        throw new BadRequestException('No matching shift for the selected date and center');
+    if (updateData.bookingDate) {
+      // Convert string date to Date object
+      const parsedBookingDate = parseDate(updateData.bookingDate);
+      if (!parsedBookingDate) {
+        throw new BadRequestException('Invalid booking date format');
+      }
 
-      shiftId = workSchedule.shiftId;
-      bookingDate = updateData.bookingDate;
+      // Only update if the date actually changed
+      if (parsedBookingDate.getTime() !== booking.bookingDate.getTime()) {
+        const centerId = updateData.centerId ?? booking.centerId;
+        const workSchedule = await this.prismaService.workSchedule.findFirst({
+          where: {
+            date: {
+              gte: startOfDay(parsedBookingDate),
+              lt: endOfDay(parsedBookingDate),
+            },
+            shift: {
+              centerId,
+              status: 'ACTIVE',
+              startTime: { lte: parsedBookingDate },
+              endTime: { gt: parsedBookingDate },
+            },
+          },
+          include: { shift: true },
+        });
+        if (!workSchedule)
+          throw new BadRequestException('No matching shift for the selected date and center');
+
+        shiftId = workSchedule.shiftId;
+        bookingDate = parsedBookingDate;
+      }
     }
 
     if (updateData.vehicleId) vehicleId = updateData.vehicleId;
@@ -47,7 +62,7 @@ export class AdminBookingService {
       where: {
         vehicleId,
         shiftId,
-        status: { in: ['PENDING', 'CONFIRMED', 'CHECKED_IN'] },
+        status: { in: ['PENDING', 'ASSIGNED', 'CHECKED_IN'] },
         NOT: { id: bookingId },
       },
     });
@@ -66,5 +81,46 @@ export class AdminBookingService {
       },
     });
     return updatedBooking;
+  }
+
+  async getBookingById(bookingId: string): Promise<AdminBookingDetailDTO> {
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        customer: {
+          include: { account: true },
+        },
+        vehicle: {
+          include: { vehicleModel: { include: { brand: true } } },
+        },
+        serviceCenter: true,
+        shift: true,
+        bookingDetails: {
+          include: {
+            service: true,
+            package: {
+              include: {
+                packageDetails: {
+                  include: {
+                    service: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        bookingAssignments: {
+          include: {
+            employee: { include: { account: true } },
+            assigner: { include: { account: true } },
+          },
+        },
+      },
+    });
+    if (!booking) {
+      throw new BadRequestException('Booking not found');
+    }
+
+    return plainToInstance(AdminBookingDetailDTO, booking, { excludeExtraneousValues: true });
   }
 }

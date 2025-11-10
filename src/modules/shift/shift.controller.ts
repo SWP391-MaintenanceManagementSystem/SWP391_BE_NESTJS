@@ -7,8 +7,8 @@ import { ShiftQueryDTO } from './dto/shift-query.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
 
-@ApiTags('Shift')
-@Controller('api/shift')
+@ApiTags('Shifts')
+@Controller('api/shifts')
 @ApiBearerAuth('jwt-auth')
 export class ShiftController {
   constructor(private readonly shiftService: ShiftService) {}
@@ -27,7 +27,8 @@ export class ShiftController {
   @Get()
   @Roles(AccountRole.ADMIN)
   async getShifts(@Query() query: ShiftQueryDTO) {
-    const { data, page, pageSize, total, totalPages } = await this.shiftService.getShifts(query);
+    const { data, page, pageSize, total, totalPages } =
+      await this.shiftService.getShiftsWithCenters(query);
 
     return {
       message: 'Shifts retrieved successfully',
@@ -36,6 +37,15 @@ export class ShiftController {
       pageSize,
       total,
       totalPages,
+    };
+  }
+
+  @Get('all')
+  async getAllShifts() {
+    const { data } = await this.shiftService.getShifts();
+    return {
+      message: 'All shifts retrieved successfully',
+      data,
     };
   }
 

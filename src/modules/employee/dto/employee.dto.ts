@@ -21,10 +21,8 @@ export class EmployeeDTO {
   certificates?: CertificateDTO[];
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   createdAt: Date;
 
   @Expose()
-  @Transform(({ value }) => (value instanceof Date ? value.toISOString() : value))
   updatedAt: Date;
 }
