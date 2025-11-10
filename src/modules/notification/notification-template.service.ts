@@ -363,4 +363,44 @@ export class NotificationTemplateService {
       // No targetUserIdField = send to current user
     };
   }
+
+  static partRefillRequested(): NotificationMetadata {
+    return {
+      type: NotificationType.PART,
+      title: 'Part Refill Request',
+      message: data => {
+        const part = data.part || {};
+        const technician = data.technician || {};
+        const refillAmount = data.refillAmount || 0;
+
+        const technicianName = technician.firstName
+          ? `${technician.firstName} ${technician.lastName || ''}`.trim()
+          : 'A technician';
+
+        const partName = part.name || 'Unknown Part';
+        const currentStock = part.stock ?? part.quantity ?? 0;
+        const minStock = part.minStock ?? 0;
+
+        return `${technicianName} requested refill ${refillAmount} units for part "${partName}" (Current stock: ${currentStock}, Min: ${minStock}).`;
+      },
+      targetUserIdField: 'adminIds',
+    };
+  }
+
+  static partRefillApproved(): NotificationMetadata {
+    return {
+      type: NotificationType.PART,
+      title: 'Refill Request Approved',
+      message: data => {
+        const part = data.part || {};
+        const refillAmount = data.refillAmount || 0;
+        const newStock = data.newStock ?? part.quantity ?? part.stock ?? 0;
+
+        const partName = part.name || 'Unknown Part';
+
+        return `Your refill request for "${partName}" has been approved. ${refillAmount} units added. New stock: ${newStock}.`;
+      },
+      targetUserIdField: 'technicianId',
+    };
+  }
 }
