@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { PartService } from './part.service';
 import { CreatePartDto } from './dto/create-part.dto';
 import { RefillPartDto, UpdatePartDto } from './dto/update-part.dto';
@@ -12,11 +22,15 @@ import { EmitNotification } from 'src/common/decorator/emit-notification.decorat
 import { NotificationTemplateService } from '../notification/notification-template.service';
 import { CurrentUser } from 'src/common/decorator/current-user.decorator';
 import { JWT_Payload } from 'src/common/types';
+import { RefillRequestService } from './refill-request.service';
 
 @ApiTags('Part')
 @Controller('api/parts')
 export class PartController {
-  constructor(private readonly partService: PartService) {}
+  constructor(
+    private readonly partService: PartService,
+    private readonly refillRequestService: RefillRequestService
+  ) {}
 
   @Post('/')
   @Roles(AccountRole.ADMIN, AccountRole.TECHNICIAN)
@@ -96,7 +110,6 @@ export class PartController {
     const result = await this.partService.requestPartRefill(partId, dto.refillAmount, user.sub);
 
     return {
-      data: result.part,
       part: result.part,
       adminIds: result.adminIds,
       technician: result.technician,
@@ -110,18 +123,20 @@ export class PartController {
   @Roles(AccountRole.ADMIN)
   @EmitNotification(NotificationTemplateService.partRefillApproved())
   @ApiBearerAuth('jwt-auth')
-  async approveRefill(
-    @Param('id') partId: string,
-    @Body() dto: { refillAmount: number; technicianId: string }
-  ) {
-    const updatedPart = await this.partService.refillOutOfStockPart(partId, dto.refillAmount);
+  async approveRefill(@Param('id') partId: string) {
+    const request = this.refillRequestService.getAndRemove(partId);
+
+    if (!request) {
+      throw new BadRequestException('No refill request found for this part.');
+    }
+
+    const updatedPart = await this.partService.refillOutOfStockPart(partId, request.refillAmount);
 
     return {
-      data: updatedPart,
       part: updatedPart,
-      refillAmount: dto.refillAmount,
-      newStock: updatedPart.stock,
-      technicianId: dto.technicianId,
+      refillAmount: request.refillAmount,
+      newStock: updatedPart.quantity,
+      technicianId: request.technicianId,
       message: 'Part refilled successfully. Technician has been notified.',
     };
   }

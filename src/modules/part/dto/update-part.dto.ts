@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CreatePartDto } from './create-part.dto';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsUUID, Min } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, Min } from 'class-validator';
 import { PartStatus } from '@prisma/client';
 
 export class UpdatePartDto extends PartialType(CreatePartDto) {

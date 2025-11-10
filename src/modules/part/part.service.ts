@@ -7,9 +7,13 @@ import { plainToInstance } from 'class-transformer';
 import { PrismaService } from '../prisma/prisma.service';
 import { PartQueryDto } from './dto/part-query.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
+import { RefillRequestService } from './refill-request.service';
 @Injectable()
 export class PartService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly refillRequestService: RefillRequestService
+  ) {}
 
   async createPart(createPartDto: CreatePartDto): Promise<PartDto> {
     const { name, categoryId, price, stock, minStock, description } = createPartDto;
@@ -291,7 +295,7 @@ export class PartService {
     const updatedPart = await this.prisma.part.update({
       where: { id },
       data: {
-        stock: newStock,
+        stock: { increment: refillAmount },
         status: newStatus,
       },
       include: { category: true },
@@ -313,12 +317,10 @@ export class PartService {
     adminIds: string[];
     technician: { id: string; firstName: string; lastName: string; email: string };
   }> {
-    // 1. Validate refill amount
     if (refillAmount <= 0) {
       throw new BadRequestException('Refill amount must be greater than 0');
     }
 
-    // 2. Get part info
     const part = await this.prisma.part.findUnique({
       where: { id: partId },
       include: { category: true },
@@ -328,14 +330,12 @@ export class PartService {
       throw new NotFoundException(`Part with ID ${partId} not found`);
     }
 
-    // 3. Check if part is OUT_OF_STOCK
     if (part.status !== PartStatus.OUT_OF_STOCK) {
       throw new BadRequestException(
         `Part "${part.name}" is currently ${part.status}. Only OUT_OF_STOCK parts can request refill.`
       );
     }
 
-    // 4. ✅ FIX: Get technician info from Account
     const account = await this.prisma.account.findUnique({
       where: { id: technicianId },
       select: {
@@ -383,6 +383,8 @@ export class PartService {
       { ...part, quantity: part.stock },
       { excludeExtraneousValues: true }
     );
+
+    this.refillRequestService.create(partId, technicianId, refillAmount);
 
     return {
       part: partDto,

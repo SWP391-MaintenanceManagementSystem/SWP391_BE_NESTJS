@@ -364,37 +364,41 @@ export class NotificationTemplateService {
     };
   }
 
-  // Part Refill Requested Notification (Admin)
   static partRefillRequested(): NotificationMetadata {
     return {
       type: NotificationType.PART,
       title: 'Part Refill Request',
       message: data => {
-        const part = data.part;
-        const technician = data.technician;
-        const refillAmount = data.refillAmount;
+        const part = data.part || {};
+        const technician = data.technician || {};
+        const refillAmount = data.refillAmount || 0;
 
-        const technicianName = technician?.firstName
+        const technicianName = technician.firstName
           ? `${technician.firstName} ${technician.lastName || ''}`.trim()
           : 'A technician';
 
-        return `${technicianName} requested refill ${refillAmount} units for part "${part.name}" (Current stock: ${part.stock}, Min: ${part.minStock}).`;
+        const partName = part.name || 'Unknown Part';
+        const currentStock = part.stock ?? part.quantity ?? 0;
+        const minStock = part.minStock ?? 0;
+
+        return `${technicianName} requested refill ${refillAmount} units for part "${partName}" (Current stock: ${currentStock}, Min: ${minStock}).`;
       },
       targetUserIdField: 'adminIds',
     };
   }
 
-  // Part Refill Approved Notification (Technician)
   static partRefillApproved(): NotificationMetadata {
     return {
       type: NotificationType.PART,
       title: 'Refill Request Approved',
       message: data => {
-        const part = data.part;
-        const refillAmount = data.refillAmount;
-        const newStock = data.newStock;
+        const part = data.part || {};
+        const refillAmount = data.refillAmount || 0;
+        const newStock = data.newStock ?? part.quantity ?? part.stock ?? 0;
 
-        return `Your refill request for "${part.name}" has been approved. ${refillAmount} units added. New stock: ${newStock}.`;
+        const partName = part.name || 'Unknown Part';
+
+        return `Your refill request for "${partName}" has been approved. ${refillAmount} units added. New stock: ${newStock}.`;
       },
       targetUserIdField: 'technicianId',
     };
