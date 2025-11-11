@@ -15,9 +15,10 @@ export class BookingAssignmentService {
     body: CreateBookingAssignmentsDTO,
     staffId: string
   ): Promise<{
-    data: { booking: { id: string }; assignments: BookingAssignmentsDTO[] };
+    data: { booking: { id: string; bookingDate: Date }; assignments: BookingAssignmentsDTO[] };
     customerId: string;
     employeeIds: string[];
+    assignedByInfo: { id: string; firstName: string; lastName: string };
   }> {
     const { bookingId, employeeIds } = body;
 
@@ -94,6 +95,19 @@ export class BookingAssignmentService {
       });
     }
 
+    const staff = await this.prismaService.employee.findUnique({
+      where: { accountId: staffId },
+      select: {
+        accountId: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    if (!staff) {
+      throw new BadRequestException('Staff not found');
+    }
+
     const assignments = await this.prismaService.$transaction(async tx => {
       return Promise.all(
         employeeIds.map(employeeId =>
@@ -103,15 +117,16 @@ export class BookingAssignmentService {
               employeeId,
               assignedBy: staffId,
             },
-            // include: {
-            //   employee: { include: { account: true } },
-            //   assigner: { include: { account: true } },
-            //   booking: true,
-            // },
+            include: {
+              employee: { include: { account: true } },
+              assigner: { include: { account: true } },
+              booking: true,
+            },
           })
         )
       );
     });
+
     await this.prismaService.booking.update({
       where: { id: bookingId },
       data: {
@@ -122,11 +137,19 @@ export class BookingAssignmentService {
 
     return {
       data: {
-        booking: { id: bookingId },
+        booking: {
+          id: bookingId,
+          bookingDate: booking.bookingDate,
+        },
         assignments: plainToInstance(BookingAssignmentsDTO, assignments),
       },
       customerId: booking.customerId,
       employeeIds,
+      assignedByInfo: {
+        id: staff.accountId,
+        firstName: staff.firstName || 'Staff',
+        lastName: staff.lastName || '',
+      },
     };
   }
 

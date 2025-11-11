@@ -570,7 +570,18 @@ export class BookingService {
   async cancelBooking(
     bookingId: string,
     user: JWT_Payload
-  ): Promise<{ booking: BookingDTO; customerId: string; staffIds: string[] }> {
+  ): Promise<{
+    booking: BookingDTO;
+    customerId: string;
+    staffIds: string[];
+    cancelledBy: 'CUSTOMER' | 'STAFF';
+    cancellerInfo: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  }> {
     const booking = await this.prismaService.booking.findUniqueOrThrow({
       where: { id: bookingId },
       select: {
@@ -580,7 +591,14 @@ export class BookingService {
         centerId: true,
         bookingDate: true,
         customer: {
-          select: { accountId: true },
+          select: {
+            accountId: true,
+            firstName: true,
+            lastName: true,
+            account: {
+              select: { email: true },
+            },
+          },
         },
       },
     });
@@ -594,12 +612,56 @@ export class BookingService {
     if (user.role === AccountRole.CUSTOMER && booking.customerId !== user.sub)
       throw new BadRequestException('You can only cancel your own bookings');
 
+    // Get canceller info
+    let cancellerInfo: { id: string; firstName: string; lastName: string; email: string };
+
+    if (user.role === AccountRole.CUSTOMER) {
+      cancellerInfo = {
+        id: booking.customer.accountId,
+        firstName: booking.customer.firstName || 'Customer',
+        lastName: booking.customer.lastName || '',
+        email: booking.customer.account.email,
+      };
+    } else {
+      const staff = await this.prismaService.employee.findUnique({
+        where: { accountId: user.sub },
+        select: {
+          accountId: true,
+          firstName: true,
+          lastName: true,
+          account: {
+            select: { email: true },
+          },
+        },
+      });
+
+      if (!staff) {
+        throw new BadRequestException('Staff not found');
+      }
+
+      cancellerInfo = {
+        id: staff.accountId,
+        firstName: staff.firstName || 'Staff',
+        lastName: staff.lastName || '',
+        email: staff.account.email,
+      };
+    }
+
     const [updatedBooking, staffSchedules] = await this.prismaService.$transaction([
       this.prismaService.booking.update({
         where: { id: bookingId },
         data: { status: BookingStatus.CANCELLED },
         include: {
-          customer: { select: { accountId: true } },
+          customer: {
+            select: {
+              accountId: true,
+              firstName: true,
+              lastName: true,
+              account: {
+                select: { email: true },
+              },
+            },
+          },
         },
       }),
       this.prismaService.workSchedule.findMany({
@@ -635,8 +697,10 @@ export class BookingService {
 
     return {
       booking: bookingDTO,
-      customerId: updatedBooking.customer.accountId, // ← Bây giờ hợp lệ
+      customerId: updatedBooking.customer.accountId,
       staffIds,
+      cancelledBy: user.role as 'CUSTOMER' | 'STAFF',
+      cancellerInfo,
     };
   }
 
