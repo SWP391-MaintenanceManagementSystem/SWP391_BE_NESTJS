@@ -13,7 +13,7 @@ export class NotificationTemplateService {
       type: NotificationType.BOOKING,
       title: 'New Booking Assignment',
       message: data => {
-        const booking = data.data; // ← dùng data.data để đồng nhất
+        const booking = data.data;
         const bookingId = booking.id?.slice(0, 8) || 'N/A';
         const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
         const time = new Date(booking.bookingDate).toLocaleTimeString('vi-VN', {
@@ -29,10 +29,8 @@ export class NotificationTemplateService {
     };
   }
 
-  // 3. GỬI CẢ CUSTOMER + STAFF (1 decorator)
   static bookingCreatedWithStaff(): NotificationMetadata {
     return {
-      // Gửi cho customer
       type: NotificationType.BOOKING,
       title: 'Booking Created Successful',
       message: data => {
@@ -42,21 +40,7 @@ export class NotificationTemplateService {
       },
       targetUserIdField: 'customerId',
 
-      // Gửi cho staff
-      additional: [this.newBookingForStaff()], // ← reuse function
-    };
-  }
-
-  // Booking Notification for Customer (customer receive)
-  static bookingAssigned(): NotificationMetadata {
-    return {
-      type: NotificationType.BOOKING,
-      title: 'Booking Assigned to Technician',
-      message: data => {
-        const booking = data.data;
-        return `Your booking #${booking.id.slice(0, 8)} has been assigned to a technician.`;
-      },
-      targetUserIdField: 'data.customerId',
+      additional: [this.newBookingForStaff()],
     };
   }
 
@@ -66,11 +50,45 @@ export class NotificationTemplateService {
       type: NotificationType.BOOKING,
       title: 'Booking Assigned to Technician',
       message: data => {
-        const bookingId = data.data.booking?.id || 'N/A';
-        return `Your booking #${bookingId.slice(0, 8)} has been assigned to technicians.`;
+        const booking = data.data.booking;
+        const assignedByInfo = data.assignedByInfo || {};
+
+        const bookingId = booking?.id || 'N/A';
+        const bookingDate = booking?.bookingDate
+          ? new Date(booking.bookingDate).toLocaleDateString('vi-VN')
+          : 'N/A';
+
+        const staffName = assignedByInfo.firstName
+          ? `${assignedByInfo.firstName} ${assignedByInfo.lastName || ''}`.trim()
+          : 'Staff';
+
+        return `Your booking #${bookingId.slice(0, 8)} has been assigned to technicians by ${staffName} on ${bookingDate}.`;
       },
       targetUserIdField: 'customerId',
       additional: [this.technicianAssignedToBooking()],
+    };
+  }
+
+  static technicianAssignedToBooking(): NotificationItem {
+    return {
+      type: NotificationType.BOOKING,
+      title: 'Assigned to Booking',
+      message: data => {
+        const booking = data.data.booking;
+        const assignedByInfo = data.assignedByInfo || {};
+
+        const bookingId = booking?.id || 'N/A';
+        const bookingDate = booking?.bookingDate
+          ? new Date(booking.bookingDate).toLocaleDateString('vi-VN')
+          : 'N/A';
+
+        const staffName = assignedByInfo.firstName
+          ? `${assignedByInfo.firstName} ${assignedByInfo.lastName || ''}`.trim()
+          : 'Staff';
+
+        return `You have been assigned to booking #${bookingId.slice(0, 8)} by ${staffName} on ${bookingDate}.`;
+      },
+      targetUserIdField: 'employeeIds',
     };
   }
 
@@ -105,8 +123,19 @@ export class NotificationTemplateService {
       title: 'Booking Cancelled',
       message: data => {
         const booking = data.data;
+        const cancelledBy = data.cancelledBy;
+        const cancellerInfo = data.cancellerInfo || {};
         const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
-        return `Your booking #${booking.id.slice(0, 8)} on ${date} has been cancelled.`;
+
+        if (cancelledBy === 'CUSTOMER') {
+          return `Your booking #${booking.id.slice(0, 8)} on ${date} has been cancelled.`;
+        } else {
+          const staffName = cancellerInfo.firstName
+            ? `${cancellerInfo.firstName} ${cancellerInfo.lastName || ''}`.trim()
+            : 'Staff';
+
+          return `Your booking #${booking.id.slice(0, 8)} on ${date} has been cancelled by ${staffName}.`;
+        }
       },
       targetUserIdField: 'customerId',
       additional: [this.notiBookingCancelledForStaff()],
@@ -119,8 +148,23 @@ export class NotificationTemplateService {
       title: 'Booking Cancelled',
       message: data => {
         const booking = data.data;
+        const cancelledBy = data.cancelledBy;
+        const cancellerInfo = data.cancellerInfo || {};
         const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
-        return `Booking #${booking.id.slice(0, 8)} on ${date} has been cancelled.`;
+
+        if (cancelledBy === 'CUSTOMER') {
+          const customerName = cancellerInfo.firstName
+            ? `${cancellerInfo.firstName} ${cancellerInfo.lastName || ''}`.trim()
+            : 'Customer';
+
+          return `Booking #${booking.id.slice(0, 8)} on ${date} has been cancelled by ${customerName}.`;
+        } else {
+          const staffName = cancellerInfo.firstName
+            ? `${cancellerInfo.firstName} ${cancellerInfo.lastName || ''}`.trim()
+            : 'Staff member';
+
+          return `Booking #${booking.id.slice(0, 8)} on ${date} has been cancelled by ${staffName}.`;
+        }
       },
       targetUserIdField: 'staffIds',
     };
@@ -225,23 +269,6 @@ export class NotificationTemplateService {
         return `Your shift on ${date} has been cancelled.`;
       },
       targetUserIdField: 'data.employeeId',
-    };
-  }
-
-  // Booking assignment notification (technician receive)
-  static technicianAssignedToBooking(): NotificationItem {
-    return {
-      type: NotificationType.BOOKING,
-      title: 'Assigned to Booking',
-      message: data => {
-        const assignment = data.data.assignments[0];
-        const bookingId = assignment.booking?.id || assignment.bookingId || 'N/A';
-        const bookingDate = assignment.booking?.bookingDate
-          ? new Date(assignment.booking.bookingDate).toLocaleDateString('vi-VN')
-          : 'N/A';
-        return `You have been assigned to booking #${bookingId.slice(0, 8)} on ${bookingDate}.`;
-      },
-      targetUserIdField: 'employeeIds',
     };
   }
 

@@ -22,12 +22,14 @@ export class BookingAssignmentController {
     @Body() body: CreateBookingAssignmentsDTO,
     @CurrentUser() user: JWT_Payload
   ) {
-    const { data, customerId, employeeIds } =
+    const { data, customerId, employeeIds, assignedByInfo } =
       await this.bookingAssignmentService.assignTechniciansToBooking(body, user.sub);
+
     return {
       data,
       customerId,
       employeeIds,
+      assignedByInfo,
       message: 'Technicians assigned successfully',
     };
   }
