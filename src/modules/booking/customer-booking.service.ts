@@ -27,8 +27,8 @@ export class CustomerBookingService {
     if (!booking) throw new BadRequestException('Booking not found');
     if (booking.customerId !== customerId)
       throw new BadRequestException('You can only update your own bookings');
-    if (!CAN_ADJUST.includes(booking.status))
-      throw new BadRequestException('Only PENDING or ASSIGNED bookings can be updated');
+    if (booking.status !== 'PENDING')
+      throw new BadRequestException('Only PENDING bookings can be updated');
 
     const updatePayload = {
       note: updateData.note ?? booking.note,

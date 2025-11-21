@@ -12,27 +12,63 @@ import { JWT_Payload } from 'src/common/types';
 import { Prisma } from '@prisma/client';
 import { StaffBookingDetailDTO } from './dto/staff-booking-detail.dto';
 import { parseDate } from 'src/utils';
+import { BookingDetailService } from '../booking-detail/booking-detail.service';
 @Injectable()
 export class StaffBookingService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly bookingDetailService: BookingDetailService
+  ) {}
 
-  async updateBooking(bookingId: string, updateData: StaffUpdateBookingDTO) {
-    const booking = await this.prismaService.booking.findUnique({
-      where: { id: bookingId },
-    });
-    if (!booking) throw new BadRequestException('Booking not found');
-    const notAllowed = ['COMPLETED', 'CANCELLED'];
-    if (notAllowed.includes(booking.status)) {
-      throw new BadRequestException(`Cannot update bookings that are ${notAllowed.join(' or ')}`);
-    }
-    const updatedBooking = await this.prismaService.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: updateData.status ?? booking.status,
+  async updateBooking(bookingId: string, updateData: StaffUpdateBookingDTO, staffId: string) {
+    const staffCenter = await this.prismaService.employee.findUnique({
+      where: { accountId: staffId },
+      select: {
+        workCenters: {
+          where: { endDate: null },
+          select: { centerId: true },
+          take: 1,
+        },
       },
     });
+    if (!staffCenter) {
+      throw new BadRequestException('Staff not found');
+    }
+    const booking = await this.prismaService.booking.findUnique({
+      where: { id: bookingId, centerId: staffCenter?.workCenters[0].centerId },
+    });
 
-    return updatedBooking;
+    if (!booking) throw new BadRequestException('Booking not found');
+
+    const NOT_ALLOWED_UPDATE_STATUSES = ['CHECKED_OUT', 'CANCELLED'];
+    if (NOT_ALLOWED_UPDATE_STATUSES.includes(booking.status)) {
+      throw new BadRequestException(`Cannot update a booking that is ${booking.status}`);
+    }
+
+    const updatePayload: Prisma.BookingUpdateInput = {};
+
+    if (updateData.status) {
+      updatePayload.status = updateData.status;
+    }
+    const ALLOW_UPDATE_SERVICES_STATUSES = ['PENDING', 'ASSIGNED', 'CHECKED_IN'];
+    if (
+      (updateData.serviceIds || updateData.packageIds) &&
+      ALLOW_UPDATE_SERVICES_STATUSES.includes(booking.status)
+    ) {
+      await this.bookingDetailService.updateBookingDetails(bookingId, {
+        services: updateData.serviceIds,
+        packages: updateData.packageIds,
+      });
+
+      updatePayload.totalCost = await this.bookingDetailService.calculateTotalCost(bookingId);
+    }
+
+    await this.prismaService.booking.update({
+      where: { id: bookingId },
+      data: updatePayload,
+    });
+
+    return this.getBookingById(bookingId);
   }
 
   async getBookings(

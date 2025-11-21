@@ -308,14 +308,6 @@ export class BookingService {
       bookingDate.getDate()
     );
 
-    // ✅ Debug logs
-    console.log('=== getStaffIdsForBooking DEBUG ===');
-    console.log('Original bookingDate:', bookingDate);
-    console.log('bookingDateOnly (local):', bookingDateOnly);
-    console.log('centerId:', centerId);
-    console.log('shiftId:', shiftId);
-
-    // ✅ Query with date range to handle timezone issues
     const staffSchedules = await this.prismaService.workSchedule.findMany({
       where: {
         shiftId,
@@ -358,13 +350,7 @@ export class BookingService {
       },
     });
 
-    // ✅ Debug logs
-    console.log('Found schedules:', staffSchedules.length);
-    console.log('Schedule details:', JSON.stringify(staffSchedules, null, 2));
-
     const staffIds = staffSchedules.map(s => s.employeeId);
-    console.log('Staff IDs for notification:', staffIds);
-    console.log('=== END DEBUG ===\n');
 
     return staffIds;
   }
@@ -715,7 +701,7 @@ export class BookingService {
         return this.customerBookingService.updateBooking(bookingId, user.sub, updatedBody);
       case AccountRole.STAFF:
         const staffBody = plainToInstance(StaffUpdateBookingDTO, body);
-        return this.staffBookingService.updateBooking(bookingId, staffBody);
+        return this.staffBookingService.updateBooking(bookingId, staffBody, user.sub);
       case AccountRole.ADMIN:
         const updatedAdminBody = plainToInstance(AdminUpdateBookingDTO, body);
         return this.adminBookingService.updateBooking(bookingId, updatedAdminBody);
