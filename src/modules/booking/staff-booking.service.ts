@@ -40,7 +40,7 @@ export class StaffBookingService {
 
     if (!booking) throw new BadRequestException('Booking not found');
 
-    const NOT_ALLOWED_UPDATE_STATUSES = ['CHECKED_OUT', 'CANCELLED'];
+    const NOT_ALLOWED_UPDATE_STATUSES = ['CHECKED_OUT'];
     if (NOT_ALLOWED_UPDATE_STATUSES.includes(booking.status)) {
       throw new BadRequestException(`Cannot update a booking that is ${booking.status}`);
     }
