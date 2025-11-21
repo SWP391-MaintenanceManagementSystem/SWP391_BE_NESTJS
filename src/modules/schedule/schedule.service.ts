@@ -230,4 +230,50 @@ export class ScheduleService {
 
     await Promise.all(tasks);
   }
+
+  @Cron(CronExpression.EVERY_10_MINUTES, { timeZone: VN_TIMEZONE })
+  async handleAutoCancelNoShowBooking() {
+    this.logger.debug('AUTO-CANCEL BOOKING IF NOT CHECKED-IN AFTER 30 MIN');
+
+    const now = new Date();
+    const expiredBookings = await this.prisma.booking.findMany({
+      where: {
+        status: { in: [BookingStatus.PENDING, BookingStatus.ASSIGNED] },
+        bookingDate: { lt: dateFns.subMinutes(now, 30) },
+      },
+      include: { customer: { include: { account: true } } },
+    });
+
+    if (!expiredBookings.length) return;
+
+    const tasks = expiredBookings.map(async booking => {
+      await this.prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: BookingStatus.CANCELLED,
+          note: 'Auto-cancel: customer did not check in within 30 minutes',
+        },
+      });
+
+      // if (booking.customer?.account?.email) {
+      //   const fullName = `${booking.customer.profile?.firstName ?? ''} ${booking.customer.profile?.lastName ?? ''}`;
+      //   await this.emailService.sendBookingCancelledEmail(
+      //     booking.customer.account.email,
+      //     fullName,
+      //     dateFns.format(booking.bookingDate, 'dd/MM/yyyy HH:mm')
+      //   );
+      // }
+      await this.notificationService.sendNotification(
+        booking.customer.account.id,
+        `Your booking scheduled at ${dateFns.format(booking.bookingDate, 'dd/MM/yyyy HH:mm')} has been cancelled due to no check-in within 30 minutes.`,
+        NotificationType.BOOKING,
+        'Booking Cancelled'
+      );
+      this.logger.debug(
+        `Auto-cancelled booking ID ${booking.id} for customer ID ${booking.customerId}`
+      );
+    });
+
+    await Promise.all(tasks);
+  }
 }
