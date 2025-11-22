@@ -85,7 +85,6 @@ export class BookingController {
 
   @Patch('admin/:id')
   @Roles(AccountRole.ADMIN)
-  @EmitNotification(NotificationTemplateService.bookingStatusUpdate())
   async adminUpdateBooking(
     @Param('id') id: string,
     @Body() body: AdminUpdateBookingDTO,
@@ -100,32 +99,62 @@ export class BookingController {
 
   @Patch('customer/:id')
   @Roles(AccountRole.CUSTOMER)
-  @EmitNotification(NotificationTemplateService.bookingStatusUpdate())
+  @EmitNotification(NotificationTemplateService.customerUpdateBooking())
   async customerUpdateBooking(
     @Param('id') id: string,
     @Body() body: CustomerUpdateBookingDTO,
     @CurrentUser() user: JWT_Payload
   ) {
-    const data = await this.bookingService.updateBooking(id, body, user);
+    const result = await this.bookingService.updateBooking(id, body, user);
+
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'booking' in result &&
+      'customerId' in result &&
+      'staffIds' in result &&
+      'customer' in result
+    ) {
+      return {
+        data: result.booking,
+        customerId: result.customerId,
+        staffIds: result.staffIds,
+        customer: result.customer,
+        message: 'Booking updated successfully',
+      };
+    }
     return {
-      data,
+      data: result,
       message: 'Booking updated successfully',
     };
   }
 
   @Patch('staff/:id')
   @Roles(AccountRole.STAFF)
-  @EmitNotification(NotificationTemplateService.bookingStatusUpdate())
+  @EmitNotification(NotificationTemplateService.staffUpdateBooking())
   async staffUpdateBooking(
     @Param('id') id: string,
     @Body() body: StaffUpdateBookingDTO,
     @CurrentUser() user: JWT_Payload
   ) {
-    const data = await this.bookingService.updateBooking(id, body, user);
-    return {
-      data,
-      message: 'Booking updated successfully',
-    };
+    const result = await this.bookingService.updateBooking(id, body, user);
+    if (
+      typeof result === 'object' &&
+      result !== null &&
+      'booking' in result &&
+      'customerId' in result &&
+      'staffIds' in result &&
+      'staff' in result
+    ) {
+      return {
+        data: result.booking,
+        customerId: result.customerId,
+        staffIds: result.staffIds,
+        staff: result.staff,
+        message: 'Booking updated successfully',
+      };
+    }
+    throw new Error('Invalid update result from booking service');
   }
 
   @Delete(':id')
