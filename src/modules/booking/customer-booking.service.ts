@@ -10,6 +10,8 @@ import { localTimeToDate, parseDate } from 'src/utils';
 import { CAN_ADJUST } from './booking.service';
 import { CreateFeedbackDTO } from './dto/create-feedback.dto';
 import { BookingDTO } from './dto/booking.dto';
+import { AccountRole, AccountStatus } from '@prisma/client';
+import * as dateFns from 'date-fns';
 
 @Injectable()
 export class CustomerBookingService {
@@ -18,10 +20,28 @@ export class CustomerBookingService {
     private readonly bookingDetailService: BookingDetailService
   ) {}
 
-  async updateBooking(bookingId: string, customerId: string, updateData: CustomerUpdateBookingDTO) {
+  async updateBooking(
+    bookingId: string,
+    customerId: string,
+    updateData: CustomerUpdateBookingDTO
+  ): Promise<{
+    booking: CustomerBookingDetailDTO;
+    customerId: string;
+    staffIds: string[];
+    customer: { id: string; firstName: string; lastName: string };
+  }> {
     const booking = await this.prismaService.booking.findUnique({
       where: { id: bookingId },
-      include: { shift: { select: { centerId: true } } },
+      include: {
+        shift: { select: { centerId: true } },
+        customer: {
+          select: {
+            accountId: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
     });
 
     if (!booking) throw new BadRequestException('Booking not found');
@@ -102,7 +122,46 @@ export class CustomerBookingService {
       data: updatePayload,
     });
 
-    return this.getBookingById(bookingId, customerId);
+    //Get staff members in same center and shift
+    const staffSchedules = await this.prismaService.workSchedule.findMany({
+      where: {
+        shiftId: updatePayload.shiftId,
+        date: {
+          gte: dateFns.startOfDay(updatePayload.bookingDate),
+          lt: dateFns.endOfDay(updatePayload.bookingDate),
+        },
+        employee: {
+          account: {
+            role: AccountRole.STAFF,
+            status: AccountStatus.VERIFIED,
+          },
+          workCenters: {
+            some: {
+              centerId: booking.shift.centerId,
+              startDate: { lte: dateFns.startOfDay(updatePayload.bookingDate) },
+              OR: [
+                { endDate: null },
+                { endDate: { gte: dateFns.startOfDay(updatePayload.bookingDate) } },
+              ],
+            },
+          },
+        },
+      },
+      select: { employeeId: true },
+    });
+
+    const updatedBooking = await this.getBookingById(bookingId, customerId);
+
+    return {
+      booking: updatedBooking,
+      customerId: booking.customer.accountId,
+      staffIds: staffSchedules.map(s => s.employeeId),
+      customer: {
+        id: booking.customer.accountId,
+        firstName: booking.customer.firstName || 'Customer',
+        lastName: booking.customer.lastName || '',
+      },
+    };
   }
 
   async getBookingById(bookingId: string, userId: string) {

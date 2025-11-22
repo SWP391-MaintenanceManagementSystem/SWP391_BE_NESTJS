@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
-import { add } from 'date-fns/add';
 import {
   NotificationMetadata,
   NotificationItem,
@@ -101,11 +100,11 @@ export class NotificationTemplateService {
         return `Your booking #${booking.id.slice(0, 8)} has been completed. Please check the details and check-out.`;
       },
       targetUserIdField: 'customerId',
-      additional: [this.NotiBookingCompletedforStaff()],
+      additional: [this.notiBookingCompletedforStaff()],
     };
   }
 
-  static NotiBookingCompletedforStaff(): NotificationItem {
+  static notiBookingCompletedforStaff(): NotificationItem {
     return {
       type: NotificationType.BOOKING,
       title: 'Booking Completed',
@@ -167,28 +166,6 @@ export class NotificationTemplateService {
         }
       },
       targetUserIdField: 'staffIds',
-    };
-  }
-
-  static bookingStatusUpdate(): NotificationMetadata {
-    return {
-      type: NotificationType.BOOKING,
-      title: 'Booking Status Updated',
-      message: data => {
-        const booking = data.data;
-        const statusMap: Record<string, string> = {
-          PENDING: 'is pending confirmation',
-          ASSIGNED: 'has been assigned to a technician',
-          CHECKED_IN: 'vehicle has been checked in',
-          IN_PROGRESS: 'is in progress',
-          CHECKED_OUT: 'vehicle has been checked out',
-          COMPLETED: 'has been completed',
-          CANCELLED: 'has been cancelled',
-        };
-        const statusText = statusMap[booking.status as keyof typeof statusMap] || booking.status;
-        return `Your booking #${booking.id.slice(0, 8)} ${statusText}.`;
-      },
-      targetUserIdField: 'data.customerId',
     };
   }
 
@@ -428,6 +405,68 @@ export class NotificationTemplateService {
         return `Your refill request for "${partName}" has been approved. ${refillAmount} units added. New stock: ${newStock}.`;
       },
       targetUserIdField: 'technicianId',
+    };
+  }
+
+  static staffUpdateBooking(): NotificationMetadata {
+    return {
+      type: NotificationType.BOOKING,
+      title: 'Booking Updated by Staff',
+      message: data => {
+        const booking = data.data;
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        return `Booking #${booking.id.slice(0, 8)} for ${date} has been updated successfully. Please check the details.`;
+      },
+      targetUserIdField: 'staffIds',
+      additional: [this.notiCustomerBookingUpdatedByStaff()],
+    };
+  }
+
+  static notiCustomerBookingUpdatedByStaff(): NotificationItem {
+    return {
+      type: NotificationType.BOOKING,
+      title: 'Booking Updated by Staff',
+      message: data => {
+        const booking = data.data;
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        const staff = data.staff || {};
+        const staffName = staff.firstName
+          ? `${staff.firstName} ${staff.lastName || ''}`.trim()
+          : 'A staff member';
+        return `Booking #${booking.id.slice(0, 8)} for ${date} has been updated by ${staffName}. Please check the details.`;
+      },
+      targetUserIdField: 'customerId',
+    };
+  }
+
+  static customerUpdateBooking(): NotificationMetadata {
+    return {
+      type: NotificationType.BOOKING,
+      title: 'Booking Updated by Customer',
+      message: data => {
+        const booking = data.data;
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        return `Booking #${booking.id.slice(0, 8)} for ${date} has been updated successfully. Please check the details.`;
+      },
+      targetUserIdField: 'customerId',
+      additional: [this.notiStaffBookingUpdatedByCustomer()],
+    };
+  }
+
+  static notiStaffBookingUpdatedByCustomer(): NotificationItem {
+    return {
+      type: NotificationType.BOOKING,
+      title: 'Booking Updated by Customer',
+      message: data => {
+        const booking = data.data;
+        const date = new Date(booking.bookingDate).toLocaleDateString('vi-VN');
+        const customer = data.customer || {};
+        const customerName = customer.firstName
+          ? `${customer.firstName} ${customer.lastName || ''}`.trim()
+          : 'A customer';
+        return `Booking #${booking.id.slice(0, 8)} for ${date} has been updated by ${customerName}. Please check the details.`;
+      },
+      targetUserIdField: 'staffIds',
     };
   }
 }

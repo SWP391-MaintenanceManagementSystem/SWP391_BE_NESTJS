@@ -13,6 +13,7 @@ import { Prisma } from '@prisma/client';
 import { StaffBookingDetailDTO } from './dto/staff-booking-detail.dto';
 import { parseDate } from 'src/utils';
 import { BookingDetailService } from '../booking-detail/booking-detail.service';
+import { AccountRole, AccountStatus } from '@prisma/client';
 @Injectable()
 export class StaffBookingService {
   constructor(
@@ -20,10 +21,22 @@ export class StaffBookingService {
     private readonly bookingDetailService: BookingDetailService
   ) {}
 
-  async updateBooking(bookingId: string, updateData: StaffUpdateBookingDTO, staffId: string) {
+  async updateBooking(
+    bookingId: string,
+    updateData: StaffUpdateBookingDTO,
+    staffId: string
+  ): Promise<{
+    booking: StaffBookingDetailDTO;
+    customerId: string;
+    staffIds: string[];
+    staff: { id: string; firstName: string; lastName: string };
+  }> {
     const staffCenter = await this.prismaService.employee.findUnique({
       where: { accountId: staffId },
       select: {
+        accountId: true,
+        firstName: true,
+        lastName: true,
         workCenters: {
           where: { endDate: null },
           select: { centerId: true },
@@ -68,7 +81,45 @@ export class StaffBookingService {
       data: updatePayload,
     });
 
-    return this.getBookingById(bookingId);
+    const staffSchedules = await this.prismaService.workSchedule.findMany({
+      where: {
+        shiftId: booking.shiftId,
+        date: {
+          gte: dateFns.startOfDay(booking.bookingDate),
+          lt: dateFns.endOfDay(booking.bookingDate),
+        },
+        employee: {
+          account: {
+            role: AccountRole.STAFF,
+            status: AccountStatus.VERIFIED,
+          },
+          workCenters: {
+            some: {
+              centerId: booking.centerId,
+              startDate: { lte: dateFns.startOfDay(booking.bookingDate) },
+              OR: [
+                { endDate: null },
+                { endDate: { gte: dateFns.startOfDay(booking.bookingDate) } },
+              ],
+            },
+          },
+        },
+      },
+      select: { employeeId: true },
+    });
+
+    const updatedBooking = await this.getBookingById(bookingId);
+
+    return {
+      booking: updatedBooking,
+      customerId: booking.customerId,
+      staffIds: staffSchedules.map(s => s.employeeId),
+      staff: {
+        id: staffCenter.accountId,
+        firstName: staffCenter.firstName || 'Staff',
+        lastName: staffCenter.lastName || '',
+      },
+    };
   }
 
   async getBookings(
