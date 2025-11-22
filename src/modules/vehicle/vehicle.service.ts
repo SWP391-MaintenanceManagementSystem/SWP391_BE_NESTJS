@@ -176,9 +176,22 @@ export class VehicleService {
   }
 
   async deleteVehicle(vehicleId: string): Promise<VehicleDTO> {
-    const exists = await this.prismaService.vehicle.findUnique({ where: { id: vehicleId } });
+    const exists = await this.prismaService.vehicle.findUnique({
+      where: { id: vehicleId },
+    });
     if (!exists) {
       throw new NotFoundException('Vehicle not found');
+    }
+
+    const activeBooking = await this.prismaService.booking.findFirst({
+      where: {
+        vehicleId,
+        status: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'CHECKED_IN'] },
+      },
+    });
+
+    if (activeBooking) {
+      throw new BadRequestException('Cannot delete vehicle with active bookings');
     }
 
     const vehicle = await this.prismaService.vehicle.update({
@@ -186,6 +199,7 @@ export class VehicleService {
       data: { status: 'INACTIVE', deletedAt: new Date() },
       include: { vehicleModel: { include: { brand: true } } },
     });
+
     return {
       id: vehicle.id,
       vin: vehicle.vin,
