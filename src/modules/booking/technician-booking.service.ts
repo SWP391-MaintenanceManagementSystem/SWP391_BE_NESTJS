@@ -331,7 +331,7 @@ export class TechnicianBookingService {
           },
         },
         status: {
-          in: [BookingStatus.ASSIGNED, BookingStatus.IN_PROGRESS],
+          in: [BookingStatus.ASSIGNED, BookingStatus.IN_PROGRESS, BookingStatus.CHECKED_IN],
         },
       },
       orderBy: { bookingDate: 'asc' },
