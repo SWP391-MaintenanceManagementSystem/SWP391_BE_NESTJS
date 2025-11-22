@@ -1,44 +1,30 @@
-import { IsString, IsOptional, Matches, IsNotEmpty, IsEnum, Length } from 'class-validator';
+import { IsOptional } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AccountStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { ValidateNested } from 'class-validator';
+import { UpdateEmployeeWithCenterDTO } from '../../dto/update-employee-with-center.dto';
 
-export class UpdateTechnicianDto {
-  @IsOptional({ message: 'First name is required' })
-  @IsString({ message: 'First name must be a string' })
-  @Length(2, 30, { message: 'First name must be between 2 and 30 characters long' })
-  @Matches(/^[\p{L}\s]+$/u, {
-    message: 'First name can only contain letters and spaces',
-  })
-  @ApiPropertyOptional({
-    description: 'The first name of the user',
-    example: 'John',
-    minLength: 2,
-    maxLength: 30,
-  })
+export class UpdateTechnicianDTO {
+  @IsOptional()
+  @ApiPropertyOptional({ example: 'John' })
   firstName?: string;
 
-  @IsOptional({ message: 'Last name is required' })
-  @IsString({ message: 'Last name must be a string' })
-  @Length(1, 30, { message: 'Last name must be between 2 and 30 characters long' })
-  @Matches(/^[\p{L}\s]+$/u, {
-    message: 'Last name can only contain letters and spaces',
-  })
-  @ApiPropertyOptional({
-    description: 'The last name of the user',
-    example: 'Doe',
-    minLength: 1,
-    maxLength: 30,
-  })
+  @IsOptional()
+  @ApiPropertyOptional({ example: 'Doe' })
   lastName?: string;
 
   @IsOptional()
-  @IsString({ message: 'Phone must be a string' })
-  @Matches(/^[0-9]{10,11}$/, { message: 'Phone must be 10-11 digits' })
   @ApiPropertyOptional({ example: '0912345678' })
   phone?: string;
 
   @IsOptional()
-  @IsEnum(AccountStatus)
-  @ApiPropertyOptional({ required: false, example: 'VERIFIED', enum: AccountStatus })
+  @ApiPropertyOptional({ example: 'VERIFIED', enum: AccountStatus })
   status?: AccountStatus;
+
+  @ApiPropertyOptional({ type: UpdateEmployeeWithCenterDTO, description: 'Work center assignment' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => UpdateEmployeeWithCenterDTO)
+  workCenter?: UpdateEmployeeWithCenterDTO;
 }

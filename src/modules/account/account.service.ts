@@ -1,21 +1,28 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import { CreateAccountDTO } from './dto/create-account.dto';
-import { Account, AccountRole, AccountStatus, Prisma } from '@prisma/client';
+import { Account, AccountRole, AccountStatus, Prisma, SubscriptionStatus } from '@prisma/client';
 import { OAuthUserDTO } from 'src/modules/auth/dto/oauth-user.dto';
 import { PaginationResponse } from 'src/common/dto/pagination-response.dto';
 import { AccountWithProfileDTO, Profile } from './dto/account-with-profile.dto';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { EmployeeDTO } from '../employee/dto/employee.dto';
+import { EmployeeWithCenterDTO } from '../employee/dto/employee-with-center.dto';
 import { plainToInstance } from 'class-transformer';
 import { CloudinaryService } from '../upload/cloudinary.service';
 import { buildAccountOrderBy } from 'src/common/sort/sort.util';
+import { SubscriptionDTO } from '../subscription/dto/subscription.dto';
 @Injectable()
 export class AccountService {
   constructor(
     private prisma: PrismaService,
     private readonly cloudinaryService: CloudinaryService
-  ) { }
+  ) {}
 
   async createAccount(createAccountDto: CreateAccountDTO): Promise<Account | null> {
     const account = await this.prisma.account.create({
@@ -56,6 +63,20 @@ export class AccountService {
     const existingAccount = await this.getAccountByEmail(oauthUser.email);
 
     if (existingAccount) {
+      if (existingAccount.status === AccountStatus.DISABLED) {
+        throw new ForbiddenException({
+          message: 'User is banned. Please contact support.',
+          accountStatus: existingAccount.status,
+        });
+      }
+
+      if (existingAccount.status === AccountStatus.BANNED) {
+        throw new ForbiddenException({
+          message: 'User is banned. Please contact support.',
+          accountStatus: existingAccount.status,
+        });
+      }
+
       if (!existingAccount.provider.includes(oauthUser.provider)) {
         const updatedProviders = [...existingAccount.provider, oauthUser.provider];
         await this.prisma.account.update({
@@ -133,12 +154,42 @@ export class AccountService {
     }
   }
 
-  async getAccountById(id: string): Promise<AccountWithProfileDTO | null> {
+  async getAccountById(id: string): Promise<AccountWithProfileDTO | EmployeeWithCenterDTO | null> {
     const account = await this.prisma.account.findUnique({
       where: { id: id },
       include: {
         customer: true,
-        employee: true,
+        employee: {
+          include: {
+            certificates: {
+              select: {
+                id: true,
+                name: true,
+                issuedAt: true,
+                expiresAt: true,
+              },
+            },
+            workCenters: {
+              where: {
+                OR: [{ endDate: null }, { endDate: { gte: new Date() } }],
+              },
+              include: {
+                serviceCenter: {
+                  select: {
+                    id: true,
+                    name: true,
+                    address: true,
+                    status: true,
+                  },
+                },
+              },
+              orderBy: {
+                startDate: 'desc',
+              },
+              take: 1,
+            },
+          },
+        },
       },
     });
 
@@ -146,7 +197,63 @@ export class AccountService {
       return null;
     }
 
+    if (account.role === AccountRole.STAFF || account.role === AccountRole.TECHNICIAN) {
+      return this.mapAccountToEmployeeWithCenterDTO(account);
+    }
+
     return this.mapAccountToDTO(account);
+  }
+
+  mapAccountToEmployeeWithCenterDTO(account: any): EmployeeWithCenterDTO {
+    const workCenter = account.employee?.workCenters?.[0]
+      ? {
+          id: account.employee.workCenters[0].serviceCenter.id,
+          name: account.employee.workCenters[0].serviceCenter.name,
+          address: account.employee.workCenters[0].serviceCenter.address,
+          status: account.employee.workCenters[0].serviceCenter.status,
+          startDate: account.employee.workCenters[0].startDate,
+          endDate: account.employee.workCenters[0].endDate,
+        }
+      : {
+          id: null,
+          name: 'Not assigned',
+          startDate: null,
+          endDate: null,
+        };
+
+    const employeeWithCenter = plainToInstance(
+      EmployeeWithCenterDTO,
+      {
+        email: account.email,
+        id: account.id,
+        role: account.role,
+        phone: account.phone,
+        avatar: account.avatar,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt,
+        status: account.status,
+        provider: account.provider,
+        password: account.password || null,
+        profile: account.employee
+          ? {
+              firstName: account.employee.firstName,
+              lastName: account.employee.lastName,
+              certificates: account.employee.certificates.map((cert: any) => ({
+                id: cert.id,
+                name: cert.name,
+                issuedAt: cert.issuedAt,
+                expiresAt: cert.expiresAt,
+              })),
+              createdAt: account.employee.createdAt,
+              updatedAt: account.employee.updatedAt,
+            }
+          : null,
+        workCenter,
+      },
+      { excludeExtraneousValues: true }
+    );
+
+    return employeeWithCenter;
   }
 
   mapAccountToDTO(account: any): AccountWithProfileDTO {
@@ -188,7 +295,7 @@ export class AccountService {
   ): Promise<AccountWithProfileDTO> {
     const exists = await this.prisma.account.findUnique({
       where: { id },
-      include: { customer: true, employee: true, admin: true },
+      include: { customer: true, employee: true },
     });
     if (!exists) throw new NotFoundException(`Account with id ${id} not found`);
 
@@ -225,7 +332,7 @@ export class AccountService {
     const updated = await this.prisma.account.update({
       where: { id },
       data: accountData,
-      include: { customer: true, employee: true, admin: true },
+      include: { customer: true, employee: true },
     });
 
     return this.mapAccountToDTO(updated);
@@ -272,5 +379,38 @@ export class AccountService {
       where: { id: accountId },
       data: { password: newPassword },
     });
+  }
+
+  async getSubscriptionByCustomerId(customerId: string) {
+    const subscription = await this.prisma.subscription.findFirst({
+      where: {
+        customerId,
+        status: SubscriptionStatus.ACTIVE,
+      },
+      include: {
+        customer: true,
+        membership: true,
+      },
+    });
+    return subscription;
+  }
+
+  async getSubscriptionsByCustomerId(customerId: string): Promise<SubscriptionDTO[]> {
+    const subscriptions = await this.prisma.subscription.findMany({
+      where: {
+        customerId,
+        status: {
+          in: [SubscriptionStatus.ACTIVE, SubscriptionStatus.INACTIVE],
+        },
+      },
+      include: {
+        customer: true,
+        membership: true,
+      },
+    });
+    if (!subscriptions || subscriptions.length === 0) {
+      return [];
+    }
+    return subscriptions.map(sub => plainToInstance(SubscriptionDTO, sub));
   }
 }

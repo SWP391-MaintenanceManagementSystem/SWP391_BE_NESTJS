@@ -5,5 +5,6 @@ import { MembershipController } from './membership.controller';
 @Module({
   controllers: [MembershipController],
   providers: [MembershipService],
+  exports: [MembershipService],
 })
 export class MembershipModule {}

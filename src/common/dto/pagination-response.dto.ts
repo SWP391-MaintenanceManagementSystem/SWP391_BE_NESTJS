@@ -16,4 +16,4 @@ export class PaginationResponseDTO<T> {
   @ApiProperty()
   totalPages: number;
 }
-export interface PaginationResponse<T> extends PaginationResponseDTO<T> {}
+export type PaginationResponse<T> = PaginationResponseDTO<T>;

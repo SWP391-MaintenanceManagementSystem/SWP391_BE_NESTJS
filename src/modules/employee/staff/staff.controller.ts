@@ -1,32 +1,38 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req,
+} from '@nestjs/common';
 import { StaffService } from './staff.service';
 import { ApiTags, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
-import { CreateStaffDto } from './dto/create-staff.dto';
-import { UpdateStaffDto } from './dto/update-staff.dto';
+import { CreateStaffDTO } from './dto/create-staff.dto';
+import { UpdateStaffDTO } from './dto/update-staff.dto';
 import { Roles } from 'src/common/decorator/role.decorator';
 import { AccountRole } from '@prisma/client';
-import { EmployeeQueryDTO } from '../dto/employee-query.dto';
+import { EmployeeQueryDTO, EmployeeQueryWithPaginationDTO } from '../dto/employee-query.dto';
 import { plainToInstance } from 'class-transformer';
 import { AccountWithProfileDTO } from 'src/modules/account/dto/account-with-profile.dto';
+import { CurrentUser } from 'src/common/decorator/current-user.decorator';
+import { JWT_Payload } from 'src/common/types';
 
-@ApiTags('Staff')
-@Controller('api/staff')
+@ApiTags('Staffs')
+@Controller('api/staffs')
 export class StaffController {
-  constructor(private readonly staffService: StaffService) { }
+  constructor(private readonly staffService: StaffService) {}
 
   @Get('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  async getStaffs(
-    @Query() query: EmployeeQueryDTO,
-  ) {
-    const {
-      data,
-      page,
-      pageSize,
-      total,
-      totalPages,
-    } = await this.staffService.getStaffs(query);
+  async getStaffs(@Query() query: EmployeeQueryWithPaginationDTO) {
+    const { data, page, pageSize, total, totalPages } = await this.staffService.getStaffs(query);
     const staffs = data.map(staff => plainToInstance(AccountWithProfileDTO, staff));
     return {
       message: 'Staffs retrieved successfully',
@@ -38,6 +44,18 @@ export class StaffController {
     };
   }
 
+  @Get('/statistics')
+  @Roles(AccountRole.ADMIN)
+  @ApiBearerAuth('jwt-auth')
+  async getStaffStatusStats() {
+    const { data, total } = await this.staffService.getStaffStatistics();
+    return {
+      message: 'Staff status statistics retrieved successfully',
+      data,
+      total,
+    };
+  }
+
   @Get('/:id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
@@ -45,22 +63,27 @@ export class StaffController {
     return this.staffService.getStaffById(id);
   }
 
+  @Get('/me/dashboard')
+  @Roles(AccountRole.STAFF)
+  @ApiBearerAuth('jwt-auth')
+  async getMyDashboard(@CurrentUser() user: JWT_Payload) {
+    const staffId = user.sub;
+    return this.staffService.getStaffDashboard(staffId);
+  }
+
   @Post('/')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  @ApiBody({ type: CreateStaffDto })
-  async createStaff(@Body() createStaffDto: CreateStaffDto) {
+  @ApiBody({ type: CreateStaffDTO })
+  async createStaff(@Body() createStaffDto: CreateStaffDTO) {
     return this.staffService.createStaff(createStaffDto);
   }
 
   @Patch('/:id')
   @Roles(AccountRole.ADMIN)
   @ApiBearerAuth('jwt-auth')
-  @ApiBody({ type: UpdateStaffDto })
-  async updateStaff(
-    @Param('id') id: string,
-    @Body() updateStaffDto: UpdateStaffDto,
-  ) {
+  @ApiBody({ type: UpdateStaffDTO })
+  async updateStaff(@Param('id') id: string, @Body() updateStaffDto: UpdateStaffDTO) {
     return this.staffService.updateStaff(id, updateStaffDto);
   }
 

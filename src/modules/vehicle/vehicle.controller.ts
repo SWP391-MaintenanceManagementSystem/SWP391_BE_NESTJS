@@ -26,7 +26,7 @@ import { UpdateVehicleDTO } from './dto/update-vehicle.dto';
 @ApiBearerAuth('jwt-auth')
 @ApiTags('Vehicles')
 export class VehicleController {
-  constructor(private readonly vehicleService: VehicleService) { }
+  constructor(private readonly vehicleService: VehicleService) {}
 
   @Get('brands')
   async getAllVehicleBrands() {
@@ -66,7 +66,7 @@ export class VehicleController {
   //   };
   // }
 
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   @Get()
   async getAllVehicles(@Query() query: VehicleQueryDTO) {
     const { data, page, pageSize, total, totalPages } =
@@ -81,13 +81,23 @@ export class VehicleController {
     };
   }
 
-  @Roles(AccountRole.ADMIN)
+  @Roles(AccountRole.ADMIN, AccountRole.STAFF)
   @Get('/accounts/:accountId')
-  async getVehiclesByAccount(@Param('accountId') accountId: string) {
-    const vehicles = await this.vehicleService.getVehiclesByCustomer(accountId, true);
+  async getVehiclesByAccount(
+    @Query() query: VehicleQueryDTO,
+    @Param('accountId') accountId: string
+  ) {
+    const { data, page, pageSize, total, totalPages } = await this.vehicleService.getVehicles(
+      query,
+      accountId
+    );
     return {
       message: 'Vehicles retrieved successfully',
-      data: vehicles,
+      data,
+      page,
+      pageSize,
+      total,
+      totalPages,
     };
   }
 

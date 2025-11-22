@@ -30,6 +30,7 @@ import { plainToInstance } from 'class-transformer';
 import { CustomerDTO } from '../customer/dto/customer.dto';
 import { SkipResponseInterceptor } from 'src/common/decorator/skip-response.decorator';
 import { Account } from '@prisma/client';
+import { encodeBase64 } from 'src/utils';
 
 export interface RequestWithOAuthUser extends Omit<Request, 'user'> {
   user: OAuthUserDTO;
@@ -152,26 +153,30 @@ export class AuthController {
   @UseGuards(GoogleOauthGuard)
   @SkipResponseInterceptor()
   async googleAuthCallback(@Req() req: RequestWithOAuthUser, @Res() res: Response) {
-    const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
+    try {
+      const { accessToken, refreshToken } = await this.authService.googleOAuthSignIn(req.user);
+      const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
+      const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
 
-    const rfExpireTime = this.configService.get<ms.StringValue>('RF_EXPIRE_TIME');
-    const maxAge = rfExpireTime ? ms(rfExpireTime) : ms('7d');
-
-    res.cookie('refreshToken', refreshToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      maxAge,
-    });
-
-    // Redirect to frontend with access token
-    const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
-    return res.redirect(`${frontendUrl}/auth/success?token=${accessToken}`);
+      res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge,
+      });
+      const encoded = encodeBase64(accessToken);
+      // Redirect to frontend with access token
+      const frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+      return res.redirect(`${frontendUrl}/auth/success?token=${encoded}`);
+    } catch (error) {
+      return res.redirect(
+        `${this.configService.get('FRONTEND_URL')}/auth/failed?message=${error.message}`
+      );
+    }
   }
 
   @Get('/me')
   @ApiBearerAuth('jwt-auth')
-  @Serialize(SignInResponseDTO)
   async getMe(@CurrentUser() user: JWT_Payload) {
     const account = await this.accountService.getAccountById(user.sub);
     return {

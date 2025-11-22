@@ -1,0 +1,131 @@
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { CreateCategoryDto } from './dto/create-category.dto';
+import { UpdateCategoryDto } from './dto/update-category.dto';
+import { CategoryDto } from './dto/category.dto';
+import { PrismaService } from '../prisma/prisma.service';
+import { plainToInstance } from 'class-transformer';
+
+@Injectable()
+export class CategoryService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async createCategory(createCategoryDto: CreateCategoryDto): Promise<CategoryDto> {
+    const existingCategory = await this.prisma.category.findFirst({
+      where: {
+        name: {
+          equals: createCategoryDto.name,
+          mode: 'insensitive',
+        },
+      },
+    });
+
+    if (existingCategory) {
+      throw new BadRequestException(`Category with name ${createCategoryDto.name} already exists`);
+    }
+
+    const category = await this.prisma.category.create({
+      data: createCategoryDto,
+    });
+
+    return plainToInstance(CategoryDto, category);
+  }
+
+  async getAllCategory(): Promise<CategoryDto[]> {
+    const categories = await this.prisma.category.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
+    return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });
+  }
+
+  async getCategoryByName(name: string): Promise<CategoryDto[]> {
+    const categories = await this.prisma.category.findMany({
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+      },
+      include: { parts: true },
+    });
+    if (!categories || categories.length === 0) {
+      throw new NotFoundException(`Category with Name ${name} not found`);
+    }
+    return plainToInstance(CategoryDto, categories, { excludeExtraneousValues: true });
+  }
+
+  async getCategoryById(id: string): Promise<CategoryDto> {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: { parts: true },
+    });
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+    return plainToInstance(CategoryDto, category, { excludeExtraneousValues: true });
+  }
+
+  async updateCategory(id: string, updateCategoryDto: UpdateCategoryDto): Promise<CategoryDto> {
+    const { name } = updateCategoryDto;
+
+    const existingCategory = await this.prisma.category.findUnique({
+      where: { id },
+    });
+
+    if (!existingCategory) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    if (name && name.trim().toLowerCase() !== existingCategory.name.toLowerCase()) {
+      const duplicate = await this.prisma.category.findFirst({
+        where: {
+          name: {
+            equals: name.trim(),
+            mode: 'insensitive',
+          },
+          NOT: { id },
+        },
+      });
+
+      if (duplicate) {
+        throw new BadRequestException(`Category ${name} already exists.`);
+      }
+    }
+
+    const updatedCategory = await this.prisma.category.update({
+      where: { id },
+      data: {
+        name: name?.trim() ?? existingCategory.name,
+      },
+    });
+
+    return plainToInstance(CategoryDto, updatedCategory, {
+      excludeExtraneousValues: true,
+    });
+  }
+
+  async removeCategory(id: string) {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      include: { parts: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+
+    try {
+      await this.prisma.category.delete({
+        where: { id },
+      });
+
+      return {
+        message: `Category '${category.name}' and related parts deleted successfully`,
+        data: null,
+      };
+    } catch (error) {
+      if (error.code === 'P2003') {
+        throw new BadRequestException(
+          `Cannot delete category '${category.name}' because it has related parts.`
+        );
+      }
+      throw new BadRequestException(`Failed to delete category: ${error.message}`);
+    }
+  }
+}

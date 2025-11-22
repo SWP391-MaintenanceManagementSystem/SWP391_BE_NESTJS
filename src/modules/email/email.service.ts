@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
+import { CreateBookingReminderDTO } from './dto/create-booking-reminder.dto';
 
 @Injectable()
 export class EmailService {
@@ -34,6 +35,39 @@ export class EmailService {
       context: {
         username: username ?? email,
         resetCode,
+        year: new Date().getFullYear(),
+      },
+    });
+  }
+
+  async sendRemindRenewMembershipEmail(email: string, username: string, expiryDate: string) {
+    const renewalLink =
+      `${this.configService.get('FRONTEND_URL')}/membership` || 'http://localhost:5173/membership';
+    await this.mailerService.sendMail({
+      to: email,
+      subject: 'Membership Expiration Reminder',
+      template: 'remind_renew_membership',
+      context: {
+        username: username ?? email,
+        expiryDate,
+        renewalLink,
+        year: new Date().getFullYear(),
+      },
+    });
+  }
+
+  async sendBookingReminderEmail(booking: CreateBookingReminderDTO) {
+    await this.mailerService.sendMail({
+      to: booking.email,
+      subject: 'Booking Reminder',
+      template: 'remind_booking_email',
+      context: {
+        username: booking.username ?? booking.email,
+        bookingDate: booking.bookingDate,
+        bookingTime: booking.bookingTime,
+        centerName: booking.centerName,
+        location: booking.location,
+        bookingDetailsURL: booking.bookingDetailsURL,
         year: new Date().getFullYear(),
       },
     });
