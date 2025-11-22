@@ -186,7 +186,7 @@ export class VehicleService {
     const activeBooking = await this.prismaService.booking.findFirst({
       where: {
         vehicleId,
-        status: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'CHECKED_IN'] },
+        status: { in: ['PENDING', 'ASSIGNED', 'IN_PROGRESS', 'CHECKED_IN', 'COMPLETED'] },
       },
     });
 
