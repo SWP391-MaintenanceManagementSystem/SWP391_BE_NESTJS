@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from 'src/modules/prisma/prisma.service';
 import * as dateFns from 'date-fns';
@@ -16,13 +17,63 @@ export class ScheduleService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly customerService: CustomerService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly configService: ConfigService
   ) {}
 
   // @Cron(CronExpression.EVERY_5_SECONDS)
   // handleCron() {
   //     this.logger.debug('Cron job chạy mỗi 5 giây');
   // }
+
+  @Cron(CronExpression.EVERY_10_MINUTES, { timeZone: VN_TIMEZONE })
+  async pingHealthCheck() {
+    const healthCheckUrl = this.getHealthCheckUrl();
+    const startedAt = new Date();
+
+    if (!healthCheckUrl) {
+      this.logger.warn(
+        `Skip health check ping at ${startedAt.toISOString()}: HEALTHCHECK_URL is not configured`
+      );
+      return;
+    }
+
+    try {
+      const response = await fetch(healthCheckUrl);
+      const durationMs = Date.now() - startedAt.getTime();
+
+      if (!response.ok) {
+        this.logger.warn(
+          `Health check ping failed at ${startedAt.toISOString()} after ${durationMs}ms: ${response.status} ${response.statusText}`
+        );
+        return;
+      }
+
+      this.logger.log(
+        `Health check ping succeeded at ${startedAt.toISOString()} after ${durationMs}ms: ${healthCheckUrl}`
+      );
+    } catch (error) {
+      const durationMs = Date.now() - startedAt.getTime();
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Health check ping error at ${startedAt.toISOString()} after ${durationMs}ms: ${message}`
+      );
+    }
+  }
+
+  private getHealthCheckUrl() {
+    const configuredUrl =
+      this.configService.get<string>('HEALTHCHECK_URL') ||
+      this.configService.get<string>('APP_URL') ||
+      this.configService.get<string>('RENDER_EXTERNAL_URL');
+
+    if (configuredUrl) {
+      return `${configuredUrl.replace(/\/$/, '')}/health`;
+    }
+
+    const renderHostname = this.configService.get<string>('RENDER_EXTERNAL_HOSTNAME');
+    return renderHostname ? `https://${renderHostname}/health` : undefined;
+  }
 
   @Cron(CronExpression.EVERY_HOUR, { timeZone: VN_TIMEZONE })
   async handleRemoveExpireToken() {
